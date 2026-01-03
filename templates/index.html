@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proactive Education Assistant</title>
+
+  <meta name="theme-color" content="#0d6efd">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Dropout Assistant</h1>
+      <p class="info">Offline-first Student Data Collection & Risk Prediction</p>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="addStudent">Add Student</button>
+      <button class="tab-btn" data-tab="statistics">Statistics</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+
+    <!-- Tab Contents -->
+    <div class="tab-content active" id="dashboard">
+      <h3>Student Dashboard</h3>
+      <input type="text" id="searchStudent" placeholder="Search student...">
+      <ul id="studentList"></ul>
+    </div>
+
+    <div class="tab-content" id="addStudent">
+      <h3>Add New Student</h3>
+      <input id="name" placeholder="Student Name" type="text">
+      <input id="attendance" placeholder="Attendance %" type="number" min="0" max="100">
+      <input id="marks" placeholder="Marks %" type="number" min="0" max="100">
+      <button onclick="saveStudent()">Save Student</button>
+      <div class="status" id="status">Checking...</div>
+    </div>
+
+    <div class="tab-content" id="statistics">
+      <h3>Statistics</h3>
+      <div id="statsContent">No data yet</div>
+    </div>
+
+    <div class="tab-content" id="settings">
+      <h3>Settings</h3>
+      <label>
+        <input type="checkbox" id="offlineSync" checked>
+        Enable Auto Sync
+      </label>
+      <p>Theme: <select id="themeSelect"><option>Light</option><option>Dark</option></select></p>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+    // Tab switching
+    const tabs = document.querySelectorAll('.tab-btn');
+    const contents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        contents.forEach(c => c.classList.remove('active'));
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}")
+      .then(() => console.log("✅ Service Worker Registered"))
+      .catch(err => console.error("❌ SW error", err));
+    }
+  </script>
+</body>
+</html>

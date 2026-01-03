@@ -1,0 +1,89 @@
+/* General Styles */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+}
+
+/* Login Card */
+.login-card {
+  background: #fff;
+  border-radius: 15px;
+  padding: 30px;
+  width: 100%;
+  max-width: 400px;
+  margin: 100px auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.login-card h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-control, .form-select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.btn-login {
+  background: #2575fc;
+  color: #fff;
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn-login:hover {
+  background: #6a11cb;
+}
+
+.links {
+  margin-top: 15px;
+}
+
+.links a {
+  color: #2575fc;
+  text-decoration: none;
+}
+
+.links a:hover {
+  text-decoration: underline;
+}
+
+.error {
+  color: red;
+  margin-bottom: 15px;
+}
+
+/* Dashboard Styles */
+.dashboard {
+  max-width: 800px;
+  margin: 100px auto;
+  background: #fff;
+  padding: 40px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.btn-logout {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: #2575fc;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.btn-logout:hover {
+  background: #6a11cb;
+}
