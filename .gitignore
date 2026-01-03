@@ -1,0 +1,27 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+env/
+
+# IDE or Editor folders
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Flask instance folder (if any)
+instance/
+
+# Database files (if using SQLite)
+*.sqlite3
+
+# Environment variables
+.env
+
+# Logs
+*.log
