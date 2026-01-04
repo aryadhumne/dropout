@@ -14,54 +14,106 @@ students = []             # for teacher dashboard student records
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email'].strip()
-        password = request.form['password'].strip()
-        role = request.form['role'].strip()
+        role = request.form['role']
 
-        user = next(
-            (u for u in registered_users
-             if u['email'] == email and u['password'] == password and u['role'] == role),
-            None
-        )
+        # -------- STUDENT LOGIN --------
+        if role == 'student':
+            roll = request.form['roll']
+            name = request.form['name']
 
-        if user:
-            if role == 'teacher':
-                return redirect(url_for('dashboard_teacher'))
-            elif role == 'volunteer':
-                return redirect(url_for('dashboard_volunteer'))
-            elif role == 'coordinator':
-                return redirect(url_for('dashboard_coordinator'))
-            elif role == 'student':
+            student = next(
+                (s for s in students if s['roll'] == roll and s['name'].lower() == name.lower()),
+                None
+            )
+
+            if student:
+                session['role'] = 'student'
+                session['roll'] = roll
                 return redirect(url_for('dashboard_student'))
-        else:
-            flash("Invalid credentials or role.", "error")
+            else:
+                flash("Student record not found. Contact teacher.", "error")
+
+        # -------- TEACHER LOGIN --------
+        elif role == 'teacher':
+            email = request.form['email']
+            password = request.form['password']
+
+            if any(t for t in teachers if t['email'] == email and t['password'] == password):
+                session['role'] = 'teacher'
+                return redirect(url_for('dashboard_teacher'))
+            flash("Invalid teacher credentials", "error")
+
+        # -------- ADMIN LOGIN --------
+        elif role == 'admin':
+            email = request.form['email']
+            password = request.form['password']
+
+            if any(a for a in admins if a['email'] == email and a['password'] == password):
+                session['role'] = 'admin'
+                return redirect(url_for('dashboard_admin'))
+            flash("Invalid admin credentials", "error")
 
     return render_template('login.html')
 
-# ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        email = request.form['email'].strip()
-        password = request.form['password'].strip()
-        role = request.form['role'].strip()
+        role = request.form['role']
+        email = request.form['email']
+        password = request.form['password']
 
-        if any(u['email'] == email for u in registered_users):
-            flash("User already exists. Please login.", "error")
+        if role not in ['teacher', 'admin']:
+            flash("Students cannot register.", "error")
+            return redirect(url_for('register'))
+
+        if role == 'teacher':
+            teachers.append({'email': email, 'password': password})
         else:
-            registered_users.append({
-                'email': email,
-                'password': password,
-                'role': role
-            })
-            flash("Registration successful! Please login.", "success")
-            return redirect(url_for('login'))
+            admins.append({'email': email, 'password': password})
+
+        flash("Registration successful! Please login.", "success")
+        return redirect(url_for('login'))
 
     return render_template('register.html')
-@app.route('/dashboard/student')
-def dashboard_student():
-    return render_template('dashboard_student.html')
 
+
+    return render_template('register.html')
+@app.route('/student/login', methods=['GET', 'POST'])
+def student_login():
+    if request.method == 'POST':
+        roll = request.form['roll']
+        name = request.form['name']
+
+        student = next(
+            (s for s in students if s['roll'] == roll and s['name'].lower() == name.lower()),
+            None
+        )
+
+        if student:
+            return redirect(url_for('student_dashboard', roll=roll))
+        else:
+            flash("❌ Student record not found. Contact your teacher.", "error")
+
+    return render_template('student_login.html')
+@app.route('/student/dashboard/<roll>')
+def student_dashboard(roll):
+    student = next((s for s in students if s['roll'] == roll), None)
+
+    if not student:
+        return redirect(url_for('student_login'))
+
+    return render_template('student_dashboard.html', student=student)
+@app.route('/dashboard/admin')
+def dashboard_admin():
+    total_students = len(students)
+    high_risk = len([s for s in students if s['risk'] == 'High'])
+
+    return render_template(
+        'dashboard_admin.html',
+        students=students,
+        total=total_students,
+        high_risk=high_risk
+    )
 @app.route('/dashboard/teacher', methods=['GET', 'POST'])
 def dashboard_teacher():
     if request.method == 'POST':

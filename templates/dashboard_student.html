@@ -1,68 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Student</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <title>Student Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
 
+<body>
 <div class="mobile-app">
 
-    <!-- App Header -->
-    <div class="app-header">
-        <h2>Hello, Student 👋</h2>
-        <p>Track your learning progress</p>
+  <div class="app-header">
+    <h2>Hello, {{ student.name }} 👋</h2>
+    <p>Roll No: {{ student.roll }} | Std {{ student.standard }}{{ student.division }}</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="app-stats">
+    <div class="app-card green">
+      <h3>{{ student.avg }}%</h3>
+      <p>Avg Attendance</p>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="app-stats">
-
-        <div class="app-card purple">
-            <span>📘</span>
-            <h3>12</h3>
-            <p>Assignments</p>
-        </div>
-
-        <div class="app-card orange">
-            <span>📝</span>
-            <h3>5</h3>
-            <p>Exams</p>
-        </div>
-
-        <div class="app-card green">
-            <span>🎯</span>
-            <h3>95%</h3>
-            <p>Attendance</p>
-        </div>
-
+    <div class="app-card orange">
+      <h3>{{ student.assignment }}</h3>
+      <p>Assignment</p>
     </div>
 
-    <!-- Recent Activity -->
-    <div class="activity-card">
-        <h3>Recent Activities</h3>
-        <ul>
-            <li>📄 Submitted Assignment 1</li>
-            <li>✅ Completed Quiz 2</li>
-            <li>💬 Joined Discussion</li>
-        </ul>
+    <div class="app-card purple">
+      <h3>{{ student.risk }}</h3>
+      <p>Dropout Risk</p>
     </div>
+  </div>
 
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav">
-        <a class="active">🏠<span>Home</span></a>
-        <a>📚<span>Courses</span></a>
-        <a>🔔<span>Alerts</span></a>
-        <a href="/logout">⚙️<span>Logout</span></a>
-    </div>
+  <!-- SUBJECT ATTENDANCE -->
+  <div class="activity-card">
+    <h3>📚 Subject Attendance</h3>
+    <ul>
+      {% for sub in student.subjects %}
+        <li>{{ sub.subject }} → {{ sub.attendance }}%</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- CHART -->
+  <div class="activity-card">
+    <canvas id="attendanceChart"></canvas>
+  </div>
 
 </div>
+
+<script>
+new Chart(document.getElementById("attendanceChart"), {
+  type: "bar",
+  data: {
+    labels: [{% for s in student.subjects %}"{{ s.subject }}",{% endfor %}],
+    datasets: [{
+      label: "Attendance %",
+      data: [{% for s in student.subjects %}{{ s.attendance }},{% endfor %}],
+      backgroundColor: "#2575fc"
+    }]
+  },
+  options: {
+    scales: { y: { beginAtZero: true, max: 100 } }
+  }
+});
+</script>
 
 </body>
 </html>
