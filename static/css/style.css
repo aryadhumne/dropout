@@ -1,11 +1,11 @@
-/* General Styles */
+/* ================= GENERAL STYLES ================= */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: linear-gradient(to right, #6a11cb, #2575fc);
 }
 
-/* Login Card */
+/* ================= LOGIN CARD ================= */
 .login-card {
   background: #fff;
   border-radius: 15px;
@@ -22,7 +22,8 @@ body {
   color: #333;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
   width: 100%;
   padding: 10px;
   margin-bottom: 15px;
@@ -63,7 +64,7 @@ body {
   margin-bottom: 15px;
 }
 
-/* Dashboard Styles */
+/* ================= BASIC DASHBOARD ================= */
 .dashboard {
   max-width: 800px;
   margin: 100px auto;
@@ -76,7 +77,6 @@ body {
 
 .btn-logout {
   display: inline-block;
-  margin-top: 20px;
   padding: 10px 20px;
   background: #2575fc;
   color: #fff;
@@ -87,3 +87,501 @@ body {
 .btn-logout:hover {
   background: #6a11cb;
 }
+
+/* ================= TEACHER DASHBOARD ================= */
+
+.dashboard-container {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+/* Header */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+  margin-bottom: 25px;
+}
+
+/* Card Layout */
+.card {
+  background: #fff;
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+}
+
+.card h2 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.card h3 {
+  margin: 15px 0 10px;
+  color: #2575fc;
+  font-size: 16px;
+}
+
+/* ================= STUDENT FORM ================= */
+
+.student-form .form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.student-form input,
+.student-form select {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.student-form input:focus,
+.student-form select:focus {
+  outline: none;
+  border-color: #2575fc;
+  box-shadow: 0 0 5px rgba(37,117,252,0.3);
+}
+
+/* Attendance percentage inputs */
+.student-form input[type="number"] {
+  text-align: center;
+}
+
+/* Primary Button */
+.btn-primary {
+  background: #2575fc;
+  color: #fff;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #6a11cb;
+}
+
+/* ================= STUDENT TABLE ================= */
+
+.student-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+.student-table th,
+.student-table td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.student-table th {
+  background: #2575fc;
+  color: #fff;
+}
+
+.student-table tr:hover {
+  background: #f4f6ff;
+}
+
+/* Attendance cell formatting */
+.attendance-cell {
+  line-height: 1.6;
+  font-weight: bold;
+}
+
+/* ================= STATUS COLORS ================= */
+
+.present {
+  color: green;
+  font-weight: bold;
+}
+
+.absent {
+  color: red;
+  font-weight: bold;
+}
+
+.done {
+  color: #2575fc;
+  font-weight: bold;
+}
+
+.pending {
+  color: orange;
+  font-weight: bold;
+}
+
+.excellent {
+  color: darkgreen;
+  font-weight: bold;
+}
+
+.good {
+  color: #2575fc;
+  font-weight: bold;
+}
+
+.average {
+  color: orange;
+  font-weight: bold;
+}
+
+.poor {
+  color: red;
+  font-weight: bold;
+}
+/* ================= DROPOUT RISK ================= */
+
+.risk.low {
+  color: green;
+  font-weight: bold;
+}
+
+.risk.medium {
+  color: orange;
+  font-weight: bold;
+}
+
+.risk.high {
+  color: red;
+  font-weight: bold;
+}
+/* ================= RESPONSIVE DESIGN ================= */
+
+/* Tablets (≤ 992px) */
+@media (max-width: 992px) {
+
+  .dashboard-container {
+    padding: 15px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .student-form .form-row {
+    flex-direction: column;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .student-table th,
+  .student-table td {
+    font-size: 13px;
+    padding: 10px;
+  }
+}
+
+/* Mobile Devices (≤ 768px) */
+@media (max-width: 768px) {
+
+  body {
+    background: linear-gradient(to bottom, #6a11cb, #2575fc);
+  }
+
+  .login-card {
+    margin: 60px 15px;
+    padding: 25px;
+  }
+
+  .dashboard {
+    margin: 40px 15px;
+    padding: 25px;
+  }
+
+  .dashboard-container {
+    margin: 20px 10px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 22px;
+  }
+
+  .card h2 {
+    font-size: 18px;
+  }
+
+  .card h3 {
+    font-size: 14px;
+  }
+
+  .student-form input,
+  .student-form select {
+    font-size: 13px;
+    padding: 10px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Table scroll for mobile */
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .student-table {
+    min-width: 750px;
+  }
+}
+
+/* Small Mobile (≤ 480px) */
+@media (max-width: 480px) {
+
+  .login-card h2 {
+    font-size: 20px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 20px;
+  }
+
+  .btn-login,
+  .btn-primary {
+    font-size: 14px;
+  }
+
+  .student-table th,
+  .student-table td {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+canvas {
+  max-width: 100%;
+}
+/* ================= TEACHER DASHBOARD BACKGROUND ================= */
+
+/* ================= ADVANCED TEACHER DASHBOARD ================= */
+
+.teacher-bg {
+  min-height: 100vh;
+  background:
+    linear-gradient(-45deg, rgba(106,17,203,0.85), rgba(37,117,252,0.85), rgba(0,0,0,0.75)),
+    url("../images/teacher-bg.jpg") no-repeat center / cover;
+  background-size: 400% 400%;
+  animation: gradientMove 12s ease infinite;
+  padding-bottom: 40px;
+}
+
+/* Gradient animation */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Glassmorphism cards */
+.card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+/* Dark mode */
+.dark-mode .teacher-bg {
+  background:
+    linear-gradient(-45deg, rgba(0,0,0,0.9), rgba(40,40,40,0.9)),
+    url("../images/teacher-bg.jpg") no-repeat center / cover;
+}
+
+.dark-mode .card {
+  background: rgba(30, 30, 30, 0.95);
+  color: #fff;
+}
+
+.dark-mode .student-table th {
+  background: #111;
+}
+
+.dark-mode input,
+.dark-mode select {
+  background: #222;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+/* Toggle button */
+.toggle-btn {
+  background: #fff;
+  color: #2575fc;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.dark-mode .toggle-btn {
+  background: #222;
+  color: #fff;
+}
+
+/* Responsive table */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .student-form .form-row {
+    flex-direction: column;
+  }
+}
+
+body {
+  margin: 0;
+  background: #f2f4ff;
+  font-family: 'Poppins', sans-serif;
+}
+
+.mobile-app {
+  max-width: 420px;
+  margin: auto;
+  background: #f2f4ff;
+  min-height: 100vh;
+  position: relative;
+  padding-bottom: 80px;
+}
+
+/* Header */
+.app-header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 30px 20px;
+  color: #fff;
+  border-bottom-left-radius: 30px;
+  border-bottom-right-radius: 30px;
+}
+
+.app-header h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.app-header p {
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+/* Stats */
+.app-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 20px;
+  margin-top: -30px;
+}
+
+.app-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  text-align: center;
+  transition: 0.3s;
+}
+
+.app-card span {
+  font-size: 28px;
+}
+
+.app-card h3 {
+  margin: 10px 0 5px;
+  font-size: 28px;
+}
+
+.app-card p {
+  font-size: 13px;
+  color: #666;
+}
+
+.app-card:hover {
+  transform: translateY(-5px);
+}
+
+.purple { border-top: 4px solid #667eea; }
+.orange { border-top: 4px solid #f7971e; }
+.green { border-top: 4px solid #1dd1a1; }
+
+/* Activity */
+.activity-card {
+  background: #fff;
+  margin: 10px 20px;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.activity-card h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.activity-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.activity-card li {
+  font-size: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 0;
+  box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
+}
+
+.bottom-nav a {
+  text-decoration: none;
+  color: #888;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bottom-nav a.active {
+  color: #667eea;
+}
+
+.bottom-nav span {
+  font-size: 11px;
+}
+
+

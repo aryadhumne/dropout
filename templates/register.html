@@ -1,41 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
-   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduDrop - Register</title>
+ <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
 </head>
 <body>
-    <h1>Register</h1>
+  <div class="login-card">
+    <h2>EduDrop Registration</h2>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
+        {% for category, msg in messages %}
+          <p class="{{ category }}">{{ msg }}</p>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
-    <form method="POST" action="/register">
-        <label>Email:</label>
-        <input type="email" name="email" required><br><br>
+    <form action="{{ url_for('register') }}" method="POST">
+      
+      <select name="role" class="form-select" required>
+        <option value="" disabled selected>Select your role</option>
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+        <option value="volunteer">NGO Volunteer</option>
+        <option value="coordinator">School Coordinator</option>
+      </select>
 
-        <label>Password:</label>
-        <input type="password" name="password" required><br><br>
+      <input type="email" name="email" class="form-control" placeholder="Email" required>
+      <input type="password" name="password" class="form-control" placeholder="Password" required>
 
-        <label>Role:</label>
-        <select name="role" required>
-            <option value="">Select Role</option>
-            <option value="teacher">Teacher</option>
-            <option value="volunteer">Volunteer</option>
-            <option value="coordinator">Coordinator</option>
-        </select><br><br>
+      <button type="submit" class="btn-login">Register</button>
 
-        <button type="submit">Register</button>
+      <div class="links">
+        <a href="{{ url_for('login') }}">Already have an account? Login</a>
+      </div>
     </form>
-
-    <p>Already registered? <a href="/login">Login here</a></p>
+  </div>
 </body>
 </html>

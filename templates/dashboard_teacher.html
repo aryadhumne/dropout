@@ -2,15 +2,264 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teacher Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <div class="dashboard">
-    <h1>Welcome, Teacher!</h1>
-    <p>Here you can monitor at-risk students and view predictive insights.</p>
-    <a href="/" class="btn-logout">Logout</a>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="teacher-bg" id="themeRoot">
+
+<div class="dashboard-container">
+
+  <div class="dashboard-header">
+    <h1>👩‍🏫 Teacher Dashboard</h1>
+     <div>
+      <button class="toggle-btn" onclick="toggleDark()">🌙 Dark Mode</button>
+      <a href="/" class="btn-logout">Logout</a>
+    </div>
   </div>
+
+  <!-- ================= ADD STUDENT ================= -->
+  <div class="card">
+    <h2>Add Student Data</h2>
+
+    <form class="student-form" method="POST">
+
+      <!-- BASIC INFO -->
+      <div class="form-row">
+        <input type="text" name="name" placeholder="Student Name" required>
+        <input type="number" name="roll" placeholder="Roll No" required>
+      </div>
+
+      <div class="form-row">
+        <input type="text" name="standard" placeholder="Standard" required>
+
+        <select name="division" required>
+          <option value="">Division</option>
+          <option>A</option>
+          <option>B</option>
+          <option>C</option>
+          <option>D</option>
+          <option>E</option>
+        </select>
+      </div>
+
+      <!-- MONTH -->
+      <div class="form-row">
+        <select name="month" required>
+          <option value="">Select Month</option>
+          <option>January</option>
+          <option>February</option>
+          <option>March</option>
+          <option>April</option>
+          <option>May</option>
+          <option>June</option>
+          <option>July</option>
+          <option>August</option>
+          <option>September</option>
+          <option>October</option>
+          <option>November</option>
+          <option>December</option>
+        </select>
+      </div>
+
+      <!-- SUBJECTS -->
+      <h3>Subjects & Monthly Attendance (%)</h3>
+
+      <div id="subjects-container">
+        <div class="form-row">
+          <input type="text" name="subjects[]" placeholder="Subject Name" required>
+          <input type="number" name="attendance[]" placeholder="Attendance %" min="0" max="100" required>
+        </div>
+      </div>
+
+      <button type="button" class="btn-primary" onclick="addSubject()">+ Add Subject</button>
+
+      <br><br>
+
+      <!-- PERFORMANCE -->
+      <div class="form-row">
+        <select name="assignment" required>
+          <option value="">Assignment Status</option>
+          <option>Completed</option>
+          <option>Pending</option>
+        </select>
+
+        <select name="quiz" required>
+          <option value="">Quiz Performance</option>
+          <option>Excellent</option>
+          <option>Good</option>
+          <option>Average</option>
+          <option>Poor</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-primary">Add Student</button>
+    </form>
+  </div>
+
+  <!-- ================= STUDENT RECORDS ================= -->
+  <div class="card">
+    <h2>Student Records</h2>
+
+    <div class="table-wrapper">
+      <table class="student-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Roll</th>
+            <th>Std</th>
+            <th>Div</th>
+            <th>Month</th>
+            <th>Attendance (%)</th>
+            <th>Assignment</th>
+            <th>Quiz</th>
+            <th>Risk Level</th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for s in students %}
+          <tr>
+            <td>{{ s.name }}</td>
+            <td>{{ s.roll }}</td>
+            <td>{{ s.standard }}</td>
+            <td>{{ s.division }}</td>
+            <td>{{ s.month }}</td>
+
+            <td class="attendance-cell">
+              {% for sub in s.subjects %}
+                {{ sub.subject }}: {{ sub.attendance }}% <br>
+              {% endfor %}
+              <strong>Avg: {{ s.avg }}%</strong>
+            </td>
+
+            <td class="{{ 'done' if s.assignment == 'Completed' else 'pending' }}">
+              {{ s.assignment }}
+            </td>
+
+            <td class="{{ s.quiz|lower }}">
+              {{ s.quiz }}
+            </td>
+
+            <td class="risk {{ s.risk|lower }}">
+              {{ s.risk }}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+function addSubject() {
+  const container = document.getElementById("subjects-container");
+
+  const row = document.createElement("div");
+  row.className = "form-row";
+
+  row.innerHTML = `
+    <input type="text" name="subjects[]" placeholder="Subject Name" required>
+    <input type="number" name="attendance[]" placeholder="Attendance %" min="0" max="100" required>
+  `;
+
+  container.appendChild(row);
+}
+</script>
+<div class="card">
+  <h2>📊 Attendance Analytics</h2>
+
+  <canvas id="subjectChart" height="120"></canvas>
+  <br><br>
+  <canvas id="monthlyChart" height="120"></canvas>
+</div>
+
+
 </body>
+<script>
+/* ---------------- SUBJECT-WISE DATA ---------------- */
+const subjectData = {};
+const monthData = {};
+
+{% for s in students %}
+  {% for sub in s.subjects %}
+    if (!subjectData["{{ sub.subject }}"]) {
+      subjectData["{{ sub.subject }}"] = [];
+    }
+    subjectData["{{ sub.subject }}"].push({{ sub.attendance }});
+  {% endfor %}
+
+  if (!monthData["{{ s.month }}"]) {
+    monthData["{{ s.month }}"] = [];
+  }
+  monthData["{{ s.month }}"].push({{ s.avg }});
+{% endfor %}
+
+/* Average calculation */
+const subjectLabels = Object.keys(subjectData);
+const subjectAverages = subjectLabels.map(sub =>
+  subjectData[sub].reduce((a,b)=>a+b,0) / subjectData[sub].length
+);
+
+const monthLabels = Object.keys(monthData);
+const monthAverages = monthLabels.map(m =>
+  monthData[m].reduce((a,b)=>a+b,0) / monthData[m].length
+);
+
+/* ---------------- SUBJECT BAR CHART ---------------- */
+new Chart(document.getElementById("subjectChart"), {
+  type: "bar",
+  data: {
+    labels: subjectLabels,
+    datasets: [{
+      label: "Average Attendance (%)",
+      data: subjectAverages,
+      backgroundColor: "#2575fc"
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: { beginAtZero: true, max: 100 }
+    }
+  }
+});
+
+/* ---------------- MONTHLY LINE CHART ---------------- */
+new Chart(document.getElementById("monthlyChart"), {
+  type: "line",
+  data: {
+    labels: monthLabels,
+    datasets: [{
+      label: "Monthly Average Attendance (%)",
+      data: monthAverages,
+      borderColor: "#6a11cb",
+      fill: false,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true, max: 100 }
+    }
+  }
+});
+
+function toggleDark() {
+  document.getElementById("themeRoot").classList.toggle("dark-mode");
+}
+
+
+</script>
+
 </html>

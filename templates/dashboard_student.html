@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="mobile-app">
+
+    <!-- App Header -->
+    <div class="app-header">
+        <h2>Hello, Student 👋</h2>
+        <p>Track your learning progress</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="app-stats">
+
+        <div class="app-card purple">
+            <span>📘</span>
+            <h3>12</h3>
+            <p>Assignments</p>
+        </div>
+
+        <div class="app-card orange">
+            <span>📝</span>
+            <h3>5</h3>
+            <p>Exams</p>
+        </div>
+
+        <div class="app-card green">
+            <span>🎯</span>
+            <h3>95%</h3>
+            <p>Attendance</p>
+        </div>
+
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="activity-card">
+        <h3>Recent Activities</h3>
+        <ul>
+            <li>📄 Submitted Assignment 1</li>
+            <li>✅ Completed Quiz 2</li>
+            <li>💬 Joined Discussion</li>
+        </ul>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a class="active">🏠<span>Home</span></a>
+        <a>📚<span>Courses</span></a>
+        <a>🔔<span>Alerts</span></a>
+        <a href="/logout">⚙️<span>Logout</span></a>
+    </div>
+
+</div>
+
+</body>
+</html>
