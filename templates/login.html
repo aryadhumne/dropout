@@ -4,26 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EduDrop - Login</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
 </head>
 <body>
   <div class="login-card">
     <h2>EduDrop Login</h2>
     
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for msg in messages %}
-          <p class="error">{{ msg }}</p>
+        {% for category, msg in messages %}
+          <p class="{{ category }}">{{ msg }}</p>
         {% endfor %}
       {% endif %}
     {% endwith %}
     
-    <form action="/login" method="POST">
+    <form action="{{ url_for('login') }}" method="POST">
+      
       <select name="role" class="form-select" required>
         <option value="" disabled selected>Select your role</option>
         <option value="teacher">Teacher</option>
         <option value="volunteer">NGO Volunteer</option>
         <option value="coordinator">School Coordinator</option>
+        <option value="student">Student</option> <!-- ✅ FIXED -->
       </select>
       
       <input type="email" name="email" class="form-control" placeholder="Email" required>
@@ -32,7 +35,7 @@
       <button type="submit" class="btn-login">Login</button>
       
       <div class="links">
-        <a href="/register">Register</a> | 
+        <a href="{{ url_for('register') }}">Register</a> | 
         <a href="#">Forgot Password?</a>
       </div>
     </form>

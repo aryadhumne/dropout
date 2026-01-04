@@ -87,3 +87,135 @@ body {
 .btn-logout:hover {
   background: #6a11cb;
 }
+/* ============================ */
+/* 📱 MOBILE STUDENT APP UI */
+/* ============================ */
+
+body {
+  margin: 0;
+  background: #f2f4ff;
+  font-family: 'Poppins', sans-serif;
+}
+
+.mobile-app {
+  max-width: 420px;
+  margin: auto;
+  background: #f2f4ff;
+  min-height: 100vh;
+  position: relative;
+  padding-bottom: 80px;
+}
+
+/* Header */
+.app-header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 30px 20px;
+  color: #fff;
+  border-bottom-left-radius: 30px;
+  border-bottom-right-radius: 30px;
+}
+
+.app-header h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.app-header p {
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+/* Stats */
+.app-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 20px;
+  margin-top: -30px;
+}
+
+.app-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  text-align: center;
+  transition: 0.3s;
+}
+
+.app-card span {
+  font-size: 28px;
+}
+
+.app-card h3 {
+  margin: 10px 0 5px;
+  font-size: 28px;
+}
+
+.app-card p {
+  font-size: 13px;
+  color: #666;
+}
+
+.app-card:hover {
+  transform: translateY(-5px);
+}
+
+.purple { border-top: 4px solid #667eea; }
+.orange { border-top: 4px solid #f7971e; }
+.green { border-top: 4px solid #1dd1a1; }
+
+/* Activity */
+.activity-card {
+  background: #fff;
+  margin: 10px 20px;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.activity-card h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.activity-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.activity-card li {
+  font-size: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 0;
+  box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
+}
+
+.bottom-nav a {
+  text-decoration: none;
+  color: #888;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bottom-nav a.active {
+  color: #667eea;
+}
+
+.bottom-nav span {
+  font-size: 11px;
+}
