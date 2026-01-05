@@ -2,42 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EduDrop - Register</title>
- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <div class="login-card">
-    <h2>EduDrop Registration</h2>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, msg in messages %}
-          <p class="{{ category }}">{{ msg }}</p>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+<div class="login-card">
+  <h2>EduDrop Registration</h2>
 
-    <form action="{{ url_for('register') }}" method="POST">
-      
-      <select name="role" class="form-select" required>
-        <option value="" disabled selected>Select your role</option>
-        <option value="student">Student</option>
-        <option value="teacher">Teacher</option>
-        <option value="volunteer">NGO Volunteer</option>
-        <option value="coordinator">School Coordinator</option>
-      </select>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <p class="{{ category }}">{{ msg }}</p>
+    {% endfor %}
+  {% endwith %}
 
-      <input type="email" name="email" class="form-control" placeholder="Email" required>
-      <input type="password" name="password" class="form-control" placeholder="Password" required>
+  <form method="POST">
 
-      <button type="submit" class="btn-login">Register</button>
+    <select name="role" class="form-select" id="role" onchange="toggleRegister()" required>
+      <option value="" disabled selected>Select your role</option>
+      <option value="student">Student</option>
+      <option value="teacher">Teacher</option>
+      <option value="volunteer">NGO Volunteer</option>
+      <option value="coordinator">School Coordinator</option>
+    </select>
 
-      <div class="links">
-        <a href="{{ url_for('login') }}">Already have an account? Login</a>
-      </div>
-    </form>
-  </div>
+    <!-- Common -->
+    <input type="password" name="password" class="form-control"
+           placeholder="6-digit Password" pattern="\d{6}" required>
+
+    <!-- Non-student -->
+    <div id="emailField">
+      <input type="email" name="email" class="form-control" placeholder="Email">
+    </div>
+
+    <!-- Student-only -->
+    <div id="studentFields" style="display:none;">
+      <input type="text" name="name" class="form-control" placeholder="Student Name">
+      <input type="text" name="roll" class="form-control" placeholder="Roll Number">
+    </div>
+
+    <button class="btn-login">Register</button>
+
+    <div class="links">
+      <a href="{{ url_for('login') }}">Already registered? Login</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+function toggleRegister() {
+  const role = document.getElementById("role").value;
+  document.getElementById("studentFields").style.display =
+    role === "student" ? "block" : "none";
+  document.getElementById("emailField").style.display =
+    role === "student" ? "none" : "block";
+}
+</script>
+
 </body>
 </html>

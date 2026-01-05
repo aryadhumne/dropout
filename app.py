@@ -1,20 +1,27 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 
+from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer
 app = Flask(__name__)
 app.secret_key = "secret_key_for_flask_sessions"
-
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///edudrop.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
 # ---------------- TEMPORARY STORAGE ----------------
 registered_users = []     # for login/register
-students = []             # for teacher dashboard student records
+students = []  
+students_data = {}  # key = roll number
+# for teacher dashboard student records
 
 # ---------------- HOME / INDEX ----------------
 @app.route('/')
-
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         role = request.form['role']
+        password = request.form['password']
 
         # -------- STUDENT LOGIN --------
         if role == 'student':
@@ -22,7 +29,10 @@ def login():
             name = request.form['name']
 
             student = next(
-                (s for s in students if s['roll'] == roll and s['name'].lower() == name.lower()),
+                (s for s in students
+                 if s['roll'] == roll
+                 and s['name'].lower() == name.lower()
+                 and s['password'] == password),
                 None
             )
 
@@ -31,12 +41,11 @@ def login():
                 session['roll'] = roll
                 return redirect(url_for('dashboard_student'))
             else:
-                flash("Student record not found. Contact teacher.", "error")
+                flash("Invalid student credentials", "error")
 
         # -------- TEACHER LOGIN --------
         elif role == 'teacher':
             email = request.form['email']
-            password = request.form['password']
 
             if any(t for t in teachers if t['email'] == email and t['password'] == password):
                 session['role'] = 'teacher'
@@ -46,7 +55,6 @@ def login():
         # -------- ADMIN LOGIN --------
         elif role == 'admin':
             email = request.form['email']
-            password = request.form['password']
 
             if any(a for a in admins if a['email'] == email and a['password'] == password):
                 session['role'] = 'admin'
@@ -59,25 +67,42 @@ def login():
 def register():
     if request.method == 'POST':
         role = request.form['role']
-        email = request.form['email']
         password = request.form['password']
 
-        if role not in ['teacher', 'admin']:
-            flash("Students cannot register.", "error")
-            return redirect(url_for('register'))
+        # ---- STUDENT REGISTRATION ----
+        if role == 'student':
+            roll = request.form['roll']
+            name = request.form['name']
 
-        if role == 'teacher':
-            teachers.append({'email': email, 'password': password})
+            # 6-digit password validation
+            if not password.isdigit() or len(password) != 6:
+                flash("Student password must be exactly 6 digits", "error")
+                return redirect(url_for('register'))
+
+            if any(s for s in students if s['roll'] == roll):
+                flash("Student already registered", "error")
+                return redirect(url_for('register'))
+
+            students.append({
+                'roll': roll,
+                'name': name,
+                'password': password
+            })
+
+        # ---- TEACHER / ADMIN REGISTRATION ----
         else:
-            admins.append({'email': email, 'password': password})
+            email = request.form['email']
+
+            if role == 'teacher':
+                teachers.append({'email': email, 'password': password})
+            elif role == 'admin':
+                admins.append({'email': email, 'password': password})
 
         flash("Registration successful! Please login.", "success")
         return redirect(url_for('login'))
 
     return render_template('register.html')
 
-
-    return render_template('register.html')
 @app.route('/student/login', methods=['GET', 'POST'])
 def student_login():
     if request.method == 'POST':
@@ -95,14 +120,82 @@ def student_login():
             flash("❌ Student record not found. Contact your teacher.", "error")
 
     return render_template('student_login.html')
-@app.route('/student/dashboard/<roll>')
-def student_dashboard(roll):
-    student = next((s for s in students if s['roll'] == roll), None)
+@app.route('/student/dashboard')
+def dashboard_student():
+    if 'role' not in session or session['role'] != 'student':
+        return redirect(url_for('login'))
+
+    roll = session.get('roll')
+    student = students_data.get(roll)
 
     if not student:
-        return redirect(url_for('student_login'))
+        return render_template("dashboard_student.html", no_data=True)
 
-    return render_template('student_dashboard.html', student=student)
+    return render_template(
+        "dashboard_student.html",
+        student=student,
+        no_data=False
+    )
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email")
+
+        user = (
+            Teacher.query.filter_by(email=email).first()
+            or Volunteer.query.filter_by(email=email).first()
+            or Coordinator.query.filter_by(email=email).first()
+        )
+
+        if not user:
+            flash("Email not registered")
+            return redirect(url_for("forgot_password"))
+
+        token = serializer.dumps(email, salt="password-reset")
+
+        reset_link = url_for(
+            "reset_password",
+            token=token,
+            _external=True,
+            _scheme="https"
+        )
+
+        msg = Message(
+            subject="EduDrop Password Reset",
+            recipients=[email],
+            body=f"Click the link to reset your password:\n{reset_link}"
+        )
+        mail.send(msg)
+
+        flash("Password reset link sent to your email")
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password.html")
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt="password-reset", max_age=900)  # 15 min
+    except:
+        flash("Invalid or expired link")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        new_password = request.form.get("password")
+        confirm = request.form.get("confirm")
+
+        if new_password != confirm:
+            flash("Passwords do not match")
+            return redirect(request.url)
+
+        user = User.query.filter_by(email=email).first()
+        user.password = generate_password_hash(new_password)
+        db.session.commit()
+
+        flash("Password reset successful")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html")
 @app.route('/dashboard/admin')
 def dashboard_admin():
     total_students = len(students)
@@ -116,6 +209,10 @@ def dashboard_admin():
     )
 @app.route('/dashboard/teacher', methods=['GET', 'POST'])
 def dashboard_teacher():
+    if 'role' not in session or session['role'] != 'teacher':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('login'))
+
     if request.method == 'POST':
 
         # -------- BASIC STUDENT INFO --------
@@ -128,26 +225,23 @@ def dashboard_teacher():
         assignment = request.form['assignment']
         quiz = request.form['quiz']
 
-        # -------- SUBJECT & ATTENDANCE --------
+        # -------- SUBJECT & ATTENDANCE (DYNAMIC) --------
         subjects = request.form.getlist('subjects[]')
         attendance = request.form.getlist('attendance[]')
 
         subject_data = []
         total = 0
-        count = 0
 
         for s, a in zip(subjects, attendance):
             if s.strip() and a.strip():
                 a = int(a)
                 subject_data.append({
-                    'subject': s,
+                    'name': s.strip(),          # dynamic subject
                     'attendance': a
                 })
                 total += a
-                count += 1
 
-        # Prevent division by zero
-        avg_attendance = round(total / count, 1) if count > 0 else 0
+        avg_attendance = round(total / len(subject_data), 1) if subject_data else 0
 
         # -------- DROPOUT RISK LOGIC --------
         if avg_attendance >= 75 and assignment == "Completed" and quiz in ["Excellent", "Good"]:
@@ -157,8 +251,8 @@ def dashboard_teacher():
         else:
             risk = "Medium"
 
-        # -------- STORE STUDENT --------
-        student = {
+        # -------- STORE / UPDATE STUDENT (CENTRALIZED) --------
+        students_data[roll] = {
             'name': name,
             'roll': roll,
             'standard': standard,
@@ -171,10 +265,14 @@ def dashboard_teacher():
             'risk': risk
         }
 
-        students.append(student)
-        flash("✅ Student added successfully!", "success")
+        flash("✅ Student data saved successfully!", "success")
 
-    return render_template('dashboard_teacher.html', students=students)
+    # Send all students to teacher dashboard (optional list view)
+    return render_template(
+        'dashboard_teacher.html',
+        students=students_data.values()
+    )
+
 
 
 # ---------------- VOLUNTEER DASHBOARD ----------------
