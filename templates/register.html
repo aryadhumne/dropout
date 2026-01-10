@@ -3,12 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <title>EduDrop - Register</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background:
+        linear-gradient(rgba(250, 245, 245, 0.6), rgba(255, 255, 255, 0.6)),
+        url("/static/images/lg3.jpeg") no-repeat center center / cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(203, 200, 241, 0.96);
+      padding: 30px 28px;
+      border-radius: 18px;
+      box-shadow: 0 15px 45px rgba(0,0,0,0.45);
+      text-align: center;
+    }
+
+    .login-card h2 {
+      margin-bottom: 20px;
+      color: #1e3c72;
+    }
+
+    .form-control,
+    .form-select {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    .btn-login {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .links {
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    .links a {
+      color: #2a5298;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .error {
+      background: #ffe6e6;
+      color: red;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
+
 <body>
 
 <div class="login-card">
-  <h2>EduDrop Registration</h2>
+  <h2>📝 EduDrop Registration</h2>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, msg in messages %}
@@ -18,27 +99,34 @@
 
   <form method="POST">
 
+    <!-- ROLE -->
     <select name="role" class="form-select" id="role" onchange="toggleRegister()" required>
       <option value="" disabled selected>Select your role</option>
       <option value="student">Student</option>
       <option value="teacher">Teacher</option>
       <option value="volunteer">NGO Volunteer</option>
-      <option value="coordinator">School Coordinator</option>
+      <option value="principal">Principal</option>
     </select>
 
-    <!-- Common -->
+    <!-- COMMON PASSWORD -->
     <input type="password" name="password" class="form-control"
            placeholder="6-digit Password" pattern="\d{6}" required>
 
-    <!-- Non-student -->
-    <div id="emailField">
-      <input type="email" name="email" class="form-control" placeholder="Email">
+    <!-- NON-STUDENT FIELDS -->
+    <div id="nonStudentFields">
+      <input type="text" name="name" class="form-control"
+             placeholder="Full Name">
+
+      <input type="email" name="email" class="form-control"
+             placeholder="Email">
     </div>
 
-    <!-- Student-only -->
+    <!-- STUDENT FIELDS -->
     <div id="studentFields" style="display:none;">
-      <input type="text" name="name" class="form-control" placeholder="Student Name">
-      <input type="text" name="roll" class="form-control" placeholder="Roll Number">
+      <input type="text" name="name" class="form-control"
+             placeholder="Student Name">
+      <input type="text" name="roll" class="form-control"
+             placeholder="Roll Number">
     </div>
 
     <button class="btn-login">Register</button>
@@ -53,9 +141,11 @@
 <script>
 function toggleRegister() {
   const role = document.getElementById("role").value;
+
   document.getElementById("studentFields").style.display =
     role === "student" ? "block" : "none";
-  document.getElementById("emailField").style.display =
+
+  document.getElementById("nonStudentFields").style.display =
     role === "student" ? "none" : "block";
 }
 </script>

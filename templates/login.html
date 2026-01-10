@@ -1,14 +1,115 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>EduDrop - Login</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <style>
+  
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+
+      background:
+        linear-gradient(rgba(250, 245, 245, 0.6), rgba(255, 255, 255, 0.6)),
+        url("/static/images/lg3.jpeg") no-repeat center center / cover;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+   
+    .login-card {
+      width: 100%;
+      max-width: 380px;
+      background: rgba(206, 191, 250, 0.95);
+      padding: 30px 26px;
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+
+    .login-card h2 {
+      margin-bottom: 20px;
+      color: #1e3c72;
+    }
+
+    /* ================= FORM ELEMENTS ================= */
+    .form-control,
+    .form-select {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: #2a5298;
+    }
+
+    /* ================= BUTTON ================= */
+    .btn-login {
+      width: 100%;
+      margin-top: 15px;
+      padding: 12px;
+      background: linear-gradient(90deg, #1e3c72, #2a5298);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-login:hover {
+      opacity: 0.95;
+    }
+
+    /* ================= LINKS ================= */
+    .links {
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    .links a {
+      color: #2a5298;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    /* ================= ERROR ================= */
+    .error {
+      background: #ffe6e6;
+      color: red;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    /* ================= MOBILE ================= */
+    @media (max-width: 480px) {
+      .login-card {
+        margin: 15px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
 <div class="login-card">
-  <h2>EduDrop Login</h2>
+  <h2>🎓 EduDrop Login</h2>
 
   {% with messages = get_flashed_messages() %}
     {% for msg in messages %}
@@ -23,7 +124,7 @@
       <option value="student">Student</option>
       <option value="teacher">Teacher</option>
       <option value="volunteer">NGO Volunteer</option>
-      <option value="coordinator">School Coordinator</option>
+      <option value="principal">Principal</option>
     </select>
 
     <!-- Email login -->
@@ -45,6 +146,7 @@
     <div class="links">
       <a href="{{ url_for('register') }}">Register</a> |
       <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
+
     </div>
 
   </form>

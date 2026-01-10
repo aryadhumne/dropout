@@ -1,265 +1,433 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Teacher Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
+<meta charset="UTF-8">
+<title>Teacher Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="teacher-bg" id="themeRoot">
+<meta name="google" content="notranslate">
 
+<style>
+/* ===== GLOBAL ===== */
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+}
+
+/* ===== LAYOUT ===== */
+.layout{
+  display:flex;
+  min-height:100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  width:250px;
+  background:#1e293b;
+  color:#fff;
+  padding:20px;
+  transition:width .3s;
+}
+.sidebar.collapsed{width:70px}
+
+.sidebar h2{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:25px;
+}
+
+.sidebar.collapsed strong,
+.sidebar.collapsed a span,
+.sidebar.collapsed label,
+.sidebar.collapsed select{
+  display:none;
+}
+
+.sidebar a{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  color:#fff;
+  text-decoration:none;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+.sidebar a:hover{background:#334155}
+
+.sidebar label{
+  margin-top:20px;
+  display:block;
+}
+
+.sidebar select{
+  width:100%;
+  padding:8px;
+  border-radius:6px;
+  margin-top:6px;
+}
+
+/* ===== MAIN ===== */
+.main{
+  flex:1;
+}
+
+/* ===== BACKGROUND IMAGE ===== */
+.teacher-bg{
+  min-height:100vh;
+  background:
+    linear-gradient(rgba(255, 254, 254, 0.45), rgba(255, 248, 248, 0.45)),
+    url("{{ url_for('static', filename='images/sg.jpeg') }}");
+  background-size:cover;
+  background-position:center;
+  background-attachment:fixed;
+  padding:30px;
+}
+
+/* ===== DASHBOARD ===== */
+.dashboard-container{
+  max-width:1200px;
+  margin:auto;
+}
+
+/* ===== HEADER ===== */
+.dashboard-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#ffffffee;
+  padding:15px 20px;
+  border-radius:14px;
+  margin-bottom:20px;
+  color:#000;
+}
+
+.toggle-btn{
+  padding:8px 14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn-logout{
+  background:#dc2626;
+  color:#fff;
+  padding:8px 14px;
+  border-radius:8px;
+  text-decoration:none;
+  margin-left:10px;
+}
+
+/* ===== CARDS ===== */
+.card{
+  background:#ffffffee;
+  padding:20px;
+  border-radius:16px;
+  margin-bottom:20px;
+}
+
+/* ===== FORMS ===== */
+.form-row{
+  display:flex;
+  gap:15px;
+  margin-bottom:15px;
+}
+
+.form-row input,
+.form-row select{
+  flex:1;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #a9b1f3ff;
+}
+
+.btn-primary{
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* ===== TABLE ===== */
+.table-wrapper{
+  overflow-x:auto;
+}
+
+.student-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.student-table th,
+.student-table td{
+  padding:10px;
+  border-bottom:1px solid #c0b3deff;
+  text-align:left;
+}
+
+/* ===== DARK MODE ===== */
+.dark-mode .card,
+.dark-mode .dashboard-header{
+  background:#0f172add;
+  color:#fff;
+}
+
+.dark-mode input,
+.dark-mode select{
+  background:#020617;
+  color:#fff;
+  border:1px solid #334155;
+}
+
+/* ===== HIDE GOOGLE BAR ===== */
+.goog-logo-link,
+.goog-te-banner-frame{
+  display:none!important;
+}
+body{top:0!important}
+</style>
+</head>
+
+<body>
+
+<div class="layout">
+
+<!-- ========== SIDEBAR ========== -->
+<div class="sidebar" id="sidebar">
+  <h2><strong>EduTrack</strong></h2>
+
+  <a href="/about">ℹ️ <span>About Us</span></a>
+
+  <label>🌐 Language</label>
+  <select id="langSelect">
+    <option value="">Select</option>
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+    <option value="mr">Marathi</option>
+  </select>
+</div>
+
+<!-- ========== MAIN CONTENT ========== -->
+<div class="main">
+
+<div class="teacher-bg" id="themeRoot">
 <div class="dashboard-container">
 
-  <div class="dashboard-header">
-    <h1>👩‍🏫 Teacher Dashboard</h1>
-     <div>
-      <button class="toggle-btn" onclick="toggleDark()">🌙 Dark Mode</button>
-      <a href="/" class="btn-logout">Logout</a>
-    </div>
+<!-- HEADER -->
+<div class="dashboard-header">
+  <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+  <h1>👩‍🏫 Teacher Dashboard</h1>
+  <div>
+    <button class="toggle-btn" onclick="toggleDark()">🌙 Dark Mode</button>
+    <a href="/" class="btn-logout">Logout</a>
   </div>
-
-  <!-- ================= ADD STUDENT ================= -->
-  <div class="card">
-    <h2>Add Student Data</h2>
-
-    <form class="student-form" method="POST">
-
-      <!-- BASIC INFO -->
-      <div class="form-row">
-        <input type="text" name="name" placeholder="Student Name" required>
-        <input type="number" name="roll" placeholder="Roll No" required>
-      </div>
-
-      <div class="form-row">
-        <input type="text" name="standard" placeholder="Standard" required>
-
-        <select name="division" required>
-          <option value="">Division</option>
-          <option>A</option>
-          <option>B</option>
-          <option>C</option>
-          <option>D</option>
-          <option>E</option>
-        </select>
-      </div>
-
-      <!-- MONTH -->
-      <div class="form-row">
-        <select name="month" required>
-          <option value="">Select Month</option>
-          <option>January</option>
-          <option>February</option>
-          <option>March</option>
-          <option>April</option>
-          <option>May</option>
-          <option>June</option>
-          <option>July</option>
-          <option>August</option>
-          <option>September</option>
-          <option>October</option>
-          <option>November</option>
-          <option>December</option>
-        </select>
-      </div>
-
-      <!-- SUBJECTS -->
-      <h3>Subjects & Monthly Attendance (%)</h3>
-
-      <div id="subjects-container">
-        <div class="form-row">
-          <input type="text" name="subjects[]" placeholder="Subject Name" required>
-          <input type="number" name="attendance[]" placeholder="Attendance %" min="0" max="100" required>
-        </div>
-      </div>
-
-      <button type="button" class="btn-primary" onclick="addSubject()">+ Add Subject</button>
-
-      <br><br>
-
-      <!-- PERFORMANCE -->
-      <div class="form-row">
-        <select name="assignment" required>
-          <option value="">Assignment Status</option>
-          <option>Completed</option>
-          <option>Pending</option>
-        </select>
-
-        <select name="quiz" required>
-          <option value="">Quiz Performance</option>
-          <option>Excellent</option>
-          <option>Good</option>
-          <option>Average</option>
-          <option>Poor</option>
-        </select>
-      </div>
-
-      <button type="submit" class="btn-primary">Add Student</button>
-    </form>
-  </div>
-
-  <!-- ================= STUDENT RECORDS ================= -->
-  <div class="card">
-    <h2>Student Records</h2>
-
-    <div class="table-wrapper">
-      <table class="student-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Roll</th>
-            <th>Std</th>
-            <th>Div</th>
-            <th>Month</th>
-            <th>Attendance (%)</th>
-            <th>Assignment</th>
-            <th>Quiz</th>
-            <th>Risk Level</th>
-          </tr>
-        </thead>
-
-        <tbody>
-        {% for s in students %}
-          <tr>
-            <td>{{ s.name }}</td>
-            <td>{{ s.roll }}</td>
-            <td>{{ s.standard }}</td>
-            <td>{{ s.division }}</td>
-            <td>{{ s.month }}</td>
-
-            <td class="attendance-cell">
-              {% for sub in s.subjects %}
-                {{ sub.subject }}: {{ sub.attendance }}% <br>
-              {% endfor %}
-              <strong>Avg: {{ s.avg }}%</strong>
-            </td>
-
-            <td class="{{ 'done' if s.assignment == 'Completed' else 'pending' }}">
-              {{ s.assignment }}
-            </td>
-
-            <td class="{{ s.quiz|lower }}">
-              {{ s.quiz }}
-            </td>
-
-            <td class="risk {{ s.risk|lower }}">
-              {{ s.risk }}
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
 </div>
 
-<!-- ================= JAVASCRIPT ================= -->
+<!-- ADD STUDENT -->
+<div class="card">
+<h2>Add Student Data</h2>
+
+<form method="POST">
+  <div class="form-row">
+    <input type="text" name="name" placeholder="Student Name" required>
+    <input type="number" name="roll" placeholder="Roll No" required>
+  </div>
+
+  <div class="form-row">
+    <input type="text" name="standard" placeholder="Standard" required>
+    <select name="division" required>
+      <option value="">Division</option>
+      <option>A</option><option>B</option><option>C</option>
+      <option>D</option><option>E</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <select name="month" required>
+      <option value="">Select Month</option>
+      <option>January</option><option>February</option><option>March</option>
+      <option>April</option><option>May</option><option>June</option>
+      <option>July</option><option>August</option><option>September</option>
+      <option>October</option><option>November</option>
+    </select>
+  </div>
+
+  <h3>Subjects & Attendance</h3>
+
+  <div id="subjects-container">
+    <div class="form-row">
+      <input type="text" name="subjects[]" required>
+      <input type="number" name="attendance[]" min="0" max="100" required>
+    </div>
+  </div>
+
+  <button type="button" class="btn-primary" onclick="addSubject()">+ Add Subject</button>
+  <br><br>
+
+  <div class="form-row">
+    <select name="assignment" required>
+      <option value="">Assignment Status</option>
+      <option>Completed</option>
+      <option>Pending</option>
+    </select>
+
+    <select name="quiz" required>
+      <option value="">Quiz Performance</option>
+      <option>Excellent</option>
+      <option>Good</option>
+      <option>Average</option>
+      <option>Poor</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn-primary">Add Student</button>
+</form>
+</div>
+
+<!-- STUDENT RECORDS -->
+<div class="card">
+<h2>Student Records</h2>
+<div class="table-wrapper">
+<table class="student-table">
+<thead>
+<tr>
+  <th>Name</th><th>Roll</th><th>Std</th><th>Div</th>
+  <th>Month</th><th>Attendance</th>
+  <th>Assignment</th><th>Quiz</th><th>Risk</th>
+</tr>
+</thead>
+<tbody>
+{% for s in students %}
+<tr>
+  <td>{{ s.name }}</td>
+  <td>{{ s.roll }}</td>
+  <td>{{ s.standard }}</td>
+  <td>{{ s.division }}</td>
+  <td>{{ s.month }}</td>
+  <td>
+    {% for sub in s.subjects %}
+      {{ sub.name }}: {{ sub.attendance }}%<br>
+    {% endfor %}
+    <strong>Avg: {{ s.avg }}%</strong>
+  </td>
+  <td>{{ s.assignment }}</td>
+  <td>{{ s.quiz }}</td>
+  <td>{{ s.risk }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- ===== ATTENDANCE ANALYSIS CHART ===== -->
+<div class="card">
+  <h2>Attendance Analysis</h2>
+  <canvas id="attendanceChart" height="100"></canvas>
+</div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- ===== GOOGLE TRANSLATE ===== -->
+<div id="google_translate_element" style="display:none"></div>
 <script>
-function addSubject() {
-  const container = document.getElementById("subjects-container");
-
-  const row = document.createElement("div");
-  row.className = "form-row";
-
-  row.innerHTML = `
-    <input type="text" name="subjects[]" placeholder="Subject Name" required>
-    <input type="number" name="attendance[]" placeholder="Attendance %" min="0" max="100" required>
-  `;
-
-  container.appendChild(row);
+function googleTranslateElementInit(){
+  new google.translate.TranslateElement(
+    { pageLanguage: 'en', autoDisplay: false },
+    'google_translate_element'
+  );
 }
 </script>
-<div class="card">
-  <h2>📊 Attendance Analytics</h2>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
-  <canvas id="subjectChart" height="120"></canvas>
-  <br><br>
-  <canvas id="monthlyChart" height="120"></canvas>
-</div>
-
-
-</body>
 <script>
-/* ---------------- SUBJECT-WISE DATA ---------------- */
-const subjectData = {};
-const monthData = {};
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("collapsed");
+}
+function toggleDark(){
+  document.getElementById("themeRoot").classList.toggle("dark-mode");
+}
+function addSubject(){
+  const c=document.getElementById("subjects-container");
+  const r=document.createElement("div");
+  r.className="form-row";
+  r.innerHTML=`<input type="text" name="subjects[]" required>
+               <input type="number" name="attendance[]" min="0" max="100" required>`;
+  c.appendChild(r);
+}
 
-{% for s in students %}
-  {% for sub in s.subjects %}
-    if (!subjectData["{{ sub.subject }}"]) {
-      subjectData["{{ sub.subject }}"] = [];
-    }
-    subjectData["{{ sub.subject }}"].push({{ sub.attendance }});
+// ===== Attendance Chart =====
+const ctx = document.getElementById('attendanceChart').getContext('2d');
+
+const studentNames = [
+  {% for s in students %}
+    "{{ s.name }}",
   {% endfor %}
+];
 
-  if (!monthData["{{ s.month }}"]) {
-    monthData["{{ s.month }}"] = [];
-  }
-  monthData["{{ s.month }}"].push({{ s.avg }});
-{% endfor %}
+const studentAvgAttendance = [
+  {% for s in students %}
+    {{ s.avg }},
+  {% endfor %}
+];
 
-/* Average calculation */
-const subjectLabels = Object.keys(subjectData);
-const subjectAverages = subjectLabels.map(sub =>
-  subjectData[sub].reduce((a,b)=>a+b,0) / subjectData[sub].length
-);
-
-const monthLabels = Object.keys(monthData);
-const monthAverages = monthLabels.map(m =>
-  monthData[m].reduce((a,b)=>a+b,0) / monthData[m].length
-);
-
-/* ---------------- SUBJECT BAR CHART ---------------- */
-new Chart(document.getElementById("subjectChart"), {
-  type: "bar",
+const attendanceChart = new Chart(ctx, {
+  type: 'bar',
   data: {
-    labels: subjectLabels,
+    labels: studentNames,
     datasets: [{
-      label: "Average Attendance (%)",
-      data: subjectAverages,
-      backgroundColor: "#2575fc"
+      label: 'Average Attendance (%)',
+      data: studentAvgAttendance,
+      backgroundColor: 'rgba(37, 99, 235, 0.7)',
+      borderColor: 'rgba(37, 99, 235, 1)',
+      borderWidth: 1,
+      borderRadius: 6
     }]
   },
   options: {
     responsive: true,
     plugins: {
-      legend: { display: false }
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return context.parsed.y + '%';
+          }
+        }
+      }
     },
     scales: {
-      y: { beginAtZero: true, max: 100 }
+      y: { beginAtZero: true, max: 100, title: { display: true, text: 'Attendance (%)' } },
+      x: { title: { display: true, text: 'Students' } }
     }
   }
 });
 
-/* ---------------- MONTHLY LINE CHART ---------------- */
-new Chart(document.getElementById("monthlyChart"), {
-  type: "line",
-  data: {
-    labels: monthLabels,
-    datasets: [{
-      label: "Monthly Average Attendance (%)",
-      data: monthAverages,
-      borderColor: "#6a11cb",
-      fill: false,
-      tension: 0.3
-    }]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: { beginAtZero: true, max: 100 }
+// ===== Language Change =====
+document.getElementById("langSelect").addEventListener("change", function(){
+  const lang = this.value;
+  const timer = setInterval(()=>{
+    const combo = document.querySelector(".goog-te-combo");
+    if(combo){
+      combo.value = lang;
+      combo.dispatchEvent(new Event("change"));
+      clearInterval(timer);
     }
-  }
+  },300);
 });
-
-function toggleDark() {
-  document.getElementById("themeRoot").classList.toggle("dark-mode");
-}
-
-
 </script>
 
+</body>
 </html>

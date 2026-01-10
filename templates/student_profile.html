@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Profile</title>
+
+    <style>
+      
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+
+            background: url("/static/images/bg.jpeg") no-repeat center center/cover;
+           
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+ 
+        .card {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(197, 189, 222, 0.95);
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: fadeIn 0.6s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ================= HEADER ================= */
+        h2 {
+            color: #1e3c72;
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .divider {
+            height: 2px;
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            margin: 15px 0 20px;
+            border-radius: 2px;
+        }
+
+        /* ================= INFO ================= */
+        p {
+            margin: 8px 0;
+            font-size: 15px;
+            color: #333;
+        }
+
+        p strong {
+            color: #000;
+        }
+
+        /* ================= RISK BADGES ================= */
+        .risk-high {
+            background: #ff4d4d;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(255, 77, 77, 0.6);
+        }
+
+        .risk-medium {
+            background: #ffc107;
+            color: #000;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .risk-low {
+            background: #28a745;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        /* ================= SUBJECT LIST ================= */
+        h3 {
+            margin-top: 20px;
+            color: #2a5298;
+        }
+
+        ul {
+            padding-left: 18px;
+            margin: 8px 0;
+        }
+
+        ul li {
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        /* ================= BACK LINK ================= */
+        .back {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back a {
+            text-decoration: none;
+            font-weight: bold;
+            color: #2a5298;
+        }
+
+        .back a:hover {
+            text-decoration: underline;
+        }
+
+        /* ================= RESPONSIVE ================= */
+        @media (max-width: 600px) {
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <h2>{{ student.name }}</h2>
+    <div class="divider"></div>
+
+    <p><strong>Roll:</strong> {{ student.roll }}</p>
+    <p><strong>Standard:</strong> {{ student.standard }}</p>
+    <p><strong>Division:</strong> {{ student.division }}</p>
+    <p><strong>Month:</strong> {{ student.month }}</p>
+
+    <p><strong>Assignment:</strong> {{ student.assignment }}</p>
+    <p><strong>Quiz:</strong> {{ student.quiz }}</p>
+    <p><strong>Attendance Avg:</strong> {{ student.avg }}%</p>
+
+    <p>
+        <strong>Risk Level:</strong>
+        {% if student.risk == "High" %}
+            <span class="risk-high">🚨 HIGH</span>
+        {% elif student.risk == "Medium" %}
+            <span class="risk-medium">⚠️ MEDIUM</span>
+        {% else %}
+            <span class="risk-low">✅ LOW</span>
+        {% endif %}
+    </p>
+
+    <h3>📚 Subject Attendance</h3>
+    <ul>
+        {% for sub in student.subjects %}
+            <li>{{ sub.name }} – {{ sub.attendance }}%</li>
+        {% endfor %}
+    </ul>
+
+    <div class="back">
+        <a href="{{ url_for('dashboard_principal') }}">⬅ Back to Dashboard</a>
+    </div>
+
+</div>
+
+</body>
+</html>

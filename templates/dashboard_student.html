@@ -1,71 +1,325 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Student Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<title>Student Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="google" content="notranslate">
+
+<style>
+/* ===== GLOBAL ===== */
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+}
+
+/* ===== LAYOUT ===== */
+.layout{
+  display:flex;
+  min-height:100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  width:250px;
+  background:#1e293b;
+  color:#fff;
+  padding:20px;
+  transition:width .3s, left 0.3s;
+  position:fixed;
+  left:-260px;
+  top:0;
+  height:100%;
+  z-index:999;
+}
+.sidebar.active{left:0;}
+
+.sidebar h2{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:25px;
+}
+
+.sidebar a{
+  display:block;
+  color:#fff;
+  text-decoration:none;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+.sidebar a:hover{background:#334155;}
+
+.sidebar label{
+  margin-top:20px;
+  display:block;
+}
+
+.sidebar select{
+  width:100%;
+  padding:8px;
+  border-radius:6px;
+  margin-top:6px;
+}
+
+/* ===== MAIN ===== */
+.main{
+  flex:1;
+  margin-left:0;
+  transition:margin-left 0.3s;
+}
+.main.sidebar-open{margin-left:250px;}
+
+/* ===== BACKGROUND ===== */
+.student-bg{
+  min-height:100vh;
+  background:
+    linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)),
+    url("{{ url_for('static', filename='images/student.jpeg') }}");
+  background-size:cover;
+  background-position:center;
+  background-attachment:fixed;
+  padding:30px;
+}
+
+/* ===== CARDS ===== */
+.card{
+  background:#ffffffee;
+  padding:20px;
+  border-radius:16px;
+  margin-bottom:20px;
+  color:#000;
+}
+
+/* ===== HEADER ===== */
+.dashboard-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.toggle-btn{
+  padding:8px 14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+}
+
+.logout{
+  background:#dc2626;
+  color:#fff;
+  padding:8px 14px;
+  border-radius:8px;
+  text-decoration:none;
+}
+
+/* ===== INFO GRID ===== */
+.info-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap:15px;
+}
+
+/* ===== TABLE ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th, td{
+  padding:10px;
+  border-bottom:1px solid #c0b3deff;
+  text-align:center;
+}
+
+th{
+  background:rgba(0,0,0,0.1);
+}
+
+/* ===== RISK COLORS ===== */
+.risk-high { color: #dc2626; font-weight:bold; }
+.risk-medium { color: #facc15; font-weight:bold; }
+.risk-low { color: #16a34a; font-weight:bold; }
+
+/* ===== DARK MODE ===== */
+.dark-mode .card,
+.dark-mode .dashboard-header{
+  background:#0f172add;
+  color:#fff;
+}
+
+.dark-mode table th,
+.dark-mode table td{
+  color:#fff;
+  border-color:#334155;
+}
+
+.dark-mode table th{
+  background:#1e293b;
+}
+
+/* hide google bar */
+.goog-logo-link,
+.goog-te-banner-frame{
+  display:none!important;
+}
+body{top:0!important;}
+</style>
 </head>
 
 <body>
-<div class="mobile-app">
 
-  <div class="app-header">
-<h2>Hello, {{ student.name }} 👋</h2>
-<p>Roll No: {{ student.roll }} | Std {{ student.standard }}{{ student.division }}</p>
+<div class="layout">
 
+<!-- ================= SIDEBAR ================= -->
+<div class="sidebar" id="sidebar">
+  <h2>EduTrack</h2>
+
+  <a href="/about">ℹ️ About Us</a>
+
+  <label>🌐 Language</label>
+  <select id="langSelect">
+    <option value="">Select</option>
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+    <option value="mr">Marathi</option>
+  </select>
+</div>
+
+<!-- ================= MAIN CONTENT ================= -->
+<div class="main" id="mainContent">
+<div class="student-bg">
+
+<!-- HEADER -->
+<div class="dashboard-header">
+  <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+  <a href="/" class="logout">Logout</a>
+</div>
+
+<!-- STUDENT INFO -->
+<div class="card">
+  <h2>Hello, {{ student.name }} 👋</h2>
+  <div class="info-grid">
+    <p><strong>Roll No:</strong> {{ student.roll }}</p>
+    <p><strong>Standard:</strong> {{ student.standard }}</p>
+    <p><strong>Division:</strong> {{ student.division }}</p>
+    <p><strong>Month:</strong> {{ student.month }}</p>
   </div>
+</div>
 
-  <!-- STATS -->
-  <div class="app-stats">
-    <div class="app-card green">
-      <h3>{{ student.avg }}%</h3>
-      <p>Avg Attendance</p>
-    </div>
+{% if no_data %}
+<div class="card">
+  <h3>📌 Data Not Available</h3>
+  <p>Your teacher has not entered your academic data yet.</p>
+</div>
+{% else %}
 
-    <div class="app-card orange">
-      <h3>{{ student.assignment }}</h3>
-      <p>Assignment</p>
-    </div>
-
-    <div class="app-card purple">
-      <h3>{{ student.risk }}</h3>
-      <p>Dropout Risk</p>
-    </div>
+<div class="card">
+  <div class="info-grid">
+    <p><strong>Average Attendance:</strong> {{ student.avg }}%</p>
+    <p><strong>Assignment:</strong> {{ student.assignment }}</p>
+    <p><strong>Quiz:</strong> {{ student.quiz }}</p>
+    <p>
+      <strong>Dropout Risk:</strong>
+      <span class="
+        {% if student.risk == 'High' %}risk-high
+        {% elif student.risk == 'Medium' %}risk-medium
+        {% else %}risk-low{% endif %}
+      ">
+        {{ student.risk }}
+      </span>
+    </p>
   </div>
+</div>
 
-  <!-- SUBJECT ATTENDANCE -->
-  <div class="activity-card">
-    <h3>📚 Subject Attendance</h3>
-    <ul>
-      {% for sub in student.subjects %}
-        <li>{{ sub.subject }} → {{ sub.attendance }}%</li>
-      {% endfor %}
-    </ul>
-  </div>
+<div class="card">
+  <h3>📚 Subject-wise Attendance</h3>
+  <table>
+    <tr>
+      <th>Subject</th>
+      <th>Attendance (%)</th>
+    </tr>
+    {% for sub in student.subjects %}
+    <tr>
+      <td>{{ sub.name }}</td>
+      <td>{{ sub.attendance }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
 
-  <!-- CHART -->
-  <div class="activity-card">
-    <canvas id="attendanceChart"></canvas>
-  </div>
+<div class="card">
+  <h3>📊 Attendance Chart</h3>
+  <canvas id="attendanceChart"></canvas>
+</div>
+
+{% endif %}
+
+</div>
+</div>
 
 </div>
 
+<!-- ===== GOOGLE TRANSLATE ===== -->
+<div id="google_translate_element" style="display:none"></div>
 <script>
+function googleTranslateElementInit(){
+  new google.translate.TranslateElement(
+    { pageLanguage: 'en', autoDisplay: false },
+    'google_translate_element'
+  );
+}
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("active");
+  document.getElementById("mainContent").classList.toggle("sidebar-open");
+}
+
+// ===== Language Change =====
+document.getElementById("langSelect").addEventListener("change", function(){
+  const lang = this.value;
+  const timer = setInterval(()=>{
+    const combo = document.querySelector(".goog-te-combo");
+    if(combo){
+      combo.value = lang;
+      combo.dispatchEvent(new Event("change"));
+      clearInterval(timer);
+    }
+  },300);
+});
+</script>
+
+<script>
+{% if not no_data %}
 new Chart(document.getElementById("attendanceChart"), {
   type: "bar",
   data: {
-    labels: [{% for s in student.subjects %}"{{ s.subject }}",{% endfor %}],
+    labels: [
+      {% for sub in student.subjects %} "{{ sub.name }}", {% endfor %}
+    ],
     datasets: [{
       label: "Attendance %",
-      data: [{% for s in student.subjects %}{{ s.attendance }},{% endfor %}],
-      backgroundColor: "#2575fc"
+      data: [
+        {% for sub in student.subjects %} {{ sub.attendance }}, {% endfor %}
+      ],
+      backgroundColor: "#2563eb"
     }]
   },
   options: {
     scales: { y: { beginAtZero: true, max: 100 } }
   }
 });
+{% endif %}
 </script>
 
 </body>
