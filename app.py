@@ -37,21 +37,15 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        role = request.form.get('role')
-        password = request.form.get('password')
+        role = request.form['role']
+        password = request.form['password']
 
-        session.clear()
-
-       # -------- STUDENT LOGIN --------
+        # -------- STUDENT LOGIN (ROLL BASED) --------
         if role == 'student':
             roll = request.form['roll']
-            name = request.form['name']
 
             student = next(
-                (s for s in students
-                 if s['roll'] == roll
-                 and s['name'].lower() == name.lower()
-                 and s['password'] == password),
+                (s for s in students if s['roll'] == roll and s['password'] == password),
                 None
             )
 
@@ -62,48 +56,46 @@ def login():
             else:
                 flash("Invalid student credentials", "error")
 
-        # ---------------- TEACHER LOGIN ----------------
-        elif role == 'teacher':
-            email = request.form.get('email')
-
-            teacher = next(
-                (
-                    t for t in teachers
-                    if t.get('email') == email
-                    and t.get('password') == password
-                ),
-                None
-            )
-
-            if teacher:
-                session['role'] = 'teacher'
-                session['email'] = email
-                return redirect(url_for('dashboard_teacher'))
-
-            flash("Invalid teacher credentials", "error")
-
-        # ---------------- PRINCIPAL LOGIN ----------------
+        # -------- PRINCIPAL LOGIN --------
         elif role == 'principal':
-            email = request.form.get('email')
-
+            email = request.form['email']
             principal = next(
-                (
-                    p for p in principals
-                    if p.get('email') == email
-                    and p.get('password') == password
-                ),
+                (p for p in principals if p['email'] == email and p['password'] == password),
                 None
             )
 
             if principal:
                 session['role'] = 'principal'
-                session['email'] = email
                 return redirect(url_for('dashboard_principal'))
+            else:
+                flash("Invalid principal credentials", "error")
 
-            flash("Invalid principal credentials", "error")
+        # -------- TEACHER / ADMIN LOGIN --------
+        elif role == 'teacher':
+            email = request.form['email']
+            teacher = next(
+                (t for t in teachers if t['email'] == email and t['password'] == password),
+                None
+            )
 
-        else:
-            flash("Please select a role", "error")
+            if teacher:
+                session['role'] = 'teacher'
+                return redirect(url_for('dashboard_teacher'))
+            else:
+                flash("Invalid teacher credentials", "error")
+
+        elif role == 'admin':
+            email = request.form['email']
+            admin = next(
+                (a for a in admins if a['email'] == email and a['password'] == password),
+                None
+            )
+
+            if admin:
+                session['role'] = 'admin'
+                return redirect(url_for('dashboard_admin'))
+            else:
+                flash("Invalid admin credentials", "error")
 
     return render_template('login.html')
 
@@ -175,7 +167,7 @@ def register():
         role = request.form['role']
         password = request.form['password']
 
-        # ---------------- STUDENT REGISTRATION ----------------
+        # -------- STUDENT REGISTRATION --------
         if role == 'student':
             roll = request.form['roll']
             name = request.form['name']
@@ -194,7 +186,7 @@ def register():
                 'password': password
             })
 
-        # ---------------- PRINCIPAL REGISTRATION ----------------
+        # -------- PRINCIPAL --------
         elif role == 'principal':
             name = request.form['name']
             email = request.form['email']
@@ -203,23 +195,18 @@ def register():
                 flash("Principal password must be exactly 6 digits", "error")
                 return redirect(url_for('register'))
 
-            if any(p for p in principals if p['email'] == email):
-                flash("Principal already registered", "error")
-                return redirect(url_for('register'))
-
             principals.append({
                 'name': name,
                 'email': email,
                 'password': password
             })
 
-        # ---------------- TEACHER / ADMIN ----------------
+        # -------- TEACHER / ADMIN --------
         else:
             email = request.form['email']
 
             if role == 'teacher':
                 teachers.append({'email': email, 'password': password})
-
             elif role == 'admin':
                 admins.append({'email': email, 'password': password})
 
@@ -227,7 +214,7 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html')
-# ---------------- STUDENT DASHBOARD ----------------
+
 # ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def dashboard_student():
