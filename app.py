@@ -24,6 +24,8 @@ serializer = URLSafeTimedSerializer(app.secret_key)
 
 # ---------------- TEMP STORAGE ----------------
 registered_users = []
+volunteers = []          # NGO volunteers login
+ngo_interventions = {}   # key = student roll
 
 students = []          # registered students (login)
 teachers = []          # FIXED ✅
@@ -96,6 +98,24 @@ def login():
                 return redirect(url_for('dashboard_admin'))
             else:
                 flash("Invalid admin credentials", "error")
+        
+        # -------- NGO VOLUNTEER LOGIN --------
+        elif role == 'volunteer':
+            email = request.form['email']
+
+            volunteer = next(
+                (v for v in volunteers if v['email'] == email and v['password'] == password),
+                None
+            )
+
+            if volunteer:
+                session['role'] = 'volunteer'
+                session['volunteer_email'] = email
+                return redirect(url_for('dashboard_volunteer'))
+            else:
+                flash("Invalid volunteer credentials", "error")
+
+
 
     return render_template('login.html')
 
@@ -196,6 +216,21 @@ def register():
                 return redirect(url_for('register'))
 
             principals.append({
+                'name': name,
+                'email': email,
+                'password': password
+            })
+
+                # -------- NGO VOLUNTEER --------
+        elif role == 'volunteer':
+            name = request.form['name']
+            email = request.form['email']
+
+            if not password.isdigit() or len(password) != 6:
+                flash("Volunteer password must be exactly 6 digits", "error")
+                return redirect(url_for('register'))
+
+            volunteers.append({
                 'name': name,
                 'email': email,
                 'password': password
@@ -352,6 +387,47 @@ def student_profile(roll):
         return redirect(url_for('dashboard_principal'))
 
     return render_template('student_profile.html', student=student)
+
+
+
+@app.route('/dashboard/volunteer', methods=['GET', 'POST'])
+def dashboard_volunteer():
+    if session.get('role') != 'volunteer':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('login'))
+
+    # Only medium & high risk students
+    risky_students = [
+        s for s in students_data.values()
+        if s['risk'] in ['Medium', 'High']
+    ]
+
+    return render_template(
+        'dashboard_volunteer.html',
+        students=risky_students,
+        interventions=ngo_interventions
+    )
+
+@app.route('/ngo/action/<roll>', methods=['POST'])
+def ngo_action(roll):
+    if session.get('role') != 'volunteer':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('login'))
+
+    action_type = request.form['action_type']
+    notes = request.form['notes']
+    status = request.form['status']
+
+    ngo_interventions.setdefault(roll, []).append({
+        'type': action_type,
+        'notes': notes,
+        'status': status,
+        'by': session.get('volunteer_email')
+    })
+
+    flash("NGO action recorded successfully", "success")
+    return redirect(url_for('dashboard_volunteer'))
+
 
 
 # ---------------- RUN ----------------
