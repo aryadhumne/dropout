@@ -1,26 +1,22 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>EduDrop - Login</title>
 
   <style>
-  
     body {
       margin: 0;
       min-height: 100vh;
       font-family: 'Segoe UI', sans-serif;
-
       background:
         linear-gradient(rgba(250, 245, 245, 0.6), rgba(255, 255, 255, 0.6)),
         url("/static/images/lg3.jpeg") no-repeat center center / cover;
-
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-   
     .login-card {
       width: 100%;
       max-width: 380px;
@@ -36,7 +32,6 @@
       color: #1e3c72;
     }
 
-    /* ================= FORM ELEMENTS ================= */
     .form-control,
     .form-select {
       width: 100%;
@@ -53,7 +48,6 @@
       border-color: #2a5298;
     }
 
-    /* ================= BUTTON ================= */
     .btn-login {
       width: 100%;
       margin-top: 15px;
@@ -67,15 +61,9 @@
       cursor: pointer;
     }
 
-    .btn-login:hover {
-      opacity: 0.95;
-    }
+    .btn-login:hover { opacity: 0.95; }
 
-    /* ================= LINKS ================= */
-    .links {
-      margin-top: 15px;
-      font-size: 13px;
-    }
+    .links { margin-top: 15px; font-size: 13px; }
 
     .links a {
       color: #2a5298;
@@ -83,11 +71,8 @@
       font-weight: bold;
     }
 
-    .links a:hover {
-      text-decoration: underline;
-    }
+    .links a:hover { text-decoration: underline; }
 
-    /* ================= ERROR ================= */
     .error {
       background: #ffe6e6;
       color: red;
@@ -97,11 +82,8 @@
       margin-bottom: 10px;
     }
 
-    /* ================= MOBILE ================= */
     @media (max-width: 480px) {
-      .login-card {
-        margin: 15px;
-      }
+      .login-card { margin: 15px; }
     }
   </style>
 </head>
@@ -127,14 +109,13 @@
       <option value="principal">Principal</option>
     </select>
 
-    <!-- Email login -->
+    <!-- NON-STUDENT LOGIN (Email) -->
     <div id="emailFields">
       <input type="email" name="email" class="form-control" placeholder="Email">
     </div>
 
-    <!-- Student login -->
+    <!-- STUDENT LOGIN (Roll number) -->
     <div id="studentFields" style="display:none;">
-      <input type="text" name="name" class="form-control" placeholder="Student Name">
       <input type="text" name="roll" class="form-control" placeholder="Roll Number">
     </div>
 
@@ -146,7 +127,6 @@
     <div class="links">
       <a href="{{ url_for('register') }}">Register</a> |
       <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
-
     </div>
 
   </form>
