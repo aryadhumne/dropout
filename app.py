@@ -115,13 +115,13 @@ def login():
 
 
 # ---------------- REGISTER ----------------
+# ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         role = request.form.get('role', '').lower()
         raw_password = request.form.get('password', '')
 
-        # Validate password
         if not raw_password.isdigit() or len(raw_password) != 6:
             flash("Password must be exactly 6 digits", "error")
             return redirect(url_for('register'))
@@ -129,16 +129,15 @@ def register():
         hashed_password = generate_password_hash(raw_password)
         data = {"role": role, "password": hashed_password}
 
-        # ---------------- STUDENT ----------------
+        # ---------- STUDENT ----------
         if role == "student":
             roll = request.form.get('roll', '').strip()
-            name = request.form.get('student_name', '').strip()
+            name = request.form.get('name', '').strip()   # ✅ FIXED
 
             if not roll or not name:
                 flash("Roll and Name are required", "error")
                 return redirect(url_for('register'))
 
-            # Check duplicate roll
             existing = supabase.table("users").select("*").eq("roll", roll).execute()
             if existing.data:
                 flash("Roll number already registered", "error")
@@ -147,16 +146,15 @@ def register():
             data["roll"] = roll
             data["name"] = name
 
-        # ---------------- OTHER ROLES ----------------
+        # ---------- OTHER ROLES ----------
         else:
             email = request.form.get('email', '').strip().lower()
-            name = request.form.get('full_name', '').strip()
+            name = request.form.get('name', '').strip()   # ✅ FIXED
 
             if not email or not name:
                 flash("Email and Name are required", "error")
                 return redirect(url_for('register'))
 
-            # Check duplicate email
             existing = supabase.table("users").select("*").eq("email", email).execute()
             if existing.data:
                 flash("Email already registered", "error")
@@ -165,18 +163,18 @@ def register():
             data["email"] = email
             data["name"] = name
 
-        # ---------------- INSERT DATA ----------------
         try:
-            res = supabase.table("users").insert(data).execute()
-            print("REGISTERED DATA:", res.data)
+            supabase.table("users").insert(data).execute()
             flash("Registration successful! Please login.", "success")
             return redirect(url_for('login'))
+
         except Exception as e:
             print("REGISTER ERROR:", e)
-            flash("Registration failed. Please try again.", "error")
+            flash("Registration failed", "error")
             return redirect(url_for('register'))
 
     return render_template('register.html')
+
 
 
 # ---------------- FORGOT PASSWORD ----------------
@@ -261,10 +259,35 @@ def dashboard_principal():
         return redirect(url_for('login'))
 
     email = session.get('email')
-    res = supabase.table("users").select("*").eq("role", "principal").eq("email", email).execute()
-    principal = res.data[0] if res.data else None
 
-    return render_template("dashboard_principal.html", principal=principal)
+    # Fetch principal
+    pres = supabase.table("users") \
+        .select("*") \
+        .eq("role", "principal") \
+        .eq("email", email) \
+        .execute()
+
+    principal = pres.data[0] if pres.data else None
+
+    # Fetch students
+    sres = supabase.table("student_performance") \
+        .select("*") \
+        .execute()
+
+    students = sres.data if sres.data else []
+
+    # Group students division-wise
+    division_wise = {}
+    for s in students:
+        div = s.get("division", "Unknown")
+        division_wise.setdefault(div, []).append(s)
+
+    return render_template(
+        "dashboard_principal.html",
+        principal=principal,
+        students=students,
+        division_wise=division_wise
+    )
 
 
 # ---------------- VOLUNTEER DASHBOARD ----------------
@@ -275,11 +298,36 @@ def dashboard_volunteer():
         return redirect(url_for('login'))
 
     email = session.get('email')
-    res = supabase.table("users").select("*").eq("role", "volunteer").eq("email", email).execute()
-    volunteer = res.data[0] if res.data else None
 
-    return render_template("dashboard_volunteer.html", volunteer=volunteer)
+    # -------- FETCH VOLUNTEER --------
+    volunteer_res = supabase.table("users") \
+        .select("*") \
+        .eq("role", "volunteer") \
+        .eq("email", email) \
+        .execute()
 
+    volunteer = volunteer_res.data[0] if volunteer_res.data else None
+
+    # -------- FETCH STUDENT PERFORMANCE (NO INVALID COLUMN) --------
+    students_res = supabase.table("student_performance") \
+        .select("*") \
+        .execute()
+
+    students = students_res.data if students_res.data else []
+
+    # -------- FETCH NGO INTERVENTIONS --------
+    interventions_res = supabase.table("ngo_interventions") \
+        .select("*") \
+        .execute()
+
+    interventions = interventions_res.data if interventions_res.data else []
+
+    return render_template(
+        "dashboard_volunteer.html",
+        volunteer=volunteer,
+        students=students,
+        interventions=interventions
+    )
 
 # ---------------- ADMIN DASHBOARD ----------------
 @app.route('/admin/dashboard')

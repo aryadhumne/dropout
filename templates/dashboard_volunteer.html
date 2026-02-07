@@ -2,11 +2,6 @@
 <html lang="en">
 <head>
 
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Volunteer Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
 <meta charset="UTF-8">
 <title>NGO Volunteer Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -119,19 +114,20 @@ select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
 <!-- METRICS -->
 <div class="metrics">
   <div class="metric-card">
-    <h2>{{ students|length }}</h2>
+    <h2>{{ students | length }}</h2>
     <p>At-Risk Students</p>
   </div>
+
   <div class="metric-card">
-    <h2>{{ interventions|length }}</h2>
+    <h2>{{ interventions | length }}</h2>
     <p>Students Helped</p>
   </div>
+
   <div class="metric-card">
-    <h2>{{ interventions.values()|sum(start=[])|length }}</h2>
+    <h2>{{ interventions | length }}</h2>
     <p>Total Interventions</p>
   </div>
 </div>
-<pre>
 <!-- FILTER -->
 <div class="card">
 <label>Filter by Risk</label>
@@ -197,25 +193,25 @@ Quiz: {{ s.quiz }}
 <!-- INTERVENTIONS -->
 <div class="card">
 <h2>📋 Intervention History</h2>
-{% for roll, acts in interventions.items() %}
-<h4>Roll {{ roll }}</h4>
+
+{% if interventions %}
 <ul class="timeline">
-{% for a in acts %}
+{% for a in interventions %}
 <li>
 <strong>{{ a.type }}</strong> —
 {{ a.status }}<br>
+🧑 Roll: {{ a.roll }}<br>
 📝 {{ a.notes }}<br>
 👤 By: {{ a.by }}
 </li>
 {% endfor %}
 </ul>
-{% endfor %}
-</div>
+{% else %}
+<p>No interventions recorded yet.</p>
+{% endif %}
 
 </div>
-</div>
-</div>
-</div>
+
 
 <!-- SCRIPTS -->
  <script>
