@@ -5,16 +5,13 @@ from dotenv import load_dotenv
 import os
 from supabase_client import supabase
 from werkzeug.security import generate_password_hash, check_password_hash
-
 # ---------------- TEMP IN-MEMORY STORAGE ----------------
 students_data = {}
 ngo_interventions = {}
-
 # ---------------- APP INIT ----------------
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or "supersecretkey"
-
 # ---------------- MAIL CONFIG ----------------
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
@@ -25,12 +22,10 @@ app.config["MAIL_DEFAULT_SENDER"] = "example@gmail.com"
 
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.secret_key)
-
 # ---------------- HOME ----------------
 @app.route('/')
 def home():
     return redirect(url_for('login'))
-
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -112,9 +107,6 @@ def login():
             flash("Login failed. Please try again.", "error")
 
     return render_template('login.html')
-
-
-# ---------------- REGISTER ----------------
 # ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -129,24 +121,31 @@ def register():
         hashed_password = generate_password_hash(raw_password)
         data = {"role": role, "password": hashed_password}
 
-        # ---------- STUDENT ----------
+      
         if role == "student":
             roll = request.form.get('roll', '').strip()
-            name = request.form.get('name', '').strip()   # ✅ FIXED
+            name = request.form.get('name', '').strip()
+            email = request.form.get('email', '').strip().lower()
 
-            if not roll or not name:
-                flash("Roll and Name are required", "error")
-                return redirect(url_for('register'))
+            if not roll or not name or not email:
+                    flash("Roll, Name and Email are required", "error")
+                    return redirect(url_for('register'))
 
-            existing = supabase.table("users").select("*").eq("roll", roll).execute()
-            if existing.data:
-                flash("Roll number already registered", "error")
-                return redirect(url_for('register'))
+            existing_roll = supabase.table("users").select("*").eq("roll", roll).execute()
+            if existing_roll.data:
+                    flash("Roll number already registered", "error")
+                    return redirect(url_for('register'))
+
+            existing_email = supabase.table("users").select("*").eq("email", email).execute()
+            if existing_email.data:
+                    flash("Email already registered", "error")
+                    return redirect(url_for('register'))
 
             data["roll"] = roll
             data["name"] = name
+            data["email"] = email
 
-        # ---------- OTHER ROLES ----------
+ # ---------- OTHER ROLES ----------
         else:
             email = request.form.get('email', '').strip().lower()
             name = request.form.get('name', '').strip()   # ✅ FIXED
@@ -174,9 +173,6 @@ def register():
             return redirect(url_for('register'))
 
     return render_template('register.html')
-
-
-
 # ---------------- FORGOT PASSWORD ----------------
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -192,8 +188,6 @@ def forgot_password():
         return redirect(url_for('reset_password'))
 
     return render_template('forgot_password.html')
-
-
 # ---------------- RESET PASSWORD ----------------
 @app.route('/reset-password', methods=['GET', 'POST'])
 def reset_password():
@@ -221,8 +215,6 @@ def reset_password():
         return redirect(url_for('login'))
 
     return render_template('reset_password.html')
-
-
 # ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def dashboard_student():
@@ -235,8 +227,6 @@ def dashboard_student():
     student = res.data[0] if res.data else None
 
     return render_template("dashboard_student.html", student=student)
-
-
 # ---------------- TEACHER DASHBOARD ----------------
 @app.route('/teacher/dashboard')
 def dashboard_teacher():
@@ -245,50 +235,83 @@ def dashboard_teacher():
         return redirect(url_for('login'))
 
     email = session.get('email')
-    res = supabase.table("users").select("*").eq("role", "teacher").eq("email", email).execute()
-    teacher = res.data[0] if res.data else None
 
-    return render_template("dashboard_teacher.html", teacher=teacher)
-
-
-# ---------------- PRINCIPAL DASHBOARD ----------------
-@app.route('/principal/dashboard')
-def dashboard_principal():
-    if session.get('role') != 'principal':
-        flash("Unauthorized access", "error")
-        return redirect(url_for('login'))
-
-    email = session.get('email')
-
-    # Fetch principal
-    pres = supabase.table("users") \
+    teacher_res = supabase.table("users") \
         .select("*") \
-        .eq("role", "principal") \
+        .eq("role", "teacher") \
         .eq("email", email) \
         .execute()
 
-    principal = pres.data[0] if pres.data else None
+    teacher = teacher_res.data[0] if teacher_res.data else None
 
-    # Fetch students
-    sres = supabase.table("student_performance") \
+    # ❌ removed .order("roll")
+    students_res = supabase.table("student_performance") \
         .select("*") \
         .execute()
 
-    students = sres.data if sres.data else []
-
-    # Group students division-wise
-    division_wise = {}
-    for s in students:
-        div = s.get("division", "Unknown")
-        division_wise.setdefault(div, []).append(s)
+    students = students_res.data if students_res.data else []
 
     return render_template(
-        "dashboard_principal.html",
-        principal=principal,
-        students=students,
-        division_wise=division_wise
+        "dashboard_teacher.html",
+        teacher=teacher,
+        students=students
     )
 
+@app.route('/teacher/add_student', methods=['POST'])
+def add_student():
+    student_id = request.form.get('student_id')  # hidden field for editing
+    name = request.form['name']
+    roll = request.form['roll']
+    standard = request.form['standard']
+    division = request.form['division']
+    month = request.form['month']
+    assignment = request.form['assignment']
+    quiz = request.form['quiz']
+
+    # Collect subjects & attendance
+    subjects = request.form.getlist('subjects[]')
+    attendance = request.form.getlist('attendance[]')
+    subject_data = [{"name": s, "attendance": int(a)} for s, a in zip(subjects, attendance)]
+    
+    avg = sum(int(a) for a in attendance)/len(attendance) if attendance else 0
+    risk = "At Risk" if avg < 75 else "Safe"
+
+    if student_id:  # Edit existing student
+        supabase.table("student_performance") \
+            .update({
+                "name": name,
+                "roll": roll,
+                "standard": standard,
+                "division": division,
+                "month": month,
+                "subjects": subject_data,
+                "avg": avg,
+                "assignment": assignment,
+                "quiz": quiz,
+                "risk": risk
+            }) \
+            .eq("id", student_id).execute()
+        flash("Student updated successfully!", "success")
+    else:  # Add new student
+        supabase.table("student_performance").insert({
+            "name": name,
+            "roll": roll,
+            "standard": standard,
+            "division": division,
+            "month": month,
+            "subjects": subject_data,
+            "avg": avg,
+            "assignment": assignment,
+            "quiz": quiz,
+            "risk": risk
+        }).execute()
+        flash("Student added successfully!", "success")
+    
+    return redirect(url_for('dashboard_teacher'))
+
+@app.route('/about')
+def about():
+    return render_template('about.html')  # Make sure about.html exists in templates/
 
 # ---------------- VOLUNTEER DASHBOARD ----------------
 @app.route('/volunteer/dashboard')
@@ -328,7 +351,6 @@ def dashboard_volunteer():
         students=students,
         interventions=interventions
     )
-
 # ---------------- ADMIN DASHBOARD ----------------
 @app.route('/admin/dashboard')
 def dashboard_admin():
@@ -342,15 +364,63 @@ def dashboard_admin():
 
     return render_template("dashboard_admin.html", admin=admin)
 
+# ===== DELETE STUDENT =====
+@app.route('/delete_student/<int:roll>', methods=['POST'])
+def delete_student(roll):
+    # Delete student by roll number
+    supabase.table("student_performance").delete().eq("roll", roll).execute()
+    return '', 200
 
+# ===== UPDATE STUDENT =====
+@app.route('/update_student', methods=['POST'])
+def update_student():
+    roll = request.form.get('roll')
+    name = request.form.get('name')
+    standard = request.form.get('standard')
+    division = request.form.get('division')
+    month = request.form.get('month')
+
+    # Update student data
+    supabase.table("student_performance").update({
+        "name": name,
+        "standard": standard,
+        "division": division,
+        "month": month
+    }).eq("roll", roll).execute()
+
+    return '', 200
+
+# ===== ADDITIONAL: Parent call & escalation logic =====
+def check_attendance_risk(student):
+    # Suppose avg < 75% is low
+    if student['avg'] < 75:
+        parent_calls = student.get('parent_calls', 0)
+        if parent_calls < 2:
+            # increment parent call
+            supabase.table("student_performance").update({
+                "parent_calls": parent_calls + 1
+            }).eq("roll", student['roll']).execute()
+            print(f"Parent called for student {student['name']}")
+        else:
+            # escalate to principal
+            supabase.table("student_performance").update({
+                "status": "Escalated"
+            }).eq("roll", student['roll']).execute()
+            print(f"Escalated to principal: {student['name']}")
+
+# ===== Example: run this check for all students =====
+@app.route('/check_risks')
+def check_risks():
+    students = supabase.table("student_performance").select("*").execute().data
+    for student in students:
+        check_attendance_risk(student)
+    return "Risk check complete"
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.clear()
     flash("Logged out successfully", "success")
     return redirect(url_for('login'))
-
-
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
