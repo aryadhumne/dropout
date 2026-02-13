@@ -128,15 +128,15 @@ select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
     <p>Total Interventions</p>
   </div>
 </div>
-<!-- FILTER -->
-<div class="card">
-<label>Filter by Risk</label>
+<pre>
+
+
 <select onchange="filterRisk(this.value)">
   <option value="all">All</option>
-  <option value="High">High</option>
+  <option value="At Risk">At Risk</option>
   <option value="Medium">Medium</option>
 </select>
-</div></pre>
+
 
 <!-- STUDENTS -->
 <div class="card">
@@ -154,20 +154,27 @@ select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
 <td>{{ s.roll }}</td>
 <td>{{ s.division }}</td>
 <td>
-{% if s.risk == 'High' %}
-<span class="badge-high">URGENT</span>
+{% if s.risk in ['High', 'At Risk'] %}
+  <span class="badge-high">URGENT</span>
 {% else %}
-<span class="badge-medium">ATTENTION</span>
+  <span class="badge-medium">ATTENTION</span>
 {% endif %}
+
 </td>
 <td>
-Attendance: {{ s.attendance }}%<br>
+{% for sub in s.subjects %}
+  {{ sub.name }}: {{ sub.attendance }}%<br>
+{% endfor %}
+<strong>Avg: {{ s.avg }}%</strong><br>
 Assignment: {{ s.assignment }}<br>
 Quiz: {{ s.quiz }}
 </td>
+
 <td>
-<form method="POST" action="/ngo/action/{{ s.roll }}">
-<select name="action_type" required>
+<form method="POST" action="{{ url_for('dashboard_volunteer') }}">
+  <input type="hidden" name="student_id" value="{{ s.id }}">
+
+<select name="intervention_type">
 <option value="">Intervention</option>
 <option>Counselling</option>
 <option>Parent Meeting</option>
@@ -180,7 +187,7 @@ Quiz: {{ s.quiz }}
 <option>Ongoing</option>
 <option>Completed</option>
 </select>
-<textarea name="notes" rows="2" placeholder="Notes" required></textarea>
+<textarea name="notes" required></textarea>
 <button class="btn-primary">Save</button>
 </form>
 </td>
@@ -239,9 +246,12 @@ function toggleDark(){
 
 function filterRisk(val){
   document.querySelectorAll("#riskTable tbody tr").forEach(r=>{
-    r.style.display = (val==="all"||r.dataset.risk===val)?"":"none"
+    const rowRisk = (r.dataset.risk || '').trim();
+    if(val === "all" || rowRisk === val) r.style.display = "";
+    else r.style.display = "none";
   })
 }
+
 
 /* 🌐 LANGUAGE CHANGE FIX */
 document.getElementById("langSelect").addEventListener("change", function () {

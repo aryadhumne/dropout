@@ -216,17 +216,37 @@ def reset_password():
 
     return render_template('reset_password.html')
 # ---------------- STUDENT DASHBOARD ----------------
+# ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def dashboard_student():
     if session.get('role') != 'student':
         flash("Please login first", "error")
         return redirect(url_for('login'))
 
-    roll = session.get('roll')
-    res = supabase.table("users").select("*").eq("role", "student").eq("roll", roll).execute()
-    student = res.data[0] if res.data else None
+    roll = str(session.get('roll')).strip()
 
-    return render_template("dashboard_student.html", student=student)
+    # Fetch student basic info
+    user_res = supabase.table("users") \
+        .select("*") \
+        .eq("role", "student") \
+        .eq("roll", roll) \
+        .execute()
+
+    student = user_res.data[0] if user_res.data else None
+
+    # Fetch teacher-added data
+    perf_res = supabase.table("student_performance") \
+        .select("*") \
+        .eq("roll", roll) \
+        .execute()
+
+    performance = perf_res.data if perf_res.data else []
+
+    return render_template(
+        "dashboard_student.html",
+        student=student,
+        performance=performance
+    )
 # ---------------- TEACHER DASHBOARD ----------------
 @app.route('/teacher/dashboard')
 def dashboard_teacher():
@@ -274,7 +294,14 @@ def add_student():
     subject_data = [{"name": s, "attendance": int(a)} for s, a in zip(subjects, attendance)]
     
     avg = sum(int(a) for a in attendance)/len(attendance) if attendance else 0
-    risk = "At Risk" if avg < 75 else "Safe"
+    if avg < 60:
+        risk = "At Risk"
+    elif avg < 75:
+        risk = "Medium"
+    else:
+        risk = "Safe"
+
+
 
     if student_id:  # Edit existing student
         supabase.table("student_performance") \
@@ -312,9 +339,42 @@ def add_student():
 @app.route('/about')
 def about():
     return render_template('about.html')  # Make sure about.html exists in templates/
+@app.route('/principal/dashboard')
+def principal_dashboard():
+    if session.get('role') != 'principal':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('login'))
+
+    students = supabase.table("student_performance").select("*").execute().data or []
+
+    division_wise = {}
+    high_risk_students = []
+
+    for s in students:
+        division = s.get("division", "Unknown")
+        avg = s.get("avg", 0)
+
+        if avg < 60:
+            risk = "High"
+        elif avg < 75:
+            risk = "Medium"
+        else:
+            risk = "Low"
+
+        s["risk"] = risk
+        division_wise.setdefault(division, []).append(s)
+
+        if risk == "High":
+            high_risk_students.append(s)
+
+    return render_template(
+        "dashboard_principal.html",   # ✅ YOUR FILE
+        division_wise=division_wise,
+        high_risk_students=high_risk_students
+    )
 
 # ---------------- VOLUNTEER DASHBOARD ----------------
-@app.route('/volunteer/dashboard')
+@app.route('/volunteer/dashboard', methods=['GET', 'POST'])
 def dashboard_volunteer():
     if session.get('role') != 'volunteer':
         flash("Unauthorized access", "error")
@@ -322,7 +382,7 @@ def dashboard_volunteer():
 
     email = session.get('email')
 
-    # -------- FETCH VOLUNTEER --------
+    # Fetch volunteer info
     volunteer_res = supabase.table("users") \
         .select("*") \
         .eq("role", "volunteer") \
@@ -331,16 +391,56 @@ def dashboard_volunteer():
 
     volunteer = volunteer_res.data[0] if volunteer_res.data else None
 
-    # -------- FETCH STUDENT PERFORMANCE (NO INVALID COLUMN) --------
-    students_res = supabase.table("student_performance") \
-        .select("*") \
-        .execute()
+    # ---------------- Handle form submit for adding an intervention ----------------
+    if request.method == 'POST':
+        try:
+            student_id = request.form.get('student_id')
+            intervention_type = request.form.get('intervention_type', '').strip()
+            status = request.form.get('status', '').strip()
+            notes = request.form.get('notes', '').strip()
 
-    students = students_res.data if students_res.data else []
+            # Minimal validation
+            if not student_id or not status:
+                flash("Student and status are required", "error")
+                return redirect(url_for('dashboard_volunteer'))
 
-    # -------- FETCH NGO INTERVENTIONS --------
+            # Insert into ngo_interventions (adjust column names if your table differs)
+            supabase.table("ngo_interventions").insert({
+                "student_id": student_id,
+                "type": intervention_type,
+                "status": status,
+                "notes": notes,
+                "by": email
+            }).execute()
+
+            flash("Intervention saved", "success")
+            return redirect(url_for("dashboard_volunteer"))
+        except Exception as e:
+            print("VOLUNTEER POST ERROR:", e)
+            flash("Failed to save intervention", "error")
+            return redirect(url_for("dashboard_volunteer"))
+
+    # ---------------- GET: fetch only students with risk = "At Risk" OR "Medium" ----------------
+    try:
+        # Preferred: server-side filter (fast)
+        students_res = supabase.table("student_performance") \
+            .select("*") \
+            .in_("risk", ["At Risk", "Medium"]) \
+            .execute()
+
+        students = students_res.data if students_res.data else []
+
+    except Exception as e:
+        # Fallback: client-side filter if .in_() is not supported by your client
+        print("Supabase .in_() may not be supported; falling back. Error:", e)
+        all_res = supabase.table("student_performance").select("*").execute()
+        all_students = all_res.data if all_res.data else []
+        students = [s for s in all_students if s.get("risk") in ("At Risk", "Medium")]
+
+    # Fetch interventions history
     interventions_res = supabase.table("ngo_interventions") \
         .select("*") \
+        .order("visit_date", desc=True) \
         .execute()
 
     interventions = interventions_res.data if interventions_res.data else []
@@ -351,6 +451,7 @@ def dashboard_volunteer():
         students=students,
         interventions=interventions
     )
+
 # ---------------- ADMIN DASHBOARD ----------------
 @app.route('/admin/dashboard')
 def dashboard_admin():
@@ -423,4 +524,4 @@ def logout():
     return redirect(url_for('login'))
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=8000)

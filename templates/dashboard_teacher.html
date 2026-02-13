@@ -190,77 +190,132 @@ body {margin:0; font-family:Arial,sans-serif;}
 </div>
 </div>
 </div>
+<div id="google_translate_element" style="display:none"></div>
+<script>
+function googleTranslateElementInit(){
+  new google.translate.TranslateElement(
+    { pageLanguage:'en',autoDisplay:false },
+    'google_translate_element'
+  );
+}
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+
+
 
 <script>
-// SIDEBAR & DARK MODE
-function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("collapsed"); }
-function toggleDark(){ document.getElementById("themeRoot").classList.toggle("dark-mode"); }
+/* ===== SIDEBAR & DARK MODE ===== */
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("collapsed");
+}
 
-// SUBJECTS
+function toggleDark(){
+  document.getElementById("themeRoot").classList.toggle("dark-mode");
+}
+
+/* ===== LANGUAGE SWITCH ===== */
+const langSelect = document.getElementById("langSelect");
+
+langSelect.addEventListener("change", function () {
+  const lang = this.value;
+  if (!lang) return;
+
+  const interval = setInterval(() => {
+    const combo = document.querySelector(".goog-te-combo");
+    if (combo) {
+      combo.value = lang;
+      combo.dispatchEvent(new Event("change"));
+      clearInterval(interval);
+    }
+  }, 300);
+});
+
+/* ===== SUBJECTS ===== */
 function addSubject(){
   const c = document.getElementById("subjects-container");
   const r = document.createElement("div");
-  r.className="form-row";
-  r.innerHTML=`<input type="text" name="subjects[]" placeholder="Subject" required>
-               <input type="number" name="attendance[]" min="0" max="100" placeholder="Attendance %" required>`;
+  r.className = "form-row";
+  r.innerHTML = `
+    <input type="text" name="subjects[]" placeholder="Subject" required>
+    <input type="number" name="attendance[]" min="0" max="100" placeholder="Attendance %" required>
+  `;
   c.appendChild(r);
 }
 
-// EDIT STUDENT
+/* ===== EDIT STUDENT ===== */
 function editStudent(s){
-  document.getElementById("student_id").value=s.id;
-  document.getElementById("name").value=s.name;
-  document.getElementById("roll").value=s.roll;
-  document.getElementById("standard").value=s.standard;
-  document.getElementById("division").value=s.division;
-  document.getElementById("month").value=s.month;
-  document.getElementById("assignment").value=s.assignment;
-  document.getElementById("quiz").value=s.quiz;
+  document.getElementById("student_id").value = s.id;
+  document.getElementById("name").value = s.name;
+  document.getElementById("roll").value = s.roll;
+  document.getElementById("standard").value = s.standard;
+  document.getElementById("division").value = s.division;
+  document.getElementById("month").value = s.month;
+  document.getElementById("assignment").value = s.assignment;
+  document.getElementById("quiz").value = s.quiz;
 
-  // clear old subjects
-  const container=document.getElementById("subjects-container");
-  container.innerHTML="";
-  s.subjects.forEach(sub=>{
-    const r=document.createElement("div");
-    r.className="form-row";
-    r.innerHTML=`<input type="text" name="subjects[]" value="${sub.name}" required>
-                 <input type="number" name="attendance[]" value="${sub.attendance}" min="0" max="100" required>`;
+  const container = document.getElementById("subjects-container");
+  container.innerHTML = "";
+  s.subjects.forEach(sub => {
+    const r = document.createElement("div");
+    r.className = "form-row";
+    r.innerHTML = `
+      <input type="text" name="subjects[]" value="${sub.name}" required>
+      <input type="number" name="attendance[]" value="${sub.attendance}" min="0" max="100" required>
+    `;
     container.appendChild(r);
   });
-  document.getElementById("submitBtn").innerText="Update Student";
+
+  document.getElementById("submitBtn").innerText = "Update Student";
 }
 
-// RESET FORM
+/* ===== RESET ===== */
 function resetForm(){
   document.getElementById("studentForm").reset();
-  document.getElementById("student_id").value="";
-  document.getElementById("submitBtn").innerText="Add Student";
+  document.getElementById("student_id").value = "";
+  document.getElementById("submitBtn").innerText = "Add Student";
 }
 
-// DELETE
+/* ===== DELETE ===== */
 function deleteStudent(id){
   if(confirm("Are you sure you want to delete this student?")){
-    fetch(`/teacher/delete-student/${id}`,{method:'POST'}).then(()=>location.reload());
+    fetch(`/teacher/delete-student/${id}`, { method:'POST' })
+      .then(() => location.reload());
   }
 }
 
-// SEARCH
-document.getElementById("searchInput").addEventListener("keyup",function(){
-  const filter=this.value.toLowerCase();
-  document.querySelectorAll("#studentTable tbody tr").forEach(tr=>{
-    tr.style.display=Array.from(tr.children).some(td=>td.textContent.toLowerCase().includes(filter))?"":"none";
+/* ===== SEARCH ===== */
+document.getElementById("searchInput").addEventListener("keyup", function(){
+  const filter = this.value.toLowerCase();
+  document.querySelectorAll("#studentTable tbody tr").forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(filter) ? "" : "none";
   });
 });
 
-// CHART
-const ctx=document.getElementById('attendanceChart').getContext('2d');
-const studentNames=[{% for s in students %}"{{ s.name }}",{% endfor %}];
-const studentAvgAttendance=[{% for s in students %}{{ s.avg }},{% endfor %}];
+/* ===== CHART ===== */
+const ctx = document.getElementById('attendanceChart').getContext('2d');
+const studentNames = [{% for s in students %}"{{ s.name }}",{% endfor %}];
+const studentAvgAttendance = [{% for s in students %}{{ s.avg }},{% endfor %}];
+
 new Chart(ctx,{
   type:'bar',
-  data:{labels:studentNames,datasets:[{label:'Average Attendance (%)',data:studentAvgAttendance,backgroundColor:'rgba(37,99,235,0.7)',borderColor:'rgba(37,99,235,1)',borderWidth:1,borderRadius:6}]},
-  options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},scales:{y:{beginAtZero:true,max:100,title:{display:true,text:'Attendance (%)'}},x:{title:{display:true,text:'Students'}}}}
+  data:{
+    labels:studentNames,
+    datasets:[{
+      label:'Average Attendance (%)',
+      data:studentAvgAttendance,
+      backgroundColor:'rgba(37,99,235,0.7)',
+      borderRadius:6
+    }]
+  },
+  options:{
+    responsive:true,
+    scales:{ y:{ beginAtZero:true, max:100 } },
+    plugins:{ legend:{ display:false } }
+  }
 });
+/* ===== LANGUAGE SWITCH (FIXED) ===== */
+
+
 </script>
-</body>
 </html>
