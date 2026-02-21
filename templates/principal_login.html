@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Principal Authentication</title>
+
+    <style>
+        body{
+            font-family: Arial;
+            background:#f4f6f9;
+            text-align:center;
+        }
+
+        .container{
+            width:350px;
+            margin:50px auto;
+            padding:20px;
+            background:white;
+            box-shadow:0 0 10px rgba(0,0,0,0.1);
+            border-radius:10px;
+        }
+
+        input, textarea{
+            width:95%;
+            padding:8px;
+            margin:5px 0;
+        }
+
+        button{
+            padding:8px 15px;
+            margin-top:10px;
+            background:#1e3c72;
+            color:white;
+            border:none;
+            cursor:pointer;
+        }
+
+        .toggle{
+            color:blue;
+            cursor:pointer;
+            margin-top:10px;
+        }
+
+        .hidden{
+            display:none;
+        }
+    </style>
+
+    <script>
+        function showRegister(){
+            document.getElementById("loginForm").classList.add("hidden");
+            document.getElementById("registerForm").classList.remove("hidden");
+        }
+
+        function showLogin(){
+            document.getElementById("registerForm").classList.add("hidden");
+            document.getElementById("loginForm").classList.remove("hidden");
+        }
+    </script>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- REGISTER FORM -->
+    <div id="registerForm">
+        <h2>Principal Register</h2>
+
+        <form method="POST" action="/principal_auth">
+            <input type="hidden" name="action" value="register">
+
+            <input type="text" name="principal_name" placeholder="Principal Name" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="text" name="school_name" placeholder="School Name" required>
+            <input type="text" name="school_code" placeholder="School Code" required>
+            <textarea name="school_address" placeholder="School Address" required></textarea>
+            <input type="text" name="district" placeholder="District" required>
+            <input type="password" name="password" placeholder="Password" required>
+
+            <button type="submit">Register</button>
+        </form>
+
+        <p class="toggle" onclick="showLogin()">Already Registered? Login</p>
+    </div>
+
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm" class="hidden">
+        <h2>Principal Login</h2>
+
+        <form method="POST" action="/principal_auth">
+            <input type="hidden" name="action" value="login">
+
+            <input type="email" name="email" placeholder="Registered Email" required>
+            <input type="password" name="password" placeholder="Password" required>
+
+            <button type="submit">Login</button>
+        </form>
+
+        <p class="toggle" onclick="showRegister()">New Principal? Register</p>
+    </div>
+
+</div>
+
+</body>
+</html>

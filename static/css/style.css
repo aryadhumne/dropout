@@ -1,459 +1,277 @@
-/* ================= GENERAL STYLES ================= */
+/* ================= GLOBAL ================= */
+
+/* Body default */
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(to right, #6a11cb, #2575fc);
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #1f1f2e, #28293d);
+    color: #fff;
+    transition: 0.3s;
 }
 
-/* ================= LOGIN CARD ================= */
-.login-card {
-  background: #fff;
-  border-radius: 15px;
-  padding: 30px;
-  width: 100%;
-  max-width: 400px;
-  margin: 100px auto;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-  text-align: center;
+/* Dark mode body */
+body.dark-mode {
+    background: linear-gradient(135deg, #121212, #1c1c1c);
+    color: #f0f0f0;
 }
 
-.login-card h2 {
-  margin-bottom: 20px;
-  color: #333;
-}
-
-.form-control,
-.form-select {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-}
-
-.btn-login {
-  background: #2575fc;
-  color: #fff;
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.btn-login:hover {
-  background: #6a11cb;
-}
-
-.links {
-  margin-top: 15px;
-}
-
-.links a {
-  color: #2575fc;
-  text-decoration: none;
-}
-
-.links a:hover {
-  text-decoration: underline;
-}
-
-.error {
-  color: red;
-  margin-bottom: 15px;
-}
-
-/* ================= BASIC DASHBOARD ================= */
-.dashboard {
-  max-width: 800px;
-  margin: 100px auto;
-  background: #fff;
-  padding: 40px;
-  border-radius: 15px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-}
-
-.btn-logout {
-  display: inline-block;
-  padding: 10px 20px;
-  background: #2575fc;
-  color: #fff;
-  text-decoration: none;
-  border-radius: 10px;
-}
-
-.btn-logout:hover {
-  background: #6a11cb;
-}
-
-/* ================= TEACHER DASHBOARD ================= */
-
-.dashboard-container {
-  max-width: 1100px;
-  margin: 40px auto;
-  padding: 20px;
-}
-
-/* Header */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #fff;
-  margin-bottom: 25px;
-}
-
-/* Card Layout */
-.card {
-  background: #fff;
-  border-radius: 15px;
-  padding: 25px;
-  margin-bottom: 30px;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
-}
-
-.card h2 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.card h3 {
-  margin: 15px 0 10px;
-  color: #2575fc;
-  font-size: 16px;
-}
-
-/* ================= STUDENT FORM ================= */
-
-.student-form .form-row {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.student-form input,
-.student-form select {
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-.student-form input:focus,
-.student-form select:focus {
-  outline: none;
-  border-color: #2575fc;
-  box-shadow: 0 0 5px rgba(37,117,252,0.3);
-}
-
-/* Attendance percentage inputs */
-.student-form input[type="number"] {
-  text-align: center;
-}
-
-/* Primary Button */
-.btn-primary {
-  background: #2575fc;
-  color: #fff;
-  border: none;
-  padding: 12px 30px;
-  border-radius: 10px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.btn-primary:hover {
-  background: #6a11cb;
-}
-
-/* ================= STUDENT TABLE ================= */
-
-.student-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  font-size: 14px;
-}
-
-.student-table th,
-.student-table td {
-  padding: 12px;
-  text-align: center;
-  border-bottom: 1px solid #ddd;
-}
-
-.student-table th {
-  background: #2575fc;
-  color: #fff;
-}
-
-.student-table tr:hover {
-  background: #f4f6ff;
-}
-
-/* Attendance cell formatting */
-.attendance-cell {
-  line-height: 1.6;
-  font-weight: bold;
-}
-
-/* ================= STATUS COLORS ================= */
-
-.present {
-  color: green;
-  font-weight: bold;
-}
-
-.absent {
-  color: red;
-  font-weight: bold;
-}
-
-.done {
-  color: #2575fc;
-  font-weight: bold;
-}
-
-.pending {
-  color: orange;
-  font-weight: bold;
-}
-
-.excellent {
-  color: darkgreen;
-  font-weight: bold;
-}
-
-.good {
-  color: #2575fc;
-  font-weight: bold;
-}
-
-.average {
-  color: orange;
-  font-weight: bold;
-}
-
-.poor {
-  color: red;
-  font-weight: bold;
-}
-/* ================= DROPOUT RISK ================= */
-
-.risk.low {
-  color: green;
-  font-weight: bold;
-}
-
-.risk.medium {
-  color: orange;
-  font-weight: bold;
-}
-
-.risk.high {
-  color: red;
-  font-weight: bold;
-}
-/* ================= RESPONSIVE DESIGN ================= */
-
-/* Tablets (≤ 992px) */
-@media (max-width: 992px) {
-
-  .dashboard-container {
-    padding: 15px;
-  }
-
-  .dashboard-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 10px;
-  }
-
-  .student-form .form-row {
-    flex-direction: column;
-  }
-
-  .card {
-    padding: 20px;
-  }
-
-  .student-table th,
-  .student-table td {
-    font-size: 13px;
-    padding: 10px;
-  }
-}
-
-/* Mobile Devices (≤ 768px) */
-@media (max-width: 768px) {
-
-  body {
-    background: linear-gradient(to bottom, #6a11cb, #2575fc);
-  }
-
-  .login-card {
-    margin: 60px 15px;
-    padding: 25px;
-  }
-
-  .dashboard {
-    margin: 40px 15px;
-    padding: 25px;
-  }
-
-  .dashboard-container {
-    margin: 20px 10px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 22px;
-  }
-
-  .card h2 {
-    font-size: 18px;
-  }
-
-  .card h3 {
-    font-size: 14px;
-  }
-
-  .student-form input,
-  .student-form select {
-    font-size: 13px;
-    padding: 10px;
-  }
-
-  .btn-primary {
+/* ---------------- TOP BAR ---------------- */
+.top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    padding: 12px;
-  }
-
-  /* Table scroll for mobile */
-  .table-wrapper {
-    overflow-x: auto;
-  }
-
-  .student-table {
-    min-width: 750px;
-  }
+    height: 60px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 1000;
+    gap: 15px;
 }
 
-/* Small Mobile (≤ 480px) */
-@media (max-width: 480px) {
-
-  .login-card h2 {
-    font-size: 20px;
-  }
-
-  .dashboard-header h1 {
-    font-size: 20px;
-  }
-
-  .btn-login,
-  .btn-primary {
-    font-size: 14px;
-  }
-
-  .student-table th,
-  .student-table td {
-    font-size: 12px;
-    padding: 8px;
-  }
-}
-canvas {
-  max-width: 100%;
-}
-/* ================= TEACHER DASHBOARD BACKGROUND ================= */
-
-/* ================= ADVANCED TEACHER DASHBOARD ================= */
-
-.teacher-bg {
-  min-height: 100vh;
-  background:
-    linear-gradient(-45deg, rgba(106,17,203,0.85), rgba(37,117,252,0.85), rgba(0,0,0,0.75)),
-    url("../images/teacher-bg.jpg") no-repeat center / cover;
-  background-size: 400% 400%;
-  animation: gradientMove 12s ease infinite;
-  padding-bottom: 40px;
+.top-bar button,
+.top-bar a {
+    background: transparent;
+    border: 1px solid #fff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+    text-decoration: none;
 }
 
-/* Gradient animation */
-@keyframes gradientMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.top-bar button:hover,
+.top-bar a:hover {
+    background: #fff;
+    color: #000;
 }
 
-/* Glassmorphism cards */
+/* Dark mode top bar */
+body.dark-mode .top-bar {
+    background: rgba(30, 30, 30, 0.8);
+}
+
+body.dark-mode .top-bar button,
+body.dark-mode .top-bar a {
+    border-color: #f0f0f0;
+    color: #f0f0f0;
+}
+
+body.dark-mode .top-bar button:hover,
+body.dark-mode .top-bar a:hover {
+    background: #f0f0f0;
+    color: #121212;
+}
+
+/* ---------------- GLASSMORPHIC CARDS ---------------- */
 .card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  transition: transform 0.3s ease;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 500px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
+    border: 1px solid rgba(255,255,255,0.18);
+    transition: 0.3s;
 }
 
 .card:hover {
-  transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 rgba(0,0,0,0.5);
 }
 
-/* Dark mode */
-.dark-mode .teacher-bg {
-  background:
-    linear-gradient(-45deg, rgba(0,0,0,0.9), rgba(40,40,40,0.9)),
-    url("../images/teacher-bg.jpg") no-repeat center / cover;
+/* ---------------- INPUTS ---------------- */
+input, select {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 10px 0;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    outline: none;
+    transition: 0.3s;
 }
 
-.dark-mode .card {
-  background: rgba(30, 30, 30, 0.95);
-  color: #fff;
+input:focus, select:focus {
+    border-color: #00ffff;
+    box-shadow: 0 0 10px #00ffff;
 }
 
-.dark-mode .student-table th {
-  background: #111;
+body.dark-mode input,
+body.dark-mode select {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(240,240,240,0.3);
+    color: #f0f0f0;
 }
 
-.dark-mode input,
-.dark-mode select {
-  background: #222;
-  color: #fff;
-  border: 1px solid #555;
+/* ---------------- BUTTONS ---------------- */
+button {
+    background: linear-gradient(135deg, #00f0ff, #ff00f0);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
 }
 
-/* Toggle button */
-.toggle-btn {
-  background: #fff;
-  color: #2575fc;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: bold;
+button:hover {
+    background: linear-gradient(135deg, #ff00f0, #00f0ff);
+    transform: translateY(-2px);
 }
 
-.dark-mode .toggle-btn {
-  background: #222;
-  color: #fff;
+/* ---------------- HEADINGS ---------------- */
+h1, h2, h3, h4, h5 {
+    color: #fff;
+    margin: 10px 0;
 }
 
-/* Responsive table */
-.table-wrapper {
-  overflow-x: auto;
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3 {
+    color: #f0f0f0;
 }
 
-/* Mobile optimization */
-@media (max-width: 768px) {
-  .dashboard-header {
-    flex-direction: column;
-    gap: 10px;
+/* ---------------- LINKS ---------------- */
+a {
+    color: #00ffff;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+a:hover {
+    color: #ff00f0;
+}
+
+/* ---------------- MISC ---------------- */
+.container {
+    padding: 80px 20px 20px 20px; /* add top padding for top-bar */
+}
+
+.flash {
+    background: rgba(255,255,255,0.05);
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    border-left: 4px solid #00ffff;
+    color: #fff;
+}
+
+body.dark-mode .flash {
+    border-left-color: #ff00f0;
+}
+
+/* ---------------- FOOTER ---------------- */
+footer {
     text-align: center;
-  }
-
-  .student-form .form-row {
-    flex-direction: column;
-  }
+    padding: 20px;
+    color: #aaa;
+    font-size: 14px;
 }
 
+body.dark-mode footer {
+    color: #ccc;
+}
+/* ---------------- TOP BAR ---------------- */
+.top-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 0 30px;
+    z-index: 1000;
+}
 
+.top-bar button,
+.top-bar a {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.top-bar button:hover,
+.top-bar a:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Dark mode adjustments */
+body.dark-mode .top-bar button,
+body.dark-mode .top-bar a {
+    border-color: rgba(255,255,255,0.5);
+}
+
+/* ---------------- BACKGROUND IMAGE BLUR ---------------- */
+.bg-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('{{ url_for("static", filename="school_bg.jpeg") }}') center/cover no-repeat;
+    filter: blur(10px) brightness(0.4);
+    z-index: -1;
+}
+
+/* ---------------- MAIN CARD ---------------- */
+.main-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 1000px;
+    margin: 150px auto 0 auto;
+    gap: 30px;
+    color: #fff;
+}
+
+.main-card h1 {
+    font-size: 2.5rem;
+}
+
+.main-card .highlight {
+    color: #ffc107;
+}
+
+.main-card .btn {
+    margin-top: 20px;
+    display: inline-block;
+    background: linear-gradient(135deg, #ffc107, #00f0ff);
+    color: #000;
+    font-weight: 600;
+    padding: 12px 30px;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+.main-card .btn:hover {
+    background: linear-gradient(135deg, #00f0ff, #ffc107);
+}
+
+/* ---------------- IMAGE ---------------- */
+.card-image img {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 30px rgba(0,255,255,0.5);
+}
 

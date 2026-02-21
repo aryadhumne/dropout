@@ -1,0 +1,136 @@
+{% extends "teacher/base.html" %}
+{% block content %}
+
+<h3>Student Records</h3>
+
+{% for group, students in grouped.items() %}
+
+<div class="card-box mt-4">
+<h5>{{ group }}</h5>
+
+<table class="table table-dark table-hover">
+<tr>
+<th>Name</th>
+<th>Roll</th>
+<th>Gender</th>
+<th>Risk %</th>
+<th>Risk Reason</th>
+<th>Assignment</th>
+<th>Behaviour</th>
+<th>Parent</th>
+<th>Phone</th>
+<th>Action</th>
+</tr>
+
+{% for s in students %}
+<tr id="row-{{ s.get('id') }}">
+
+<td>{{ s.get("name") }}</td>
+<td>{{ s.get("roll") }}</td>
+<td>{{ s.get("gender") }}</td>
+
+<td>
+{% set risk = s.get("risk_score", 0) %}
+
+{% if risk >= 60 %}
+<span class="badge bg-danger">{{ risk }}%</span>
+{% elif risk >= 40 %}
+<span class="badge bg-warning text-dark">{{ risk }}%</span>
+{% else %}
+<span class="badge bg-success">{{ risk }}%</span>
+{% endif %}
+</td>
+
+<td>{{ s.get("risk_reason") or "-" }}</td>
+<td>{{ s.get("assignment_status") or "-" }}</td>
+<td>{{ s.get("behaviour") or "-" }}</td>
+<td>{{ s.get("parent_name") }}</td>
+<td>{{ s.get("parent_phone") }}</td>
+
+<td>
+
+<a href="{{ url_for('edit_student', student_id=s.id) }}" 
+   class="btn btn-warning btn-sm">
+   Edit
+</a>
+
+<button type="button"
+        class="btn btn-danger btn-sm"
+        onclick="confirmDelete('{{ s.get('id') }}', '{{ s.get('name') }}')">
+    Delete
+</button>
+
+</td>
+</tr>
+
+<tr id="address-row-{{ s.get('id') }}">
+<td colspan="10">
+<strong>Address:</strong> {{ s.parent_address or "-" }}
+</td>
+</tr>
+
+{% endfor %}
+
+</table>
+</div>
+
+{% endfor %}
+
+
+<!-- SweetAlert Script -->
+<script>
+function confirmDelete(studentId, studentName) {
+
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "Delete " + studentName + "? You can recover later.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+
+        if (result.isConfirmed) {
+
+            fetch(`/teacher/delete_student/${studentId}`, {
+                method: "POST"
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                if (data.success) {
+
+                    document.getElementById("row-" + studentId).remove();
+                    document.getElementById("address-row-" + studentId).remove();
+
+                    let totalElement = document.getElementById("total-students");
+                    if (totalElement) {
+                        let current = parseInt(totalElement.innerText);
+                        totalElement.innerText = current - 1;
+                    }
+
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Student deleted successfully',
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true
+                    });
+
+                } else {
+                    Swal.fire('Error!', 'Something went wrong.', 'error');
+                }
+
+            });
+
+        }
+
+    });
+}
+</script>
+
+{% endblock %}

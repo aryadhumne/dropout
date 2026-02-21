@@ -1,0 +1,191 @@
+{% extends 'teacher/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center">
+    <div>
+        <h3>Welcome back 👋</h3>
+        <p>You have <strong id="total-students">{{ total_students }}</strong> students assigned to you</p>
+    </div>
+
+    <!-- Dark Mode Toggle -->
+    <button class="btn btn-outline-light" onclick="toggleDarkMode()">
+        🌙 Toggle Mode
+    </button>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="row g-4 mt-3">
+
+    <div class="col-md-3">
+        <div class="card-box text-center shadow-sm">
+            <h6>Total</h6>
+            <h3 id="card-total">{{ total_students }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-box text-center shadow-sm">
+            <h6 class="text-danger">High Risk</h6>
+            <h3 class="text-danger" id="card-high">{{ high_risk }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-box text-center shadow-sm">
+            <h6 style="color:#ffcc00;">Medium Risk</h6>
+            <h3 style="color:#ffcc00;" id="card-medium">{{ medium_risk }}</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card-box text-center shadow-sm">
+            <h6 class="text-success">Low Risk</h6>
+            <h3 class="text-success" id="card-low">{{ low_risk }}</h3>
+        </div>
+    </div>
+
+</div>
+
+<div class="row g-4 mt-4">
+
+    <div class="col-md-6">
+        <div class="card-box shadow-sm">
+            <h6>Risk Distribution</h6>
+            <canvas id="riskPieChart"></canvas>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card-box shadow-sm">
+            <h6>Risk Trend</h6>
+            <canvas id="riskTrendChart"></canvas>
+        </div>
+    </div>
+
+</div>
+<div class="card bg-dark text-white mt-4">
+    <div class="card-body">
+        <h5>Predicted Next Risk</h5>
+        <h2>{{ predicted_risk }}%</h2>
+    </div>
+</div>
+
+<div class="mt-4">
+    <button class="btn btn-success" onclick="exportPDF()">📥 Export Dashboard PDF</button>
+</div>
+<canvas id="riskChart" height="100"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+fetch("/teacher/risk_trend_data")
+.then(response => response.json())
+.then(data => {
+
+    const ctx = document.getElementById('riskChart');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: 'Risk Score Trend',
+                data: data.scores,
+                borderColor: 'red',
+                fill: false
+            }]
+        }
+    });
+
+});
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+
+// 🔥 HIGH RISK ALERT
+{% if high_risk > 0 %}
+Swal.fire({
+    icon: 'warning',
+    title: 'High Risk Alert!',
+    text: '{{ high_risk }} students are in high risk category.',
+    timer: 5000,
+    timerProgressBar: true
+});
+{% endif %}
+
+// PIE CHART
+const pieChart = new Chart(document.getElementById('riskPieChart'), {
+    type: 'pie',
+    data: {
+        labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+        datasets: [{
+            data: [{{ low_risk or 0 }}, {{ medium_risk or 0 }}, {{ high_risk or 0 }}],
+            backgroundColor: ['#00cc66', '#ffcc00', '#ff4d4d']
+        }]
+    }
+});
+
+// RISK TREND (Sample trend demo)
+const trendChart = new Chart(document.getElementById('riskTrendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [{
+            label: 'High Risk Trend',
+            data: [
+                {{ high_risk }},
+                {{ high_risk }},
+                {{ high_risk }},
+                {{ high_risk }}
+            ],
+            borderColor: '#ff4d4d',
+            fill: false,
+            tension: 0.3
+        }]
+    }
+});
+
+// 🔄 AUTO REFRESH EVERY 10 SECONDS
+setInterval(() => {
+    fetch('/teacher/dashboard_data')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("card-total").innerText = data.total;
+        document.getElementById("card-high").innerText = data.high;
+        document.getElementById("card-medium").innerText = data.medium;
+        document.getElementById("card-low").innerText = data.low;
+
+        pieChart.data.datasets[0].data = [data.low, data.medium, data.high];
+        pieChart.update();
+    });
+}, 10000);
+
+
+// 🌙 DARK MODE
+function toggleDarkMode() {
+    document.body.classList.toggle("bg-dark");
+    document.body.classList.toggle("text-light");
+}
+
+
+// 📥 EXPORT PDF
+async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const canvas = await html2canvas(document.body);
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF();
+    pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+    pdf.save("dashboard_report.pdf");
+}
+
+</script>
+
+{% endblock %}

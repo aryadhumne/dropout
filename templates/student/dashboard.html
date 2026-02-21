@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Student Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+/* --- YOUR FULL ORIGINAL CSS (UNCHANGED) --- */
+:root{
+  --glass: rgba(255,255,255,0.15);
+  --border: rgba(255,255,255,0.25);
+  --blue:#2563eb;
+  --green:#16a34a;
+  --orange:#f59e0b;
+  --red:#dc2626;
+  --purple:#7c3aed;
+}
+
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background: linear-gradient(-45deg,#667eea,#764ba2,#6dd5ed,#2193b0);
+  background-size:400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color:white;
+}
+
+@keyframes gradientBG{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+.sidebar{
+  width:260px;
+  backdrop-filter: blur(18px);
+  background: var(--glass);
+  border-right:1px solid var(--border);
+  position:fixed;
+  height:100%;
+  padding:25px 20px;
+  display:flex;
+  flex-direction:column;
+}
+
+.sidebar a{
+  display:flex;
+  padding:12px;
+  border-radius:12px;
+  color:white;
+  text-decoration:none;
+  margin-bottom:12px;
+  transition:.3s;
+}
+
+.sidebar a:hover,
+.sidebar a.active-link{
+  background:rgba(255,255,255,0.25);
+  transform:translateX(5px);
+}
+
+.sidebar-bottom{
+  margin-top:auto;
+}
+
+.logout-btn{
+  background:var(--red);
+  text-align:center;
+  border-radius:12px;
+  padding:10px;
+  color:white;
+  text-decoration:none;
+}
+
+.main{
+  margin-left:260px;
+  padding:40px;
+}
+
+.card-custom, .game-box{
+  backdrop-filter: blur(20px);
+  background: var(--glass);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:25px;
+  margin-bottom:25px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+}
+
+.stat-card{
+  border-radius:20px;
+  padding:25px;
+  text-align:center;
+  backdrop-filter: blur(15px);
+  background:rgba(255,255,255,0.2);
+}
+
+.ring{
+  width:170px;
+  height:170px;
+  border-radius:50%;
+  background:conic-gradient(var(--blue) var(--percent), rgba(255,255,255,0.2) 0);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:30px;
+  font-weight:bold;
+  margin:auto;
+}
+
+.dashboard-section{ display:none; }
+.dashboard-section.active{ display:block; }
+
+.memory-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.memory-card{
+  background:white;
+  color:black;
+  padding:20px;
+  text-align:center;
+  font-weight:bold;
+  border-radius:10px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+{% if performance %}
+{% set p = performance[0] %}
+{% endif %}
+
+<div class="sidebar">
+  <h2>EduTrack</h2>
+
+  <a href="#" onclick="showSection('studentInfo',this)">👤 Student Info</a>
+  <a href="#" onclick="showSection('attendance',this)">📈 Attendance</a>
+  <a href="#" onclick="showSection('alerts',this)">🚨 Alerts</a>
+  <a href="#" onclick="showSection('games',this)">🎮 Games</a>
+
+  {% if performance %}
+  <div class="mt-4 p-3 rounded" style="background:rgba(0,0,0,0.3);">
+    <h6>🤖 AI Dropout Prediction</h6>
+    <small>
+      {% if p.avg|int < 60 %}
+        High Risk 🚨
+      {% elif p.avg|int < 75 %}
+        Medium Risk ⚠
+      {% else %}
+        Low Risk ✅
+      {% endif %}
+    </small>
+  </div>
+  {% endif %}
+
+  <div class="sidebar-bottom mt-4">
+    <a href="/logout" class="logout-btn">🚪 Logout</a>
+  </div>
+</div>
+
+<div class="main">
+
+{% if performance %}
+
+<!-- STUDENT INFO -->
+<div id="studentInfo" class="dashboard-section active">
+  <h2 class="mb-4">Welcome, {{ p.name }} 👋</h2>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-3">
+      <div class="stat-card">
+        <h6>📊 Attendance</h6>
+        <h3>{{ p.avg|int }}%</h3>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card">
+        <h6>📝 Assignments</h6>
+        <h3>{{ p.assignment|int }}</h3>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card">
+        <h6>📚 Quiz</h6>
+        <h3>{{ p.quiz|int }}</h3>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stat-card">
+        <h6>⚠ Risk</h6>
+        <h3>{{ p.risk }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-custom">
+    <h5>Academic Details</h5>
+    <p><strong>Standard:</strong> {{ p.standard }}</p>
+    <p><strong>Division:</strong> {{ p.division }}</p>
+    <p><strong>Month:</strong> {{ p.month }}</p>
+  </div>
+</div>
+
+<!-- ATTENDANCE -->
+<div id="attendance" class="dashboard-section">
+  <div class="card-custom text-center">
+    <h4>Attendance Progress</h4>
+    <div class="ring" style="--percent: {{ p.avg|int }}%;">
+      {{ p.avg|int }}%
+    </div>
+  </div>
+
+  <div class="card-custom">
+    <h4>Attendance Chart</h4>
+    <canvas id="attendanceChart"></canvas>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div id="alerts" class="dashboard-section">
+  <div class="card-custom">
+    <h4>Alerts</h4>
+    {% if p.avg|int < 75 %}
+    <div class="alert alert-danger">Attendance below 75%</div>
+    {% endif %}
+    {% if p.assignment|int < 50 %}
+    <div class="alert alert-warning">Low assignment submission</div>
+    {% endif %}
+    {% if p.quiz|int < 50 %}
+    <div class="alert alert-warning">Low quiz performance</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- GAMES -->
+<div id="games" class="dashboard-section">
+  <div class="game-box mb-4">
+    <h4>🎯 Quick Math Game</h4>
+    <p id="question"></p>
+    <input type="number" id="answer" class="form-control w-50 mx-auto mb-3">
+    <button class="btn btn-light" onclick="checkAnswer()">Submit</button>
+    <p id="result" class="mt-3"></p>
+    <p><strong>Points:</strong> <span id="points">0</span></p>
+  </div>
+
+  <div class="game-box">
+    <h4>🧠 Memory Puzzle</h4>
+    <div class="memory-grid" id="memoryGame"></div>
+  </div>
+</div>
+
+{% endif %}
+</div>
+
+<script>
+function showSection(id,element){
+  document.querySelectorAll(".dashboard-section").forEach(sec=>{
+    sec.classList.remove("active");
+  });
+  document.querySelectorAll(".sidebar a").forEach(link=>{
+    link.classList.remove("active-link");
+  });
+  document.getElementById(id).classList.add("active");
+  if(element) element.classList.add("active-link");
+}
+
+/* FIXED Chart (No subjects loop) */
+{% if performance %}
+new Chart(document.getElementById("attendanceChart"),{
+  type:"bar",
+  data:{
+    labels:["Attendance"],
+    datasets:[{
+      label:"Attendance %",
+      data:[{{ p.avg|int }}],
+      backgroundColor:"#ffffff"
+    }]
+  },
+  options:{scales:{y:{beginAtZero:true,max:100}}}
+});
+{% endif %}
+
+/* Games */
+let points=0;
+let num1=Math.floor(Math.random()*10);
+let num2=Math.floor(Math.random()*10);
+document.getElementById("question").innerText=`What is ${num1} + ${num2}?`;
+
+function checkAnswer(){
+  let user=document.getElementById("answer").value;
+  if(user==num1+num2){
+    points+=10;
+    document.getElementById("result").innerText="Correct! 🎉";
+  }else{
+    document.getElementById("result").innerText="Try Again ❌";
+  }
+  document.getElementById("points").innerText=points;
+}
+</script>
+
+</body>
+</html>

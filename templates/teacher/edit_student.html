@@ -1,0 +1,136 @@
+{% extends "teacher/base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="mb-4">Edit Student</h2>
+
+    <form method="POST">
+
+        <!-- Basic Info -->
+        <div class="card mb-4 p-3">
+            <h5>Student Information</h5>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label>Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ student.name }}" required>
+                </div>
+
+                <div class="col">
+                    <label>Roll Number</label>
+                    <input type="number" name="roll" class="form-control" value="{{ student.roll }}" required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Standard</label>
+                    <input type="text" name="standard" class="form-control" value="{{ student.standard }}" required>
+                </div>
+
+                <div class="col">
+                    <label>Division</label>
+                    <input type="text" name="division" class="form-control" value="{{ student.division }}" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subjects & Attendance -->
+        <div class="card mb-4 p-3">
+            <h5>Subjects & Attendance</h5>
+
+            {% for sub in student.subjects %}
+            <div class="row mb-2">
+                <div class="col">
+                    <input type="text" name="subjects[]" class="form-control"
+                        value="{{ sub.subject }}" required>
+                </div>
+
+                <div class="col">
+                    <input type="number" name="attendance[]" class="form-control"
+                        value="{{ sub.attendance }}" min="0" max="100" required>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Assignment & Behaviour -->
+        <div class="card mb-4 p-3">
+            <h5>Performance Details</h5>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label>Assignment Status</label>
+                    <select name="assignment_status" class="form-control" required>
+                        <option value="Completed"
+                            {% if student.assignment_status == "Completed" %}selected{% endif %}>
+                            Completed
+                        </option>
+                        <option value="Not Completed"
+                            {% if student.assignment_status == "Not Completed" %}selected{% endif %}>
+                            Not Completed
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col">
+                    <label>Behaviour</label>
+                    <select name="behaviour" class="form-control" required>
+                        <option value="Good"
+                            {% if student.behaviour == "Good" %}selected{% endif %}>
+                            Good
+                        </option>
+                        <option value="Average"
+                            {% if student.behaviour == "Average" %}selected{% endif %}>
+                            Average
+                        </option>
+                        <option value="Poor"
+                            {% if student.behaviour == "Poor" %}selected{% endif %}>
+                            Poor
+                        </option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parent Details -->
+        <div class="card mb-4 p-3">
+            <h5>Parent Information</h5>
+
+            <div class="row mb-3">
+                <div class="col">
+                    <label>Parent Name</label>
+                    <input type="text" name="parent_name" class="form-control"
+                        value="{{ student.parent_name }}" required>
+                </div>
+
+                <div class="col">
+                    <label>Parent Phone</label>
+                    <input type="text" name="parent_phone" class="form-control"
+                        value="{{ student.parent_phone }}" required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Alternate Phone</label>
+                    <input type="text" name="parent_alt_phone" class="form-control"
+                        value="{{ student.parent_alt_phone }}">
+                </div>
+
+                <div class="col">
+                    <label>Address</label>
+                    <input type="text" name="parent_address" class="form-control"
+                        value="{{ student.parent_address }}">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Student</button>
+        <a href="{{ url_for('student_records') }}" class="btn btn-secondary">Cancel</a>
+
+    </form>
+</div>
+
+{% endblock %}

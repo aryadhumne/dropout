@@ -1,216 +1,205 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Principal Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-       
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0;
-            min-height: 100vh;
-
-            background: 
-                linear-gradient(rgba(242, 235, 235, 0.55), rgba(249, 241, 241, 0.55)),
-                url("/static/images/pg.jpeg") no-repeat center center / cover;
+        body { 
+            font-family: Segoe UI; 
+            margin:0; 
+            background:#f4f6f9; 
         }
 
-    
         .header {
-            background: linear-gradient(90deg, #1e3c72, #2a5298);
-            color: white;
-            padding: 18px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            background:#1e3c72;
+            color:white;
+            padding:15px 25px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
         }
 
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
+        .header a {
+            color:white;
+            text-decoration:none;
+            margin-left:10px;
+            background:#ff4d4d;
+            padding:8px 12px;
+            border-radius:6px;
         }
 
-        .logout {
-            background: #ff4d4d;
-            color: white;
-            padding: 10px 16px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
+        .container { padding:25px; }
+
+        .cards {
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+            gap:20px;
         }
 
-        .logout:hover {
-            background: #e63939;
+        .card {
+            background:white;
+            padding:20px;
+            border-radius:12px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.1);
+            text-align:center;
         }
 
-        /* ================= CONTAINER ================= */
-        .container {
-            padding: 25px;
+        /* 🔥 Smaller Chart */
+        .chart-container {
+            width:300px;
+            height:300px;
+            margin:40px auto;
         }
 
-        /* ================= HIGH RISK PANEL ================= */
-        .risk-panel {
-            background: rgba(255, 230, 230, 0.95);
-            border-left: 6px solid red;
-            padding: 15px;
-            margin-bottom: 30px;
-            border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        table {
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+            background:white;
         }
 
-        .risk-panel h2 {
-            color: red;
-            margin-top: 0;
+        th, td {
+            padding:10px;
+            border-bottom:1px solid #ddd;
+            text-align:center;
         }
 
-        .risk-student {
-            font-weight: bold;
-            color: darkred;
-            margin-bottom: 6px;
+        th { 
+            background:#1e3c72; 
+            color:white; 
         }
 
-        /* ================= DIVISION SECTIONS ================= */
-        .division-section {
-            margin-bottom: 35px;
+        .high { color:red; font-weight:bold; }
+        .medium { color:orange; font-weight:bold; }
+        .low { color:green; font-weight:bold; }
+
+        .controls {
+            margin-top:20px;
+            display:flex;
+            justify-content:space-between;
         }
 
-        .division-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #ffffff;
-            margin-bottom: 12px;
-            text-shadow: 0 2px 6px rgba(0,0,0,0.7);
-        }
-
-        .student-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 16px;
-        }
-
-        /* ================= STUDENT CARD ================= */
-        .student-card {
-            background: rgba(255,255,255,0.95);
-            border-radius: 14px;
-            padding: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-            transition: transform 0.25s, box-shadow 0.25s;
-        }
-
-        .student-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 14px 35px rgba(0,0,0,0.35);
-        }
-
-        .student-card h4 {
-            margin: 0;
-            color: #1e3c72;
-        }
-
-        .student-card p {
-            margin: 6px 0;
-            color: #333;
-            font-size: 14px;
-        }
-
-        /* ================= BADGES ================= */
-        .badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 16px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 8px;
-        }
-
-        .low { background: #d4edda; color: #155724; }
-        .medium { background: #fff3cd; color: #856404; }
-        .high { background: #f8d7da; color: #721c24; }
-
-        /* ================= BLINK EFFECT ================= */
-        @keyframes blink {
-            0% { box-shadow: 0 0 10px red; }
-            50% { box-shadow: 0 0 25px red; }
-            100% { box-shadow: 0 0 10px red; }
-        }
-
-        .blink {
-            animation: blink 1.2s infinite;
-            border: 2px solid red;
-        }
-
-        a.card-link {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        /* ================= RESPONSIVE ================= */
-        @media (max-width: 600px) {
-            .division-title {
-                font-size: 18px;
-            }
+        input, select {
+            padding:6px;
         }
     </style>
 </head>
 
 <body>
 
-<!-- ================= HEADER ================= -->
 <div class="header">
-    <h1>📊 Principal Dashboard</h1>
-    <a href="{{ url_for('login') }}" class="logout">Logout</a>
+    <h2>📊 Principal Dashboard</h2>
+    <div>
+        <a href="{{ url_for('principal_pdf') }}">PDF</a>
+        <a href="{{ url_for('principal_excel') }}">Excel</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
 </div>
 
 <div class="container">
 
-    <!-- ================= HIGH RISK STUDENTS ================= -->
-    <div class="risk-panel">
-        <h2>🚨 High Risk Students (Immediate Attention)</h2>
+<div class="cards">
+    <div class="card">
+        <h3>Total Students</h3>
+        <h2>{{ total_students }}</h2>
+    </div>
+    <div class="card">
+        <h3>High Risk</h3>
+        <h2>{{ high_risk }}</h2>
+    </div>
+    <div class="card">
+        <h3>Medium Risk</h3>
+        <h2>{{ medium_risk }}</h2>
+    </div>
+    <div class="card">
+        <h3>Average Attendance</h3>
+        <h2>{{ avg_attendance }}%</h2>
+    </div>
+</div>
 
-        {% if high_risk_students %}
-            {% for s in high_risk_students %}
-                <div class="risk-student">
-                    {{ s.name }} | Roll: {{ s.roll }} | Division: {{ s.division }}
-                </div>
+<!-- 🔥 Smaller Pie Chart -->
+<div class="chart-container">
+    <canvas id="riskChart"></canvas>
+</div>
+
+<div class="controls">
+    <div>
+        Filter Class:
+        <select id="classFilter" onchange="filterTable()">
+            <option value="All">All</option>
+            {% for c in classes %}
+            <option value="{{ c }}">{{ c }}</option>
             {% endfor %}
-        {% else %}
-            <p>No high-risk students currently 🎉</p>
-        {% endif %}
+        </select>
     </div>
 
-    <!-- ================= DIVISION WISE DATA ================= -->
-    {% for division, students in division_wise.items() %}
-        <div class="division-section">
-            <div class="division-title">📚 Division {{ division }}</div>
+    <div>
+        Search:
+        <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search Name...">
+    </div>
+</div>
 
-            <div class="student-grid">
-                {% for s in students %}
-                    <a href="{{ url_for('student_profile', roll=s.roll) }}" class="card-link">
-                        <div class="student-card {% if s.risk == 'High' %}blink{% endif %}">
+<table id="studentTable">
+<tr>
+    <th>Roll</th>
+    <th>Name</th>
+    <th>Class</th>
+    <th>Gender</th>
+    <th>Attendance</th>
+    <th>Marks</th>
+    <th>Risk</th>
+    <th>Recommendation</th>
+</tr>
 
-                            <h4>{{ s.name }}</h4>
-                            <p>Roll No: {{ s.roll }}</p>
-                            <p>Average Attendance: {{ s.avg }}%</p>
-                            <p>Assignment: {{ s.assignment }}</p>
-                            <p>Quiz: {{ s.quiz }}</p>
-
-                            {% if s.risk == "High" %}
-                                <span class="badge high">HIGH RISK</span>
-                            {% elif s.risk == "Medium" %}
-                                <span class="badge medium">MEDIUM RISK</span>
-                            {% else %}
-                                <span class="badge low">LOW RISK</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
-    {% endfor %}
+{% for s in students %}
+<tr>
+    <td>{{ s[0] }}</td>
+    <td>{{ s[1] }}</td>
+    <td>{{ s[2] }}</td>
+    <td>{{ s[3] }}</td>
+    <td>{{ s[4] }}%</td>
+    <td>{{ s[5] }}</td>
+    <td class="{{ s[6]|lower }}">{{ s[6] }}</td>
+    <td>{{ s[7] }}</td>
+</tr>
+{% endfor %}
+</table>
 
 </div>
+
+<script>
+new Chart(document.getElementById("riskChart"), {
+    type: "pie",
+    data: {
+        labels: ["High", "Medium", "Low"],
+        datasets: [{
+            data: [{{ high_risk }}, {{ medium_risk }}, {{ total_students - high_risk - medium_risk }}],
+            backgroundColor: ["#ff4d4d", "#ffa500", "#4CAF50"]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+function filterTable() {
+    let input = document.getElementById("searchInput").value.toLowerCase();
+    let filterClass = document.getElementById("classFilter").value;
+    let rows = document.getElementById("studentTable").getElementsByTagName("tr");
+
+    for (let i = 1; i < rows.length; i++) {
+        let name = rows[i].cells[1].innerText.toLowerCase();
+        let cls = rows[i].cells[2].innerText;
+
+        let matchSearch = name.includes(input);
+        let matchClass = (filterClass === "All" || cls === filterClass);
+
+        rows[i].style.display = (matchSearch && matchClass) ? "" : "none";
+    }
+}
+</script>
 
 </body>
 </html>
