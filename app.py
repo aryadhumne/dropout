@@ -107,7 +107,71 @@ def index():
 @app.route('/select_role')
 def select_role():
     return render_template('select_role.html')
+# ---------------- REGISTER ----------------
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        role = request.form.get('role', '').lower()
+        raw_password = request.form.get('password', '')
 
+        if not raw_password.isdigit() or len(raw_password) != 6:
+            flash("Password must be exactly 6 digits", "error")
+            return redirect(url_for('register'))
+
+        hashed_password = generate_password_hash(raw_password)
+        data = {"role": role, "password": hashed_password}
+
+      
+        if role == "student":
+            roll = request.form.get('roll', '').strip()
+            name = request.form.get('name', '').strip()
+            email = request.form.get('email', '').strip().lower()
+
+            if not roll or not name or not email:
+                    flash("Roll, Name and Email are required", "error")
+                    return redirect(url_for('register'))
+
+            existing_roll = supabase.table("users").select("*").eq("roll", roll).execute()
+            if existing_roll.data:
+                    flash("Roll number already registered", "error")
+                    return redirect(url_for('register'))
+
+            existing_email = supabase.table("users").select("*").eq("email", email).execute()
+            if existing_email.data:
+                    flash("Email already registered", "error")
+                    return redirect(url_for('register'))
+
+            data["roll"] = roll
+            data["name"] = name
+            data["email"] = email
+
+ # ---------- OTHER ROLES ----------
+        else:
+            email = request.form.get('email', '').strip().lower()
+            name = request.form.get('name', '').strip()   # ✅ FIXED
+
+            if not email or not name:
+                flash("Email and Name are required", "error")
+                return redirect(url_for('register'))
+
+            existing = supabase.table("users").select("*").eq("email", email).execute()
+            if existing.data:
+                flash("Email already registered", "error")
+                return redirect(url_for('register'))
+
+            data["email"] = email
+            data["name"] = name
+
+        try:
+            supabase.table("users").insert(data).execute()
+            flash("Registration successful! Please login.", "success")
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            print("REGISTER ERROR:", e)
+            flash("Registration failed", "error")
+            return redirect(url_for('select_role'))
+    return render_template('register.html')
 # ---------------- FORGOT PASSWORD ----------------
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -164,7 +228,7 @@ def role_login(role):
         "teacher": "teacher_login.html",
         "principal": "principal_login.html",
         "ngo": "ngo_login.html",
-
+        "admin": "admin_login.html"
     }
 
     if role not in template_map:
