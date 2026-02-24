@@ -3,6 +3,43 @@
 
 <h3>Student Records</h3>
 
+<!-- ================= FILTER SECTION ================= -->
+<div class="card-box mb-4">
+    <div class="row">
+
+        <!-- Standard Filter -->
+        <div class="col-md-6 mb-2">
+            <label>Select Standard</label>
+            <select id="standardFilter"
+                    class="form-control"
+                    onchange="handleStandardChange()">
+                <option value="">Select Standard</option>
+                {% for i in range(1,9) %}
+                <option value="{{ i }}">{{ i }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Division Filter -->
+        <div class="col-md-6 mb-2">
+            <label>Select Division</label>
+            <select id="divisionFilter"
+                    class="form-control"
+                    onchange="filterStudents()"
+                    disabled>
+                <option value="">Select Division</option>
+                <option>A</option>
+                <option>B</option>
+                <option>C</option>
+                <option>D</option>
+                <option>E</option>
+                <option>F</option>
+            </select>
+        </div>
+
+    </div>
+</div>
+
 {% for group, students in grouped.items() %}
 
 <div class="card-box mt-4">
@@ -12,6 +49,8 @@
 <tr>
 <th>Name</th>
 <th>Roll</th>
+<th>Standard</th>
+<th>Division</th>
 <th>Gender</th>
 <th>Risk %</th>
 <th>Risk Reason</th>
@@ -23,15 +62,19 @@
 </tr>
 
 {% for s in students %}
-<tr id="row-{{ s.get('id') }}">
+<tr class="student-row"
+    id="row-{{ s.get('id') }}"
+    data-standard="{{ s.get('standard') }}"
+    data-division="{{ s.get('division') }}">
 
 <td>{{ s.get("name") }}</td>
 <td>{{ s.get("roll") }}</td>
+<td>{{ s.get("standard") }}</td>
+<td>{{ s.get("division") }}</td>
 <td>{{ s.get("gender") }}</td>
 
 <td>
 {% set risk = s.get("risk_score", 0) %}
-
 {% if risk >= 60 %}
 <span class="badge bg-danger">{{ risk }}%</span>
 {% elif risk >= 40 %}
@@ -48,8 +91,7 @@
 <td>{{ s.get("parent_phone") }}</td>
 
 <td>
-
-<a href="{{ url_for('edit_student', student_id=s.id) }}" 
+<a href="{{ url_for('edit_student', student_id=s.id) }}"
    class="btn btn-warning btn-sm">
    Edit
 </a>
@@ -59,31 +101,112 @@
         onclick="confirmDelete('{{ s.get('id') }}', '{{ s.get('name') }}')">
     Delete
 </button>
-
 </td>
 </tr>
 
 <tr id="address-row-{{ s.get('id') }}">
-<td colspan="10">
+<td colspan="12">
 <strong>Address:</strong> {{ s.parent_address or "-" }}
 </td>
 </tr>
 
 {% endfor %}
-
 </table>
 </div>
 
 {% endfor %}
 
+<!-- ================= FILTER SCRIPT ================= -->
+<script>
 
-<!-- SweetAlert Script -->
+// Hide everything on page load
+window.onload = function() {
+    hideAllStudents();
+};
+
+function hideAllStudents() {
+    let rows = document.querySelectorAll(".student-row");
+    rows.forEach(row => {
+        row.style.display = "none";
+        let id = row.id.split("-")[1];
+        document.getElementById("address-row-" + id).style.display = "none";
+    });
+}
+
+function handleStandardChange() {
+
+    let standard = document.getElementById("standardFilter").value;
+    let divisionSelect = document.getElementById("divisionFilter");
+
+    // Reset division
+    divisionSelect.value = "";
+
+    if (standard === "") {
+        divisionSelect.disabled = true;
+        hideAllStudents();
+        return;
+    }
+
+    divisionSelect.disabled = false;
+    filterStudents();
+}
+
+function filterStudents() {
+
+    let standard = document.getElementById("standardFilter").value;
+    let division = document.getElementById("divisionFilter").value;
+
+    let rows = document.querySelectorAll(".student-row");
+
+    rows.forEach(row => {
+
+        let std = row.getAttribute("data-standard");
+        let div = row.getAttribute("data-division");
+        let id = row.id.split("-")[1];
+
+        // If no standard selected → hide all
+        if (standard === "") {
+            row.style.display = "none";
+            document.getElementById("address-row-" + id).style.display = "none";
+            return;
+        }
+
+        // Standard selected, no division
+        if (division === "") {
+
+            if (std === standard) {
+                row.style.display = "";
+                document.getElementById("address-row-" + id).style.display = "";
+            } else {
+                row.style.display = "none";
+                document.getElementById("address-row-" + id).style.display = "none";
+            }
+
+        } else {
+
+            // Standard + Division selected
+            if (std === standard && div === division) {
+                row.style.display = "";
+                document.getElementById("address-row-" + id).style.display = "";
+            } else {
+                row.style.display = "none";
+                document.getElementById("address-row-" + id).style.display = "none";
+            }
+
+        }
+
+    });
+}
+
+</script>
+
+<!-- ================= DELETE SCRIPT ================= -->
 <script>
 function confirmDelete(studentId, studentName) {
 
     Swal.fire({
         title: 'Are you sure?',
-        text: "Delete " + studentName + "? You can recover later.",
+        text: "Delete " + studentName + "?",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
@@ -105,20 +228,13 @@ function confirmDelete(studentId, studentName) {
                     document.getElementById("row-" + studentId).remove();
                     document.getElementById("address-row-" + studentId).remove();
 
-                    let totalElement = document.getElementById("total-students");
-                    if (totalElement) {
-                        let current = parseInt(totalElement.innerText);
-                        totalElement.innerText = current - 1;
-                    }
-
                     Swal.fire({
                         toast: true,
                         position: 'top-end',
                         icon: 'success',
                         title: 'Student deleted successfully',
                         showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true
+                        timer: 3000
                     });
 
                 } else {

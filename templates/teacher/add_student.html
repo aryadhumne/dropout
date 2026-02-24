@@ -5,7 +5,18 @@
 <div class="card-box">
     <h4 class="card-title mb-4">Add Student</h4>
 
-    <form method="POST">
+    <!-- Select Mode -->
+    <div class="mb-4">
+        <label><strong>Select Entry Type:</strong></label>
+        <select id="entryType" class="form-control" onchange="toggleParentSection()" required>
+            <option value="new">New Student (First Time)</option>
+            <option value="monthly">Monthly Update</option>
+        </select>
+    </div>
+
+    <form method="POST" id="studentForm">
+
+        <input type="hidden" name="is_new" id="is_new" value="true">
 
         <!-- ================= BASIC DETAILS ================= -->
         <h5 class="mb-3">Basic Details</h5>
@@ -17,7 +28,7 @@
             </div>
 
             <div class="col-md-6 mb-3">
-                <label>Student / Parent Email</label>
+                <label>Email</label>
                 <input type="email" name="email" class="form-control dark-input" required>
             </div>
         </div>
@@ -33,7 +44,7 @@
                 <select name="standard" class="form-control dark-input" required>
                     <option value="">Select</option>
                     {% for i in range(1,9) %}
-                    <option>{{ i }}</option>
+                    <option value="{{ i }}">{{ i }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -52,14 +63,15 @@
             </div>
         </div>
 
+        <!-- ===== NEW FIELDS ADDED HERE ===== -->
+
         <div class="row">
             <div class="col-md-4 mb-3">
-                <label>Gender</label>
-                <select name="gender" class="form-control dark-input" required>
+                <label>Assignment Status</label>
+                <select name="assignment_status" class="form-control dark-input" required>
                     <option value="">Select</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
+                    <option>Completed</option>
+                    <option>Not Completed</option>
                 </select>
             </div>
 
@@ -74,27 +86,18 @@
             </div>
 
             <div class="col-md-4 mb-3">
-                <label>Assignment Status</label>
-                <select name="assignment_status" class="form-control dark-input" required>
+                <label>Behaviour</label>
+                <select name="behaviour" class="form-control dark-input" required>
                     <option value="">Select</option>
-                    <option>Completed</option>
-                    <option>Not Completed</option>
+                    <option>Excellent</option>
+                    <option>Good</option>
+                    <option>Average</option>
+                    <option>Poor</option>
                 </select>
             </div>
         </div>
 
-        <div class="mb-3">
-            <label>Behaviour in Class</label>
-            <select name="behaviour" class="form-control dark-input" required>
-                <option value="">Select</option>
-                <option>Excellent</option>
-                <option>Good</option>
-                <option>Average</option>
-                <option>Poor</option>
-            </select>
-        </div>
-
-        <!-- ================= MONTHLY TEST SCORE ================= -->
+        <!-- ================= MONTHLY TEST ================= -->
         <h5 class="mt-4">Monthly Test</h5>
 
         <div class="mb-3">
@@ -104,7 +107,7 @@
                    min="0" max="100" required>
         </div>
 
-        <!-- ================= SUBJECT + ATTENDANCE ================= -->
+        <!-- ================= SUBJECTS ================= -->
         <h5 class="mt-4">Subjects & Attendance %</h5>
 
         <div id="subjectContainer">
@@ -124,28 +127,35 @@
                 onclick="addSubject()">+ Add Another Subject</button>
 
         <!-- ================= PARENT DETAILS ================= -->
-        <h5 class="mt-4">Parent Details</h5>
+        <div id="parentSection">
+            <h5 class="mt-4">Parent Details</h5>
 
-        <div class="mb-3">
-            <label>Parent Name</label>
-            <input type="text" name="parent_name" class="form-control dark-input" required>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label>Parent Phone</label>
-                <input type="text" name="parent_phone" class="form-control dark-input" required>
+            <div class="mb-3">
+                <label>Parent Name</label>
+                <input type="text" name="parent_name"
+                       class="form-control dark-input parent-required">
             </div>
 
-            <div class="col-md-6 mb-3">
-                <label>Alternate Contact</label>
-                <input type="text" name="parent_alt_phone" class="form-control dark-input">
-            </div>
-        </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Parent Phone</label>
+                    <input type="text" name="parent_phone"
+                           class="form-control dark-input parent-required">
+                </div>
 
-        <div class="mb-3">
-            <label>Address</label>
-            <textarea name="parent_address" class="form-control dark-input" rows="3" required></textarea>
+                <div class="col-md-6 mb-3">
+                    <label>Alternate Contact</label>
+                    <input type="text" name="parent_alt_phone"
+                           class="form-control dark-input">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label>Address</label>
+                <textarea name="parent_address"
+                          class="form-control dark-input parent-required"
+                          rows="3"></textarea>
+            </div>
         </div>
 
         <button type="submit" class="btn btn-success">
@@ -156,6 +166,24 @@
 </div>
 
 <script>
+function toggleParentSection() {
+
+    let type = document.getElementById("entryType").value;
+    let parentSection = document.getElementById("parentSection");
+    let parentFields = document.querySelectorAll(".parent-required");
+    let hiddenField = document.getElementById("is_new");
+
+    if (type === "monthly") {
+        parentSection.style.display = "none";
+        hiddenField.value = "false";
+        parentFields.forEach(field => field.removeAttribute("required"));
+    } else {
+        parentSection.style.display = "block";
+        hiddenField.value = "true";
+        parentFields.forEach(field => field.setAttribute("required", "required"));
+    }
+}
+
 function addSubject() {
     const container = document.getElementById('subjectContainer');
     const div = document.createElement('div');

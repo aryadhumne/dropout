@@ -8,8 +8,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+<!-- Sound Effects -->
+<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3"></audio>
+
 <style>
-/* --- YOUR FULL ORIGINAL CSS (UNCHANGED) --- */
+/* ===== YOUR ORIGINAL CSS (UNCHANGED) ===== */
 :root{
   --glass: rgba(255,255,255,0.15);
   --border: rgba(255,255,255,0.25);
@@ -63,9 +67,7 @@ body{
   transform:translateX(5px);
 }
 
-.sidebar-bottom{
-  margin-top:auto;
-}
+.sidebar-bottom{ margin-top:auto; }
 
 .logout-btn{
   background:var(--red);
@@ -76,10 +78,7 @@ body{
   text-decoration:none;
 }
 
-.main{
-  margin-left:260px;
-  padding:40px;
-}
+.main{ margin-left:260px; padding:40px; }
 
 .card-custom, .game-box{
   backdrop-filter: blur(20px);
@@ -89,6 +88,11 @@ body{
   padding:25px;
   margin-bottom:25px;
   box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  transition:0.3s;
+}
+
+.card-custom:hover, .game-box:hover{
+  transform:scale(1.02);
 }
 
 .stat-card{
@@ -112,8 +116,8 @@ body{
   margin:auto;
 }
 
-.dashboard-section{ display:none; }
-.dashboard-section.active{ display:block; }
+.dashboard-section{ display:none; opacity:0; transition:0.4s; }
+.dashboard-section.active{ display:block; opacity:1; }
 
 .memory-grid{
   display:grid;
@@ -141,11 +145,12 @@ body{
 
 <div class="sidebar">
   <h2>EduTrack</h2>
-
   <a href="#" onclick="showSection('studentInfo',this)">👤 Student Info</a>
   <a href="#" onclick="showSection('attendance',this)">📈 Attendance</a>
   <a href="#" onclick="showSection('alerts',this)">🚨 Alerts</a>
   <a href="#" onclick="showSection('games',this)">🎮 Games</a>
+ <a href="#" onclick="showSection('feedback',this)">⭐Feedback</a>
+  <a href="#" onclick="showSection('applyforleave',this)">📝Apply For Leave</a>
 
   {% if performance %}
   <div class="mt-4 p-3 rounded" style="background:rgba(0,0,0,0.3);">
@@ -175,41 +180,65 @@ body{
 <div id="studentInfo" class="dashboard-section active">
   <h2 class="mb-4">Welcome, {{ p.name }} 👋</h2>
 
+  <!-- Academic Details Card (NEW ADDED ONLY) -->
+  <div class="card-custom mb-4">
+    <h5 class="mb-3">🎓 Academic Details</h5>
+    <div class="row">
+      <div class="col-md-4">
+        <p><strong>Standard:</strong> {{ p.standard }}</p>
+      </div>
+      <div class="col-md-4">
+        <p><strong>Division:</strong> {{ p.division }}</p>
+      </div>
+      <div class="col-md-4">
+        <p><strong>Roll No:</strong> {{ p.roll_no }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Cards -->
   <div class="row g-4 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="stat-card">
         <h6>📊 Attendance</h6>
         <h3>{{ p.avg|int }}%</h3>
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="stat-card">
         <h6>📝 Assignments</h6>
         <h3>{{ p.assignment|int }}</h3>
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="stat-card">
         <h6>📚 Quiz</h6>
         <h3>{{ p.quiz|int }}</h3>
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="stat-card">
         <h6>⚠ Risk</h6>
         <h3>{{ p.risk }}</h3>
       </div>
     </div>
-  </div>
 
-  <div class="card-custom">
-    <h5>Academic Details</h5>
-    <p><strong>Standard:</strong> {{ p.standard }}</p>
-    <p><strong>Division:</strong> {{ p.division }}</p>
-    <p><strong>Month:</strong> {{ p.month }}</p>
+    <div class="col-md-4">
+      <div class="stat-card">
+        <h6>🏆 Performance Score</h6>
+        <h3>{{ (p.avg|int + p.assignment|int + p.quiz|int)//3 }}%</h3>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="stat-card">
+        <h6>📅 Month</h6>
+        <h3>{{ p.month }}</h3>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -221,7 +250,6 @@ body{
       {{ p.avg|int }}%
     </div>
   </div>
-
   <div class="card-custom">
     <h4>Attendance Chart</h4>
     <canvas id="attendanceChart"></canvas>
@@ -246,6 +274,8 @@ body{
 
 <!-- GAMES -->
 <div id="games" class="dashboard-section">
+
+  <!-- ORIGINAL GAMES (NOT REMOVED) -->
   <div class="game-box mb-4">
     <h4>🎯 Quick Math Game</h4>
     <p id="question"></p>
@@ -255,44 +285,47 @@ body{
     <p><strong>Points:</strong> <span id="points">0</span></p>
   </div>
 
+  <!-- NEW RANDOM GAMES -->
   <div class="game-box">
-    <h4>🧠 Memory Puzzle</h4>
-    <div class="memory-grid" id="memoryGame"></div>
+    <h4>🎮 Today's Random Games</h4>
+    <div id="randomGames"></div>
   </div>
+
 </div>
 
 {% endif %}
 </div>
 
 <script>
-function showSection(id,element){
+/* Section Switch */
+function showSection(id){
   document.querySelectorAll(".dashboard-section").forEach(sec=>{
     sec.classList.remove("active");
   });
-  document.querySelectorAll(".sidebar a").forEach(link=>{
-    link.classList.remove("active-link");
-  });
   document.getElementById(id).classList.add("active");
-  if(element) element.classList.add("active-link");
+  document.getElementById("clickSound").play();
 }
 
-/* FIXED Chart (No subjects loop) */
-{% if performance %}
-new Chart(document.getElementById("attendanceChart"),{
-  type:"bar",
-  data:{
-    labels:["Attendance"],
-    datasets:[{
-      label:"Attendance %",
-      data:[{{ p.avg|int }}],
-      backgroundColor:"#ffffff"
-    }]
-  },
-  options:{scales:{y:{beginAtZero:true,max:100}}}
+/* Attendance Chart */
+document.addEventListener("DOMContentLoaded", function(){
+const ctx = document.getElementById("attendanceChart");
+if(ctx){
+  new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:["Attendance"],
+      datasets:[{
+        label:"Attendance %",
+        data:[{{ p.avg|int }}],
+        backgroundColor:"#ffffff"
+      }]
+    },
+    options:{scales:{y:{beginAtZero:true,max:100}}}
+  });
+}
 });
-{% endif %}
 
-/* Games */
+/* ORIGINAL MATH GAME */
 let points=0;
 let num1=Math.floor(Math.random()*10);
 let num2=Math.floor(Math.random()*10);
@@ -303,11 +336,87 @@ function checkAnswer(){
   if(user==num1+num2){
     points+=10;
     document.getElementById("result").innerText="Correct! 🎉";
+    document.getElementById("winSound").play();
   }else{
     document.getElementById("result").innerText="Try Again ❌";
   }
   document.getElementById("points").innerText=points;
 }
+
+/* 20 RANDOM GAMES */
+const games=[
+"Word Scramble","Capital Quiz","Guess Number","Even or Odd","Memory Challenge",
+"Riddle Time","Science Quiz","Typing Speed","Color Guess","Brain Teaser",
+"Quick Multiply","Spell Check","GK Quiz","Find Pattern","Odd One Out",
+"True or False","History Quiz","Animal Quiz","Logic Puzzle","Math Challenge"
+];
+
+function loadGames(){
+  let shuffled=[...games].sort(()=>0.5-Math.random());
+  let selected=shuffled.slice(0,2);
+  let container=document.getElementById("randomGames");
+  container.innerHTML="";
+  selected.forEach(game=>{
+    container.innerHTML+=`
+      <div class="mb-3 p-3 bg-light text-dark rounded">
+        <h5>${game}</h5>
+        <button class="btn btn-primary mt-2" onclick="playGame('${game}')">Play Now</button>
+      </div>
+    `;
+  });
+}
+
+function playGame(game){
+  document.getElementById("clickSound").play();
+  const container=document.getElementById("randomGames");
+
+  let questions={
+    "Word Scramble": {q:"Unscramble: lppa e", a:"apple"},
+    "Capital Quiz": {q:"Capital of India?", a:"new delhi"},
+    "Guess Number": {q:"Guess a number between 1-5", a:String(Math.floor(Math.random()*5)+1)},
+    "Even or Odd": {q:"Is 14 Even or Odd?", a:"even"},
+    "Memory Challenge": {q:"Remember this: 321 (type it)", a:"321"},
+    "Riddle Time": {q:"I have keys but no locks. What am I?", a:"keyboard"},
+    "Science Quiz": {q:"H2O is called?", a:"water"},
+    "Typing Speed": {q:"Type this word: education", a:"education"},
+    "Color Guess": {q:"Mix red + blue = ?", a:"purple"},
+    "Brain Teaser": {q:"5 + 3 × 2 = ?", a:"11"},
+    "Quick Multiply": {q:"6 × 7 = ?", a:"42"},
+    "Spell Check": {q:"Correct spelling: recieve/receive?", a:"receive"},
+    "GK Quiz": {q:"Largest planet?", a:"jupiter"},
+    "Find Pattern": {q:"2,4,6,8, ?", a:"10"},
+    "Odd One Out": {q:"Apple, Mango, Car, Banana", a:"car"},
+    "True or False": {q:"Sun rises from West?", a:"false"},
+    "History Quiz": {q:"Who discovered India sea route?", a:"vasco da gama"},
+    "Animal Quiz": {q:"Fastest land animal?", a:"cheetah"},
+    "Logic Puzzle": {q:"16 + 16 = ?", a:"32"},
+    "Math Challenge": {q:"√64 = ?", a:"8"}
+  };
+
+  let gameData=questions[game];
+
+  container.innerHTML=`
+    <div class="mb-3 p-3 bg-light text-dark rounded">
+      <h5>${game}</h5>
+      <p>${gameData.q}</p>
+      <input id="gameInput" class="form-control mb-2">
+      <button class="btn btn-success" onclick="checkGameAnswer('${gameData.a}')">Submit</button>
+      <p id="gameResult" class="mt-2"></p>
+    </div>
+  `;
+}
+
+function checkGameAnswer(correct){
+  let user=document.getElementById("gameInput").value.toLowerCase().trim();
+  if(user===correct.toLowerCase()){
+    document.getElementById("gameResult").innerHTML="Correct! 🎉";
+    document.getElementById("winSound").play();
+  }else{
+    document.getElementById("gameResult").innerHTML="Try Again ❌";
+  }
+}
+
+document.addEventListener("DOMContentLoaded",loadGames);
 </script>
 
 </body>

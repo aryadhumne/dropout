@@ -433,38 +433,54 @@ def add_student():
         gender = request.form.get('gender')
         email = request.form.get('email')
         parent_email = request.form.get('parent_email')
-        monthly_test_score = request.form.get('monthly_test_score')
 
         parent_name = request.form.get('parent_name')
         parent_phone = request.form.get('parent_phone')
         parent_alt_phone = request.form.get('parent_alt_phone')
         parent_address = request.form.get('parent_address')
 
+        # Convert numeric safely
+        monthly_test_score = int(request.form.get('monthly_test_score') or 0)
+        assignment = request.form.get("assignment_status")
+        quiz = request.form.get("quiz_performance")
+        behaviour = request.form.get("behaviour")
+
+        month = request.form.get("month")
+
         if not name or not email:
             flash("Name and Email required", "danger")
             return redirect(url_for('add_student'))
 
-        # ✅ CHECK DUPLICATE IN student_performance (NOT students)
+        # ✅ DUPLICATE CHECK
         existing = supabase.table("student_performance") \
             .select("id") \
             .eq("email", email) \
+            .eq("is_deleted", False) \
             .execute()
 
         if existing.data:
             flash("Student with this email already exists", "danger")
             return redirect(url_for('add_student'))
 
-        monthly_test_score = int(monthly_test_score or 0)
+        # ✅ IMPROVED RISK CALCULATION
+        risk_score = 0
+        risk_reason = []
 
         if monthly_test_score < 35:
-            risk_score = 80
-            risk_reason = "Very Low Monthly Test Score"
-        elif monthly_test_score < 50:
-            risk_score = 60
-            risk_reason = "Low Monthly Test Score"
-        else:
-            risk_score = 20
-            risk_reason = "Good Performance"
+            risk_score += 40
+            risk_reason.append("Low Monthly Score")
+
+        if attendance < 60:
+            risk_score += 30
+            risk_reason.append("Low Attendance")
+
+        if assignment < 50:
+            risk_score += 15
+            risk_reason.append("Low Assignment")
+
+        if quiz < 50:
+            risk_score += 15
+            risk_reason.append("Low Quiz")
 
         risk_status = "At Risk" if risk_score >= 60 else "Safe"
 
@@ -477,8 +493,12 @@ def add_student():
             "email": email,
             "parent_email": parent_email,
             "monthly_test_score": monthly_test_score,
+            "attendance": attendance,
+            "assignment": assignment,
+            "quiz": quiz,
+            "month": month,
             "risk_score": risk_score,
-            "risk_reason": risk_reason,
+            "risk_reason": ", ".join(risk_reason),
             "risk_status": risk_status,
             "parent_name": parent_name,
             "parent_phone": parent_phone,
@@ -505,29 +525,28 @@ def add_student():
             return redirect(url_for('add_student'))
 
     return render_template("teacher/add_student.html")
-
-
-
 @app.route('/teacher/student_records')
 def student_records():
 
     if session.get('role') != 'teacher':
         return redirect(url_for('index'))
 
+    # ✅ FIXED ORDER COLUMN
     response = supabase.table("student_performance") \
         .select("*") \
-        .eq("is_deleted", False) \
-        .order("created_at", desc=True) \
         .execute()
 
-    students = response.data if response.data else []
+    students = response.data or []
 
+    print("RAW RESPONSE:", response)
     print("FETCHED STUDENTS:", students)
+
+
 
     # ---------------- FIX RISK DATA ----------------
     for s in students:
 
-        # If risk_status missing, derive from risk field
+        # Derive risk_status if missing
         if not s.get("risk_status"):
             if s.get("risk") == "At Risk":
                 s["risk_status"] = "At Risk"
@@ -549,8 +568,8 @@ def student_records():
     grouped = {}
 
     for s in students:
-        standard = s.get("standard", "Unknown")
-        division = s.get("division", "Unknown")
+        standard = s.get("standard") or "Unknown"
+        division = s.get("division") or "Unknown"
 
         key = f"Class {standard} - {division}"
 
