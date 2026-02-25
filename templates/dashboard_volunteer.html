@@ -1,17 +1,264 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Volunteer Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+<meta charset="UTF-8">
+<title>NGO Volunteer Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<meta name="google" content="notranslate">
+
+<style>
+body{margin:0;font-family:Arial,sans-serif}
+.layout{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:250px;background:#1e293b;color:#fff;padding:20px;transition:.3s}
+.sidebar.collapsed{width:70px}
+.sidebar a{color:#fff;text-decoration:none;display:flex;gap:10px;padding:10px;border-radius:8px}
+.sidebar a:hover{background:#334155}
+.sidebar.collapsed span{display:none}
+
+/* MAIN */
+.main{flex:1}
+.volunteer-bg{
+  min-height:100vh;
+  background:linear-gradient(rgba(255,255,255,.45),rgba(255,255,255,.45)),
+  url("{{ url_for('static', filename='images/sg.jpeg') }}");
+  background-size:cover;
+  padding:30px;
+}
+
+.dashboard-container{max-width:1200px;margin:auto}
+
+/* HEADER */
+.dashboard-header{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#ffffffee;color:#000000;
+  padding:15px 20px;border-radius:14px;margin-bottom:20px
+}
+.toggle-btn{background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:8px}
+.btn-logout{background:#dc2626;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.metric-card{
+  background:#ffffffee;padding:20px;border-radius:14px;text-align:center
+}
+.metric-card h2{margin:0;font-size:32px;color:#2563eb}
+
+/* CARDS */
+.card{background:#ffffffee;padding:20px;border-radius:16px;margin-bottom:20px}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #ddd}
+
+/* BADGES */
+.badge-high{color:#fff;background:#dc2626;padding:5px 10px;border-radius:20px}
+.badge-medium{color:#fff;background:#f59e0b;padding:5px 10px;border-radius:20px}
+
+/* FORM */
+.form-row{display:flex;gap:10px;margin-bottom:10px}
+select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
+.btn-primary{background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:8px}
+
+/* INTERVENTION */
+.timeline li{margin-bottom:8px}
+
+/* DARK */
+.dark-mode .card,
+.dark-mode .metric-card,
+.dark-mode .dashboard-header{background:#0f172add;color:#fff}
+.dark-mode select,.dark-mode textarea{background:#020617;color:#fff}
+</style>
 
 </head>
+
 <body>
-  <div class="dashboard">
-    <h1>Welcome, NGO Volunteer!</h1>
-    <p>Track student progress and assist in interventions.</p>
-    <a href="/" class="btn-logout">Logout</a>
+  <!-- GOOGLE TRANSLATE -->
+<div id="google_translate_element" style="display:none"></div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <h2><strong>EduTrack</strong></h2>
+  <a href="/about">ℹ️ <span>About Us</span></a>
+
+  <label>🌐 Language</label>
+  <select id="langSelect">
+    <option value="">Select</option>
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+    <option value="mr">Marathi</option>
+  </select>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+<div class="volunteer-bg" id="themeRoot">
+<div class="dashboard-container">
+
+<!-- HEADER -->
+<div class="dashboard-header">
+  <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+  <h1>🤝 NGO Volunteer Dashboard</h1>
+  <div>
+    <button class="toggle-btn" onclick="toggleDark()">🌙</button>
+    <a href="/logout" class="btn-logout">Logout</a>
   </div>
+</div>
+
+<!-- METRICS -->
+<div class="metrics">
+  <div class="metric-card">
+    <h2>{{ students | length }}</h2>
+    <p>At-Risk Students</p>
+  </div>
+
+  <div class="metric-card">
+    <h2>{{ interventions | length }}</h2>
+    <p>Students Helped</p>
+  </div>
+
+  <div class="metric-card">
+    <h2>{{ interventions | length }}</h2>
+    <p>Total Interventions</p>
+  </div>
+</div>
+<!-- FILTER -->
+<div class="card">
+<label>Filter by Risk</label>
+<select onchange="filterRisk(this.value)">
+  <option value="all">All</option>
+  <option value="High">High</option>
+  <option value="Medium">Medium</option>
+</select>
+</div></pre>
+
+<!-- STUDENTS -->
+<div class="card">
+<h2>⚠️ At-Risk Students</h2>
+<table id="riskTable">
+<thead>
+<tr>
+<th>Name</th><th>Roll</th><th>Division</th><th>Risk</th><th>Reason</th><th>Action</th>
+</tr>
+</thead>
+<tbody>
+{% for s in students %}
+<tr data-risk="{{ s.risk }}">
+<td>{{ s.name }}</td>
+<td>{{ s.roll }}</td>
+<td>{{ s.division }}</td>
+<td>
+{% if s.risk == 'High' %}
+<span class="badge-high">URGENT</span>
+{% else %}
+<span class="badge-medium">ATTENTION</span>
+{% endif %}
+</td>
+<td>
+Attendance: {{ s.attendance }}%<br>
+Assignment: {{ s.assignment }}<br>
+Quiz: {{ s.quiz }}
+</td>
+<td>
+<form method="POST" action="/ngo/action/{{ s.roll }}">
+<select name="action_type" required>
+<option value="">Intervention</option>
+<option>Counselling</option>
+<option>Parent Meeting</option>
+<option>Financial Aid</option>
+<option>Mentorship</option>
+</select>
+<select name="status" required>
+<option value="">Status</option>
+<option>Planned</option>
+<option>Ongoing</option>
+<option>Completed</option>
+</select>
+<textarea name="notes" rows="2" placeholder="Notes" required></textarea>
+<button class="btn-primary">Save</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<!-- INTERVENTIONS -->
+<div class="card">
+<h2>📋 Intervention History</h2>
+
+{% if interventions %}
+<ul class="timeline">
+{% for a in interventions %}
+<li>
+<strong>{{ a.type }}</strong> —
+{{ a.status }}<br>
+🧑 Roll: {{ a.roll }}<br>
+📝 {{ a.notes }}<br>
+👤 By: {{ a.by }}
+</li>
+{% endfor %}
+</ul>
+{% else %}
+<p>No interventions recorded yet.</p>
+{% endif %}
+
+</div>
+
+
+<!-- SCRIPTS -->
+ <script>
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement(
+    {
+      pageLanguage: 'en',
+      autoDisplay: false
+    },
+    'google_translate_element'
+  );
+}
+</script>
+
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script>
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("collapsed")
+}
+
+function toggleDark(){
+  document.getElementById("themeRoot").classList.toggle("dark-mode")
+}
+
+function filterRisk(val){
+  document.querySelectorAll("#riskTable tbody tr").forEach(r=>{
+    r.style.display = (val==="all"||r.dataset.risk===val)?"":"none"
+  })
+}
+
+/* 🌐 LANGUAGE CHANGE FIX */
+document.getElementById("langSelect").addEventListener("change", function () {
+  const lang = this.value;
+  if (!lang) return;
+
+  const timer = setInterval(() => {
+    const combo = document.querySelector(".goog-te-combo");
+    if (combo) {
+      combo.value = lang;
+      combo.dispatchEvent(new Event("change"));
+      clearInterval(timer);
+    }
+  }, 300);
+});
+</script>
+
+
 </body>
 </html>

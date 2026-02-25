@@ -1,0 +1,205 @@
+{% extends "teacher/base.html" %}
+{% block title %}Add Student{% endblock %}
+{% block content %}
+
+<div class="card-box">
+    <h4 class="card-title mb-4">Add Student</h4>
+
+    <!-- Select Mode -->
+    <div class="mb-4">
+        <label><strong>Select Entry Type:</strong></label>
+        <select id="entryType" class="form-control" onchange="toggleParentSection()" required>
+            <option value="new">New Student (First Time)</option>
+            <option value="monthly">Monthly Update</option>
+        </select>
+    </div>
+
+    <form method="POST" id="studentForm">
+
+        <input type="hidden" name="is_new" id="is_new" value="true">
+
+        <!-- ================= BASIC DETAILS ================= -->
+        <h5 class="mb-3">Basic Details</h5>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control dark-input" required>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control dark-input" required>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label>Roll</label>
+                <input type="number" name="roll" class="form-control dark-input" required>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label>Standard</label>
+                <select name="standard" class="form-control dark-input" required>
+                    <option value="">Select</option>
+                    {% for i in range(1,9) %}
+                    <option value="{{ i }}">{{ i }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label>Division</label>
+                <select name="division" class="form-control dark-input" required>
+                    <option value="">Select</option>
+                    <option>A</option>
+                    <option>B</option>
+                    <option>C</option>
+                    <option>D</option>
+                    <option>E</option>
+                    <option>F</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ===== NEW FIELDS ADDED HERE ===== -->
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label>Assignment Status</label>
+                <select name="assignment_status" class="form-control dark-input" required>
+                    <option value="">Select</option>
+                    <option>Completed</option>
+                    <option>Not Completed</option>
+                </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label>Quiz Performance</label>
+                <select name="quiz_performance" class="form-control dark-input" required>
+                    <option value="">Select</option>
+                    <option>Good</option>
+                    <option>Average</option>
+                    <option>Poor</option>
+                </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label>Behaviour</label>
+                <select name="behaviour" class="form-control dark-input" required>
+                    <option value="">Select</option>
+                    <option>Excellent</option>
+                    <option>Good</option>
+                    <option>Average</option>
+                    <option>Poor</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ================= MONTHLY TEST ================= -->
+        <h5 class="mt-4">Monthly Test</h5>
+
+        <div class="mb-3">
+            <label>Monthly Test Score</label>
+            <input type="number" name="monthly_score"
+                   class="form-control dark-input"
+                   min="0" max="100" required>
+        </div>
+
+        <!-- ================= SUBJECTS ================= -->
+        <h5 class="mt-4">Subjects & Attendance %</h5>
+
+        <div id="subjectContainer">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <input type="text" name="subjects[]" placeholder="Subject Name"
+                           class="form-control dark-input" required>
+                </div>
+                <div class="col-md-6">
+                    <input type="number" name="attendance[]" placeholder="Attendance %"
+                           class="form-control dark-input" min="0" max="100" required>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary mb-3"
+                onclick="addSubject()">+ Add Another Subject</button>
+
+        <!-- ================= PARENT DETAILS ================= -->
+        <div id="parentSection">
+            <h5 class="mt-4">Parent Details</h5>
+
+            <div class="mb-3">
+                <label>Parent Name</label>
+                <input type="text" name="parent_name"
+                       class="form-control dark-input parent-required">
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Parent Phone</label>
+                    <input type="text" name="parent_phone"
+                           class="form-control dark-input parent-required">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Alternate Contact</label>
+                    <input type="text" name="parent_alt_phone"
+                           class="form-control dark-input">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label>Address</label>
+                <textarea name="parent_address"
+                          class="form-control dark-input parent-required"
+                          rows="3"></textarea>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">
+            Save Student
+        </button>
+
+    </form>
+</div>
+
+<script>
+function toggleParentSection() {
+
+    let type = document.getElementById("entryType").value;
+    let parentSection = document.getElementById("parentSection");
+    let parentFields = document.querySelectorAll(".parent-required");
+    let hiddenField = document.getElementById("is_new");
+
+    if (type === "monthly") {
+        parentSection.style.display = "none";
+        hiddenField.value = "false";
+        parentFields.forEach(field => field.removeAttribute("required"));
+    } else {
+        parentSection.style.display = "block";
+        hiddenField.value = "true";
+        parentFields.forEach(field => field.setAttribute("required", "required"));
+    }
+}
+
+function addSubject() {
+    const container = document.getElementById('subjectContainer');
+    const div = document.createElement('div');
+    div.className = "row mb-3";
+    div.innerHTML = `
+        <div class="col-md-6">
+            <input type="text" name="subjects[]" placeholder="Subject Name"
+                   class="form-control dark-input" required>
+        </div>
+        <div class="col-md-6">
+            <input type="number" name="attendance[]" placeholder="Attendance %"
+                   class="form-control dark-input" min="0" max="100" required>
+        </div>
+    `;
+    container.appendChild(div);
+}
+</script>
+
+{% endblock %}

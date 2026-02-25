@@ -1,17 +1,107 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% extends 'teacher/base.html' %}
+{% block title %}Dashboard{% endblock %}
 
-</head>
-<body>
-  <div class="dashboard">
-    <h1>Welcome, Teacher!</h1>
-    <p>Here you can monitor at-risk students and view predictive insights.</p>
-    <a href="/" class="btn-logout">Logout</a>
+{% block content %}
+
+<!-- WELCOME CARD -->
+<div class="card card-glass mb-4 p-4 d-flex flex-row align-items-center justify-content-between">
+  <div>
+    <h4 class="mb-1">Welcome back, </h4>
+    <p class="text-muted mb-0">
+      You have {{ total_students }} students assigned to you
+    </p>
   </div>
-</body>
-</html>
+  <img src="{{ url_for('static', filename='img/teacher-illustration.png') }}"
+       style="height:120px;">
+</div>
+
+<!-- ROW 1 -->
+<div class="row g-4 mb-4">
+
+  <!-- STUDENT STATISTICS -->
+  <div class="col-md-5">
+    <div class="card card-glass p-3 h-100">
+      <h6 class="mb-3">Student Statistics</h6>
+      <canvas id="studentStatsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CLASS PROGRESS -->
+  <div class="col-md-3">
+    <div class="card card-glass p-3 h-100">
+      <h6 class="mb-3">Class Progress</h6>
+
+      {% for c in class_progress %}
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <span>{{ c.name }}</span>
+        <div class="progress w-50">
+          <div class="progress-bar bg-primary"
+               style="width: {{ c.percent }}%">
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- UPCOMING ACTIVITIES -->
+  <div class="col-md-4">
+    <div class="card card-glass p-3 h-100">
+      <h6 class="mb-3">Upcoming Activities</h6>
+
+      {% for e in events %}
+      <div class="d-flex align-items-center mb-3">
+        <span class="badge bg-primary me-3">{{ e.date }}</span>
+        <div>
+          <strong>{{ e.title }}</strong><br>
+          <small class="text-muted">{{ e.class_info }}</small>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ROW 2 -->
+<div class="row g-4">
+
+  <!-- ATTENDANCE -->
+  <div class="col-md-6">
+    <div class="card card-glass p-3">
+      <h6 class="mb-3">Attendance</h6>
+      <canvas id="attendanceChart"></canvas>
+    </div>
+  </div>
+
+  <!-- STAFF ROOM -->
+  <div class="col-md-3">
+    <div class="card card-glass p-3">
+      <h6 class="mb-3">Staff Room</h6>
+
+      {% for t in staff %}
+      <div class="d-flex align-items-center mb-3">
+        <div class="avatar me-2">{{ t.initials }}</div>
+        <div>
+          <strong>{{ t.name }}</strong><br>
+          <small>{{ t.subject }}</small>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- DOCUMENTS -->
+  <div class="col-md-3">
+    <div class="card card-glass p-3">
+      <h6 class="mb-3">Documents</h6>
+
+      <div class="doc-item">📄 Class Notes</div>
+      <div class="doc-item">📄 Exam Schedule</div>
+      <div class="doc-item">📄 Student List</div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
