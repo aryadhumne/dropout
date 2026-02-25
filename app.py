@@ -426,6 +426,9 @@ def add_student():
 
     if request.method == 'POST':
 
+        # -------------------------
+        # Basic Details
+        # -------------------------
         name = request.form.get('name')
         roll = request.form.get('roll')
         standard = request.form.get('standard')
@@ -434,24 +437,36 @@ def add_student():
         email = request.form.get('email')
         parent_email = request.form.get('parent_email')
 
+        # -------------------------
+        # Parent Details
+        # -------------------------
         parent_name = request.form.get('parent_name')
         parent_phone = request.form.get('parent_phone')
         parent_alt_phone = request.form.get('parent_alt_phone')
         parent_address = request.form.get('parent_address')
 
-        # Convert numeric safely
+        # -------------------------
+        # Academic Data
+        # -------------------------
+        attendance = int(request.form.get("attendance") or 0)
         monthly_test_score = int(request.form.get('monthly_test_score') or 0)
-        assignment = request.form.get("assignment_status")
-        quiz = request.form.get("quiz_performance")
-        behaviour = request.form.get("behaviour")
 
+        assignment_status = request.form.get("assignment_status")
+        quiz_status = request.form.get("quiz_performance")
+
+        behaviour = request.form.get("behaviour")
         month = request.form.get("month")
 
+        # -------------------------
+        # Validation
+        # -------------------------
         if not name or not email:
             flash("Name and Email required", "danger")
             return redirect(url_for('add_student'))
 
-        # ✅ DUPLICATE CHECK
+        # -------------------------
+        # Duplicate Check
+        # -------------------------
         existing = supabase.table("student_performance") \
             .select("id") \
             .eq("email", email) \
@@ -462,7 +477,29 @@ def add_student():
             flash("Student with this email already exists", "danger")
             return redirect(url_for('add_student'))
 
-        # ✅ IMPROVED RISK CALCULATION
+        # -------------------------
+        # Convert Status → Score
+        # -------------------------
+
+        # Assignment conversion
+        if assignment_status == "Completed":
+            assignment_score = 100
+        elif assignment_status == "Pending":
+            assignment_score = 50
+        else:
+            assignment_score = 0
+
+        # Quiz conversion
+        if quiz_status == "Good":
+            quiz_score = 100
+        elif quiz_status == "Average":
+            quiz_score = 50
+        else:
+            quiz_score = 0
+
+        # -------------------------
+        # Risk Calculation
+        # -------------------------
         risk_score = 0
         risk_reason = []
 
@@ -474,16 +511,19 @@ def add_student():
             risk_score += 30
             risk_reason.append("Low Attendance")
 
-        if assignment < 50:
+        if assignment_score < 50:
             risk_score += 15
             risk_reason.append("Low Assignment")
 
-        if quiz < 50:
+        if quiz_score < 50:
             risk_score += 15
             risk_reason.append("Low Quiz")
 
         risk_status = "At Risk" if risk_score >= 60 else "Safe"
 
+        # -------------------------
+        # Insert Data
+        # -------------------------
         insert_data = {
             "name": name,
             "roll": roll,
@@ -494,12 +534,20 @@ def add_student():
             "parent_email": parent_email,
             "monthly_test_score": monthly_test_score,
             "attendance": attendance,
-            "assignment": assignment,
-            "quiz": quiz,
+
+            # Store both status & score
+            "assignment_status": assignment_status,
+            "assignment_score": assignment_score,
+            "quiz_status": quiz_status,
+            "quiz_score": quiz_score,
+
+            "behaviour": behaviour,
             "month": month,
+
             "risk_score": risk_score,
             "risk_reason": ", ".join(risk_reason),
             "risk_status": risk_status,
+
             "parent_name": parent_name,
             "parent_phone": parent_phone,
             "parent_alt_phone": parent_alt_phone,
@@ -622,41 +670,170 @@ def edit_student(student_id):
 
     return render_template("teacher/edit_student.html", student=student)
 
-@app.route("/dashboard/principal")
+@app.route("/dashboard/principal", methods=["GET", "POST"])
 def dashboard_principal():
-    conn, cur = get_db()
-    cur.execute("SELECT roll, name, class, gender, attendance, marks FROM students")
-    rows = cur.fetchall()
 
-    total_students = len(rows)
+    from datetime import datetime, timedelta
+
+    selected_class = request.args.get("class_filter")
+    selected_risk = request.args.get("risk_filter")
+    selected_gender = request.args.get("gender_filter")
+
+    response = supabase.table("students").select("*").execute()
+    rows = response.data or []
+
+    filtered_rows = []
+
+    # ---------- FILTER ----------
+    for r in rows:
+        cls = r.get("class")
+        gender = (r.get("gender") or "").lower()
+
+        if selected_class and cls != selected_class:
+            continue
+        if selected_gender and gender != selected_gender.lower():
+            continue
+
+        filtered_rows.append(r)
+
+    total_students = len(filtered_rows)
     high_risk = 0
     medium_risk = 0
     total_att = 0
-    classes = set()
+
+    classes = {}
+    boys_risk = 0
+    girls_risk = 0
+
+    red_flag_students = []
     students = []
 
-    for r in rows:
-        roll, name, cls, gender, att, marks = r
-        total_att += att
-        classes.add(cls)
+    # ---------- MAIN LOOP ----------
+    for r in filtered_rows:
 
+        roll = r.get("roll")
+        name = r.get("name")
+        cls = r.get("class")
+
+        gender = str(r.get("gender") or "Not Set")
+        gender_lower = gender.strip().lower()
+
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
+
+        total_att += att
+        classes.setdefault(cls, 0)
+
+        # ---------- RISK LOGIC ----------
         if att < 75 or marks < 40:
             risk = "High"
-            recommendation = "Immediate Parent Meeting Required"
             high_risk += 1
+            classes[cls] += 1
+            red_flag_students.append(name)
+
+            if gender_lower == "male":
+                boys_risk += 1
+            elif gender_lower == "female":
+                girls_risk += 1
+
         elif att < 85 or marks < 55:
             risk = "Medium"
-            recommendation = "Monitor Weekly"
             medium_risk += 1
         else:
             risk = "Low"
-            recommendation = "Stable"
 
-        students.append((roll, name, cls, gender, att, marks, risk, recommendation))
+        if selected_risk and risk != selected_risk:
+            continue
 
+        # ---------- EXPLAINABLE AI LOGIC ----------
+        reason = ""
+        suggested_action = ""
+
+        if risk == "High":
+            if att < 75 and marks < 40:
+                reason = f"Low attendance ({att}%) and Low marks ({marks})"
+            elif att < 75:
+                reason = f"Low attendance ({att}%)"
+            else:
+                reason = f"Low marks ({marks})"
+
+            suggested_action = "Home Visit"
+
+        elif risk == "Medium":
+            if att < 85 and marks < 55:
+                reason = f"Attendance ({att}%) and Marks ({marks}) declining"
+            elif att < 85:
+                reason = f"Attendance slightly low ({att}%)"
+            else:
+                reason = f"Marks slightly low ({marks})"
+
+            suggested_action = "Extra Classes"
+
+        else:
+            reason = "Good academic performance"
+            suggested_action = "Regular Monitoring"
+
+        students.append((
+            roll,
+            name,
+            cls,
+            att,
+            marks,
+            risk,
+            reason,
+            suggested_action
+        ))
+
+    # ---------- AVERAGE ATTENDANCE ----------
     avg_attendance = round(total_att / total_students, 2) if total_students else 0
 
-    conn.close()
+    # ---------- TEACHERS ----------
+    teacher_response = supabase.table("teachers").select("*").execute()
+    teachers = teacher_response.data or []
+
+    # ================= INTERVENTION TRACKING =================
+    intervention_response = supabase.table("interventions").select("*").execute()
+    interventions = intervention_response.data or []
+
+    home_visits = 0
+    parent_meetings = 0
+    high_to_medium = 0
+    medium_to_low = 0
+
+    for record in interventions:
+        if record.get("type") == "home_visit":
+            home_visits += 1
+
+        if record.get("type") == "parent_meeting":
+            parent_meetings += 1
+
+        if record.get("transition") == "High_to_Medium":
+            high_to_medium += 1
+
+        if record.get("transition") == "Medium_to_Low":
+            medium_to_low += 1
+
+    # ---------- LAST 30 DAYS ANALYSIS ----------
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+
+    response_30 = supabase.table("students") \
+        .select("*") \
+        .gte("updated_at", thirty_days_ago.isoformat()) \
+        .execute()
+
+    last30_students = response_30.data or []
+
+    improved_students = 0
+    declined_students = 0
+
+    for s in last30_students:
+        attendance = int(s.get("attendance") or 0)
+        marks = int(s.get("marks") or 0)
+
+        if attendance > 75 and marks > 50:
+            improved_students += 1
+        else:
+            declined_students += 1
 
     return render_template(
         "dashboard_principal.html",
@@ -665,55 +842,68 @@ def dashboard_principal():
         high_risk=high_risk,
         medium_risk=medium_risk,
         avg_attendance=avg_attendance,
-        classes=sorted(classes)
+        class_labels=list(classes.keys()),
+        class_values=list(classes.values()),
+        boys_risk=boys_risk,
+        girls_risk=girls_risk,
+        red_flag_students=red_flag_students,
+        teachers=teachers,
+        selected_class=selected_class,
+        improved_students=improved_students,
+        declined_students=declined_students,
+        home_visits=home_visits,
+        parent_meetings=parent_meetings,
+        high_to_medium=high_to_medium,
+        medium_to_low=medium_to_low,
     )
-@app.route("/principal/pdf")
-def principal_pdf():
-    conn, cur = get_db()
 
-    cur.execute("SELECT roll, name, class, attendance, marks FROM students")
-    rows = cur.fetchall()
-    conn.close()
 
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer)
+# ================= ADD TEACHER =================
+@app.route("/add_teacher", methods=["POST"])
+def add_teacher():
 
-    y = 800
-    c.drawString(200, y, "Student Dropout Report")
-    y -= 30
+    name = request.form.get("name")
+    email = request.form.get("email")
+    assigned_class = request.form.get("assigned_class")
+
+    supabase.table("teachers").insert({
+        "name": name,
+        "email": email,
+        "assigned_class": assigned_class
+    }).execute()
+
+    return redirect(url_for("dashboard_principal"))
+
+
+# ================= REMOVE TEACHER =================
+@app.route("/remove_teacher/<teacher_id>")
+def remove_teacher(teacher_id):
+
+    supabase.table("teachers").delete().eq("id", teacher_id).execute()
+
+    return redirect(url_for("dashboard_principal"))
+
+
+# ================= SEND HIGH RISK TO NGO =================
+@app.route("/send_ngo")
+def send_ngo():
+
+    response = supabase.table("students").select("*").execute()
+    rows = response.data or []
 
     for r in rows:
-        line = f"Roll: {r[0]} | Name: {r[1]} | Class: {r[2]} | Att: {r[3]}% | Marks: {r[4]}"
-        c.drawString(50, y, line)
-        y -= 20
-        if y < 50:
-            c.showPage()
-            y = 800
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
 
-    c.save()
-    buffer.seek(0)
+        if att < 75 or marks < 40:
+            supabase.table("ngo_notifications").insert({
+                "student_name": r.get("name"),
+                "class": r.get("class"),
+                "attendance": att,
+                "marks": marks
+            }).execute()
 
-    return send_file(buffer, as_attachment=True, download_name="report.pdf")
-@app.route("/principal/excel")
-def principal_excel():
-    conn = sqlite3.connect("database.db")
-    df = pd.read_sql("SELECT * FROM students", conn)
-    conn.close()
-
-    output = io.BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
-
-    return send_file(output, as_attachment=True, download_name="report.xlsx")
-@app.route("/principal/student/<int:roll>")
-def principal_student(roll):
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM students WHERE roll=?", (roll,))
-    student = cur.fetchone()
-    conn.close()
-
-    return render_template("student_profile.html", student=student)
+    return redirect(url_for("dashboard_principal"))
 # ---------------- VOLUNTEER DASHBOARD ----------------
 @app.route('/volunteer/dashboard')
 def dashboard_volunteer():

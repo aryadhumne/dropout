@@ -66,7 +66,8 @@
     <div id="registerForm">
         <h2>Principal Register</h2>
 
-        <form method="POST" action="/principal_auth">
+        <!-- ✅ FIXED ACTION -->
+        <form method="POST" action="/login/principal">
             <input type="hidden" name="action" value="register">
 
             <input type="text" name="principal_name" placeholder="Principal Name" required>
@@ -88,7 +89,7 @@
     <div id="loginForm" class="hidden">
         <h2>Principal Login</h2>
 
-        <form method="POST" action="/principal_auth">
+        <form method="POST" action="/login/principal">
             <input type="hidden" name="action" value="login">
 
             <input type="email" name="email" placeholder="Registered Email" required>
