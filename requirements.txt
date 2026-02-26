@@ -10,3 +10,4 @@ shap==0.44.1
 reportlab==4.0.9
 cloudinary==1.39.0
 supabase==2.3.4
+gunicorn==21.2.0
