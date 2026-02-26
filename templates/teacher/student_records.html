@@ -1,19 +1,17 @@
 {% extends "teacher/base.html" %}
 {% block content %}
 
-<h3>Student Records</h3>
+<h3 class="mb-4">Student Records</h3>
 
 <!-- ================= FILTER SECTION ================= -->
 <div class="card-box mb-4">
     <div class="row">
 
         <!-- Standard Filter -->
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
             <label>Select Standard</label>
-            <select id="standardFilter"
-                    class="form-control"
-                    onchange="handleStandardChange()">
-                <option value="">Select Standard</option>
+            <select id="standardFilter" class="form-control">
+                <option value="">All</option>
                 {% for i in range(1,9) %}
                 <option value="{{ i }}">{{ i }}</option>
                 {% endfor %}
@@ -21,13 +19,10 @@
         </div>
 
         <!-- Division Filter -->
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
             <label>Select Division</label>
-            <select id="divisionFilter"
-                    class="form-control"
-                    onchange="filterStudents()"
-                    disabled>
-                <option value="">Select Division</option>
+            <select id="divisionFilter" class="form-control">
+                <option value="">All</option>
                 <option>A</option>
                 <option>B</option>
                 <option>C</option>
@@ -37,15 +32,22 @@
             </select>
         </div>
 
+        <!-- Name Search -->
+        <div class="col-md-4 mb-2">
+            <label>Search by Name</label>
+            <input type="text" id="nameSearch" class="form-control" placeholder="Enter student name">
+        </div>
+
     </div>
 </div>
 
+<!-- ================= STUDENT TABLE ================= -->
 {% for group, students in grouped.items() %}
-
 <div class="card-box mt-4">
 <h5>{{ group }}</h5>
 
 <table class="table table-dark table-hover">
+<thead>
 <tr>
 <th>Name</th>
 <th>Roll</th>
@@ -60,12 +62,15 @@
 <th>Phone</th>
 <th>Action</th>
 </tr>
+</thead>
 
+<tbody>
 {% for s in students %}
 <tr class="student-row"
     id="row-{{ s.get('id') }}"
     data-standard="{{ s.get('standard') }}"
-    data-division="{{ s.get('division') }}">
+    data-division="{{ s.get('division') }}"
+    data-name="{{ s.get('name','') | lower }}">
 
 <td>{{ s.get("name") }}</td>
 <td>{{ s.get("roll") }}</td>
@@ -87,11 +92,11 @@
 <td>{{ s.get("risk_reason") or "-" }}</td>
 <td>{{ s.get("assignment_status") or "-" }}</td>
 <td>{{ s.get("behaviour") or "-" }}</td>
-<td>{{ s.get("parent_name") }}</td>
-<td>{{ s.get("parent_phone") }}</td>
+<td>{{ s.get("parent_name") or "-" }}</td>
+<td>{{ s.get("parent_phone") or "-" }}</td>
 
 <td>
-<a href="{{ url_for('edit_student', student_id=s.id) }}"
+<a href="{{ url_for('edit_student', student_id=s.get('id')) }}"
    class="btn btn-warning btn-sm">
    Edit
 </a>
@@ -106,100 +111,50 @@
 
 <tr id="address-row-{{ s.get('id') }}">
 <td colspan="12">
-<strong>Address:</strong> {{ s.parent_address or "-" }}
+<strong>Address:</strong> {{ s.get("parent_address") or "-" }}
 </td>
 </tr>
 
 {% endfor %}
+</tbody>
 </table>
 </div>
-
 {% endfor %}
 
 <!-- ================= FILTER SCRIPT ================= -->
 <script>
-
-// Hide everything on page load
-window.onload = function() {
-    hideAllStudents();
-};
-
-function hideAllStudents() {
-    let rows = document.querySelectorAll(".student-row");
-    rows.forEach(row => {
-        row.style.display = "none";
-        let id = row.id.split("-")[1];
-        document.getElementById("address-row-" + id).style.display = "none";
-    });
-}
-
-function handleStandardChange() {
-
-    let standard = document.getElementById("standardFilter").value;
-    let divisionSelect = document.getElementById("divisionFilter");
-
-    // Reset division
-    divisionSelect.value = "";
-
-    if (standard === "") {
-        divisionSelect.disabled = true;
-        hideAllStudents();
-        return;
-    }
-
-    divisionSelect.disabled = false;
-    filterStudents();
-}
+document.getElementById("standardFilter").addEventListener("change", filterStudents);
+document.getElementById("divisionFilter").addEventListener("change", filterStudents);
+document.getElementById("nameSearch").addEventListener("input", filterStudents);
 
 function filterStudents() {
 
     let standard = document.getElementById("standardFilter").value;
     let division = document.getElementById("divisionFilter").value;
+    let name = document.getElementById("nameSearch").value.toLowerCase();
 
     let rows = document.querySelectorAll(".student-row");
 
     rows.forEach(row => {
 
-        let std = row.getAttribute("data-standard");
-        let div = row.getAttribute("data-division");
-        let id = row.id.split("-")[1];
+        let rowStd = row.dataset.standard;
+        let rowDiv = row.dataset.division;
+        let rowName = row.dataset.name;
 
-        // If no standard selected → hide all
-        if (standard === "") {
-            row.style.display = "none";
-            document.getElementById("address-row-" + id).style.display = "none";
-            return;
-        }
+        let matchStandard = !standard || rowStd == standard;
+        let matchDivision = !division || rowDiv == division;
+        let matchName = !name || rowName.includes(name);
 
-        // Standard selected, no division
-        if (division === "") {
-
-            if (std === standard) {
-                row.style.display = "";
-                document.getElementById("address-row-" + id).style.display = "";
-            } else {
-                row.style.display = "none";
-                document.getElementById("address-row-" + id).style.display = "none";
-            }
-
+        if (matchStandard && matchDivision && matchName) {
+            row.style.display = "";
+            document.getElementById("address-row-" + row.id.split("-")[1]).style.display = "";
         } else {
-
-            // Standard + Division selected
-            if (std === standard && div === division) {
-                row.style.display = "";
-                document.getElementById("address-row-" + id).style.display = "";
-            } else {
-                row.style.display = "none";
-                document.getElementById("address-row-" + id).style.display = "none";
-            }
-
+            row.style.display = "none";
+            document.getElementById("address-row-" + row.id.split("-")[1]).style.display = "none";
         }
-
     });
 }
-
 </script>
-
 <!-- ================= DELETE SCRIPT ================= -->
 <script>
 function confirmDelete(studentId, studentName) {
@@ -224,19 +179,8 @@ function confirmDelete(studentId, studentName) {
             .then(data => {
 
                 if (data.success) {
-
                     document.getElementById("row-" + studentId).remove();
                     document.getElementById("address-row-" + studentId).remove();
-
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Student deleted successfully',
-                        showConfirmButton: false,
-                        timer: 3000
-                    });
-
                 } else {
                     Swal.fire('Error!', 'Something went wrong.', 'error');
                 }

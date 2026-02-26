@@ -1,21 +1,36 @@
-from flask import (
-    Flask, render_template, request,
-    redirect, url_for, flash,
-    session, send_file
-)
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
 from flask_mail import Mail
 from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 from supabase_client import supabase
-
+from datetime import datetime, timedelta
 import os
+import csv
 import sqlite3
 import io
 import pandas as pd
 from reportlab.pdfgen import canvas
 from flask import jsonify
 from supabase import create_client
+# -------- AI MODEL --------
+import joblib
+import numpy as np
+import shap
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name="de20jxqpu",
+    api_key="436794672919247",
+    api_secret="NiTxT3Tn3qYHjHeM82PiX8ygKb8"
+)
+
+# -------- LOAD AI FILES --------
+model = joblib.load("risk_model.pkl")
+model_features = joblib.load("model_features.pkl")
+
+explainer = shap.TreeExplainer(model)
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 
@@ -107,71 +122,530 @@ def index():
 @app.route('/select_role')
 def select_role():
     return render_template('select_role.html')
-# ---------------- REGISTER ----------------
-@app.route('/register', methods=['GET', 'POST'])
-def register():
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_mail import Mail
+from itsdangerous import URLSafeTimedSerializer
+from dotenv import load_dotenv
+import os
+from supabase_client import supabase
+from werkzeug.security import generate_password_hash, check_password_hash
+# -------- AI MODEL --------
+import joblib
+import numpy as np
+import shap
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name="de20jxqpu",
+    api_key="436794672919247",
+    api_secret="NiTxT3Tn3qYHjHeM82PiX8ygKb8"
+)
+
+# -------- LOAD AI FILES --------
+model = joblib.load("risk_model.pkl")
+model_features = joblib.load("model_features.pkl")
+
+
+explainer = shap.TreeExplainer(model)
+
+
+
+@app.route("/ngo/admin/login", methods=["GET", "POST"])
+def ngo_admin_login():
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        if not email or not password:
+            flash("All fields required", "error")
+            return redirect(url_for("ngo_admin_login"))
+
+        res = supabase.table("users") \
+            .select("*") \
+            .eq("role", "ngo_admin") \
+            .eq("email", email) \
+            .execute()
+
+        if not res.data:
+            flash("Invalid credentials", "error")
+            return redirect(url_for("ngo_admin_login"))
+
+        user = res.data[0]
+
+        if not check_password_hash(user["password"], password):
+            flash("Invalid credentials", "error")
+            return redirect(url_for("ngo_admin_login"))
+
+        session.clear()
+        session["role"] = "ngo_admin"
+        session["email"] = email
+
+        flash("Login successful", "success")
+        return redirect(url_for("dashboard_admin"))
+
+    return render_template("ngo_admin_login.html")
+
+@app.route("/ngo")
+def ngo_role():
+    return render_template("ngo_role.html")
+
+
+# ---------------- VOLUNTEER LOGIN (SEPARATE) ----------------
+@app.route('/volunteer/login', methods=['GET', 'POST'])
+def volunteer_login():
+
     if request.method == 'POST':
-        role = request.form.get('role', '').lower()
-        raw_password = request.form.get('password', '')
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
 
-        if not raw_password.isdigit() or len(raw_password) != 6:
+        if not email or not password:
+            flash("All fields required", "error")
+            return redirect(url_for('volunteer_login'))
+
+        district = request.form.get("district")
+        ngo_name = request.form.get("ngo_name")
+
+        res = supabase.table("users") \
+            .select("*") \
+            .eq("role", "volunteer") \
+            .eq("email", email) \
+            .eq("district", district) \
+            .eq("ngo_name", ngo_name) \
+            .execute()
+
+        if not res.data:
+            flash("Invalid credentials", "error")
+            return redirect(url_for('volunteer_login'))
+
+        user = res.data[0]
+
+        if not check_password_hash(user["password"], password):
+            flash("Invalid credentials", "error")
+            return redirect(url_for('volunteer_login'))
+
+        session.clear()
+        session["role"] = "volunteer"
+        session["email"] = email
+
+        flash("Login successful", "success")
+        return redirect(url_for("dashboard_volunteer"))
+
+    return render_template("volunteer_login.html")
+
+
+# ---------------- VOLUNTEER REGISTER (SEPARATE) ----------------
+@app.route('/volunteer/register', methods=['GET', 'POST'])
+def volunteer_register():
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not name or not email or not password:
+            flash("All fields required", "error")
+            return redirect(url_for('volunteer_register'))
+
+        if not password.isdigit() or len(password) != 6:
+            flash("Password must be 6 digits", "error")
+            return redirect(url_for('volunteer_register'))
+
+        existing = supabase.table("users") \
+            .select("*") \
+            .eq("email", email) \
+            .execute()
+
+        if existing.data:
+            flash("Email already registered", "error")
+            return redirect(url_for('volunteer_register'))
+
+        hashed = generate_password_hash(password)
+
+        supabase.table("users").insert({
+            "role": "volunteer",
+            "name": name,
+            "email": email,
+            "password": hashed
+        }).execute()
+
+        flash("Registration successful! Please login.", "success")
+        return redirect(url_for('volunteer_login'))
+
+    return render_template("volunteer_register.html")
+
+
+@app.route("/ngo/admin/register", methods=["GET", "POST"])
+def ngo_admin_register():
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        ngo_name = request.form.get("ngo_name")   # MUST be this
+        email = request.form.get("email", "").strip().lower()
+        district = request.form.get("district", "").strip()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        # -------- VALIDATION --------
+        if not all([name, ngo_name, email, district, password, confirm_password]):
+            flash("All fields are required", "error")
+            return redirect(url_for("ngo_admin_register"))
+
+        if password != confirm_password:
+            flash("Passwords do not match", "error")
+            return redirect(url_for("ngo_admin_register"))
+
+        if not password.isdigit() or len(password) != 6:
             flash("Password must be exactly 6 digits", "error")
-            return redirect(url_for('register'))
+            return redirect(url_for("ngo_admin_register"))
 
-        hashed_password = generate_password_hash(raw_password)
-        data = {"role": role, "password": hashed_password}
+        # Check existing email
+        existing = supabase.table("users") \
+            .select("*") \
+            .eq("email", email) \
+            .execute()
 
-      
-        if role == "student":
-            roll = request.form.get('roll', '').strip()
-            name = request.form.get('name', '').strip()
-            email = request.form.get('email', '').strip().lower()
+        if existing.data:
+            flash("Email already registered", "error")
+            return redirect(url_for("ngo_admin_register"))
 
-            if not roll or not name or not email:
-                    flash("Roll, Name and Email are required", "error")
-                    return redirect(url_for('register'))
+        hashed = generate_password_hash(password)
 
-            existing_roll = supabase.table("users").select("*").eq("roll", roll).execute()
-            if existing_roll.data:
-                    flash("Roll number already registered", "error")
-                    return redirect(url_for('register'))
+        # -------- INSERT --------
+        supabase.table("users").insert({
+            "role": "ngo_admin",
+            "name": name,
+            "ngo_name": ngo_name,
+            "email": email,
+            "district": district,
+            "password": hashed
+        }).execute()
 
-            existing_email = supabase.table("users").select("*").eq("email", email).execute()
-            if existing_email.data:
-                    flash("Email already registered", "error")
-                    return redirect(url_for('register'))
+        flash("Registration successful! Please login.", "success")
+        return redirect(url_for("ngo_admin_login"))
 
-            data["roll"] = roll
-            data["name"] = name
-            data["email"] = email
+    return render_template("ngo_admin_register.html")
 
- # ---------- OTHER ROLES ----------
+# ---------------- VOLUNTEER DASHBOARD ----------------
+@app.route('/volunteer/dashboard', methods=['GET', 'POST'])
+def dashboard_volunteer():
+    if session.get('role') != 'volunteer':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('login'))
+
+    email = session.get('email')
+
+    # -------- AI PREDICTION FUNCTION (nested helper) --------
+    def predict_student_risk(student):
+        # ---- Assignment Encoding ----
+        assignment_map = {"Completed": 1, "Pending": 0}
+        # ---- Quiz Encoding ----
+        quiz_map = {"Excellent": 3, "Good": 2, "Average": 1, "Poor": 0}
+
+        avg_val = float(student.get("avg", 0))
+        assignment_val = assignment_map.get(student.get("assignment"), 0)
+        quiz_val = quiz_map.get(student.get("quiz"), 0)
+
+        subjects = student.get("subjects", [])
+        if subjects:
+            values = [s.get("attendance", 0) for s in subjects]
+            subjects_attendance = sum(values) / len(values)
         else:
-            email = request.form.get('email', '').strip().lower()
-            name = request.form.get('name', '').strip()   # ✅ FIXED
+            subjects_attendance = 0
 
-            if not email or not name:
-                flash("Email and Name are required", "error")
-                return redirect(url_for('register'))
+        # MUST match training order: ["assignment", "quiz", "avg", "subjects_attendance"]
+        input_data = np.array([[assignment_val, quiz_val, avg_val, subjects_attendance]])
 
-            existing = supabase.table("users").select("*").eq("email", email).execute()
-            if existing.data:
-                flash("Email already registered", "error")
-                return redirect(url_for('register'))
+        prediction = model.predict(input_data)[0]
+        probability = model.predict_proba(input_data)[0]
+        confidence = round(max(probability) * 100, 2)
 
-            data["email"] = email
-            data["name"] = name
+        return prediction, confidence, avg_val, assignment_val, quiz_val, subjects_attendance
 
+    # ---- Fetch volunteer info (THIS MUST BE OUTSIDE predict_student_risk) ----
+    volunteer_res = supabase.table("users") \
+        .select("*") \
+        .eq("role", "volunteer") \
+        .eq("email", email) \
+        .execute()
+
+    volunteer = volunteer_res.data[0] if volunteer_res.data else None
+
+    # ---------------- Handle form submit for adding an intervention ----------------
+    if request.method == 'POST':
         try:
-            supabase.table("users").insert(data).execute()
-            flash("Registration successful! Please login.", "success")
-            return redirect(url_for('login'))
+            student_id = request.form.get('student_id')
+            intervention_type = request.form.get('intervention_type')
+            status = request.form.get('status')
+            notes = request.form.get('notes')
+            proof_file = request.files.get("proof_image")
+
+            proof_url = None
+            approval_status = "Approved"
+
+            if status == "Completed":
+                if not proof_file:
+                    flash("Photo proof required for completed cases", "error")
+                    return redirect(url_for("dashboard_volunteer"))
+
+                upload_result = cloudinary.uploader.upload(proof_file)
+                proof_url = upload_result["secure_url"]
+
+                approval_status = "Pending"
+
+            supabase.table("ngo_interventions").insert({
+                "student_id": student_id,
+                "type": intervention_type,
+                "status": status,
+                "notes": notes,
+                "by": email,
+                "proof_image": proof_url,
+                "approval_status": approval_status
+            }).execute()
+
+            flash("Intervention submitted", "success")
+            return redirect(url_for("dashboard_volunteer"))
 
         except Exception as e:
-            print("REGISTER ERROR:", e)
-            flash("Registration failed", "error")
-            return redirect(url_for('select_role'))
-    return render_template('register.html')
+            print("UPLOAD ERROR:", e)
+            flash("Error saving intervention", "error")
+            return redirect(url_for("dashboard_volunteer"))
+
+    # ---------------- GET: fetch only students with risk = "At Risk" OR "Medium" ----------------
+    try:
+        students_res = supabase.table("student_performance") \
+            .select("*") \
+            .in_("risk", ["At Risk", "Medium"]) \
+            .execute()
+
+        students = students_res.data or []
+
+        interventions_res = supabase.table("ngo_interventions") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .execute()
+
+        all_interventions = interventions_res.data or []
+        latest_map = {}
+        for i in all_interventions:
+            sid = str(i["student_id"])
+            if sid not in latest_map:
+                latest_map[sid] = i
+
+        active_interventions_count = sum(
+            1 for v in latest_map.values()
+            if v.get("status") != "Completed"
+        )
+
+        filtered_students = []
+        for s in students:
+            sid = str(s["id"])
+            latest = latest_map.get(sid)
+            if latest:
+                s["current_intervention"] = latest.get("type", "-")
+                s["current_status"] = latest.get("status", "-")
+                s["current_notes"] = latest.get("notes", "-")
+                if latest and latest.get("approval_status") == "Approved":
+                    continue
+            else:
+                s["current_intervention"] = "-"
+                s["current_status"] = "-"
+                s["current_notes"] = "-"
+            filtered_students.append(s)
+
+        students = filtered_students
+
+        # -------- ADD AI EXPLANATION --------
+        for s in students:
+            try:
+                prediction, confidence, avg_val, assignment_val, quiz_val, subjects_attendance = predict_student_risk(s)
+                attendance_percent = round(avg_val, 1)
+
+                assignment_text = (
+                    "incomplete assignments"
+                    if assignment_val == 0
+                    else "consistent assignment completion"
+                )
+
+                quiz_text = {
+                    0: "poor quiz outcomes",
+                    1: "average quiz performance",
+                    2: "good quiz performance",
+                    3: "excellent quiz performance"
+                }.get(quiz_val, "quiz performance")
+
+                if prediction == 2:
+                    ai_reason = (
+                        f"Based on the student’s {assignment_text} and {quiz_text}, "
+                        f"combined with a low attendance rate of {attendance_percent}%, "
+                        f"there is a high probability of academic disengagement. "
+                        f"Immediate academic and motivational intervention is recommended."
+                    )
+                elif prediction == 1:
+                    ai_reason = (
+                        f"The student shows moderate academic concern due to "
+                        f"{assignment_text} and {quiz_text}. "
+                        f"Attendance stands at {attendance_percent}%. "
+                        f"Preventive academic guidance is advised."
+                    )
+                else:
+                    ai_reason = (
+                        f"The student demonstrates stable academic performance with "
+                        f"{assignment_text}, {quiz_text}, and attendance at {attendance_percent}%. "
+                        f"Current indicators do not suggest immediate academic risk."
+                    )
+
+                s["ai_reason"] = ai_reason
+                s["ai_confidence"] = f"{confidence}%"
+
+            except Exception as e:
+                print("AI ERROR:", e)
+                s["ai_reason"] = "AI unavailable"
+                s["ai_confidence"] = "-"
+
+    except Exception as e:
+        print("Supabase .in_() may not be supported; falling back. Error:", e)
+        all_res = supabase.table("student_performance").select("*").execute()
+        all_students = all_res.data if all_res.data else []
+        students = [s for s in all_students if s.get("risk") in ("At Risk", "Medium")]
+
+    interventions_res = supabase.table("ngo_interventions") \
+        .select("*, student_performance(name, roll, division)") \
+        .order("created_at", desc=True) \
+        .execute()
+
+    interventions = [
+        i for i in (interventions_res.data or [])
+        if i.get("approval_status") == "Approved"
+    ]
+
+    return render_template(
+        "dashboard_volunteer.html",
+        volunteer=volunteer,
+        students=students,
+        interventions=interventions,
+        active_interventions=active_interventions_count
+    )
+
+
+@app.route('/ngo/admin/dashboard')
+def dashboard_admin():
+
+    if session.get('role') != 'ngo_admin':
+        flash("Unauthorized access", "error")
+        return redirect(url_for('ngo_admin_login'))
+
+    email = session.get('email')
+
+    res = supabase.table("users") \
+        .select("*") \
+        .eq("role", "ngo_admin") \
+        .eq("email", email) \
+        .execute()
+
+    admin = res.data[0] if res.data else None
+    pending_res = supabase.table("ngo_interventions") \
+        .select("*, student_performance(name, roll)") \
+        .eq("approval_status", "Pending") \
+        .execute()
+
+    pending_cases = pending_res.data or []
+
+    return render_template("dashboard_admin.html",
+                        admin=admin,
+                        pending_cases=pending_cases)
+
+ 
+
+@app.route("/approve-intervention/<id>", methods=["POST"])
+def approve_intervention(id):
+
+    if session.get("role") != "ngo_admin":
+        return redirect(url_for("login"))
+
+    supabase.table("ngo_interventions").update({
+        "approval_status": "Approved",
+        "approved_by": session.get("email")
+    }).eq("id", id).execute()
+
+    return redirect(url_for("dashboard_admin"))
+
+@app.route('/admin/add-volunteer', methods=['GET', 'POST'])
+def add_volunteer():
+
+    if session.get('role') != 'ngo_admin':
+        flash("Unauthorized", "error")
+        return redirect(url_for('login'))
+
+    # 🔥 Get logged in admin info
+    admin_email = session.get("email")
+
+    admin_res = supabase.table("users") \
+        .select("district, ngo_name") \
+        .eq("email", admin_email) \
+        .eq("role", "ngo_admin") \
+        .execute()
+
+    if not admin_res.data:
+        flash("Admin data not found", "error")
+        return redirect(url_for('dashboard_admin'))
+
+    admin_data = admin_res.data[0]
+    admin_district = admin_data["district"]
+    admin_ngo = admin_data["ngo_name"]
+
+    if request.method == 'POST':
+
+        name = request.form['name']
+        age = request.form['age']
+        gender = request.form['gender']
+        mobile = request.form['mobile']
+        email = request.form['email'].strip().lower()
+        password = request.form['password']
+
+        hashed_password = generate_password_hash(password)
+
+    try:
+        supabase.table("users").insert({
+            "role": "volunteer",
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "mobile": mobile,
+            "email": email,
+            "password": hashed_password,
+            # 🔥 STORE SAME DISTRICT & NGO
+            "district": admin_district,
+            "ngo_name": admin_ngo
+        }).execute()
+
+        flash("Volunteer added successfully!", "success")
+        return redirect(url_for('dashboard_admin'))
+
+    except Exception as e:
+        print("INSERT ERROR:", e)
+
+        if "duplicate key value" in str(e):
+            flash("Email already exists!", "error")
+        else:
+            flash("Database error occurred", "error")
+
+    return render_template("add_volunteer.html")
+
+
+@app.route("/get-ngos/<district>")
+def get_ngos(district):
+
+    res = supabase.table("users") \
+        .select("ngo_name") \
+        .eq("role", "ngo_admin") \
+        .eq("district", district) \
+        .execute()
+
+    ngos = list(set([r["ngo_name"] for r in res.data])) if res.data else []
+
+    return ngos
 # ---------------- FORGOT PASSWORD ----------------
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -227,8 +701,8 @@ def role_login(role):
         "student": "student_login.html",
         "teacher": "teacher_login.html",
         "principal": "principal_login.html",
-        "ngo": "ngo_login.html",
-        "admin": "admin_login.html"
+        "ngo": "ngo_role.html",
+       
     }
 
     if role not in template_map:
@@ -248,9 +722,9 @@ def role_login(role):
                 return redirect(url_for("teacher_dashboard"))
 
             elif role == "principal":
-                return redirect(url_for("principal_dashboard"))
+                return redirect(url_for("dashboard_principal"))
             elif role == "ngo":
-                return redirect(url_for("volunteer_dashboard"))
+                return redirect(url_for("dashboard_volunteer"))
            
 
     return render_template(template_map[role])
@@ -426,47 +900,35 @@ def add_student():
 
     if request.method == 'POST':
 
-        # -------------------------
-        # Basic Details
-        # -------------------------
+        # ---------------- BASIC DETAILS ----------------
         name = request.form.get('name')
         roll = request.form.get('roll')
         standard = request.form.get('standard')
         division = request.form.get('division')
-        gender = request.form.get('gender')
         email = request.form.get('email')
-        parent_email = request.form.get('parent_email')
+        gender = request.form.get('gender')
 
-        # -------------------------
-        # Parent Details
-        # -------------------------
+        # ---------------- SUBJECT ATTENDANCE ----------------
+        subjects = request.form.getlist("subjects[]")
+        attendance_list = request.form.getlist("attendance[]")
+
+        # Calculate average attendance
+        attendance_values = [int(a) for a in attendance_list if a.isdigit()]
+        avg_attendance = int(sum(attendance_values) / len(attendance_values)) if attendance_values else 0
+
+        # ---------------- ACADEMIC ----------------
+        monthly_test_score = int(request.form.get('monthly_score') or 0)
+        assignment= request.form.get("assignment")
+        quiz = request.form.get("quiz")
+    
+
+        # ---------------- PARENT ----------------
         parent_name = request.form.get('parent_name')
         parent_phone = request.form.get('parent_phone')
         parent_alt_phone = request.form.get('parent_alt_phone')
         parent_address = request.form.get('parent_address')
 
-        # -------------------------
-        # Academic Data
-        # -------------------------
-        attendance = int(request.form.get("attendance") or 0)
-        monthly_test_score = int(request.form.get('monthly_test_score') or 0)
-
-        assignment_status = request.form.get("assignment_status")
-        quiz_status = request.form.get("quiz_performance")
-
-        behaviour = request.form.get("behaviour")
-        month = request.form.get("month")
-
-        # -------------------------
-        # Validation
-        # -------------------------
-        if not name or not email:
-            flash("Name and Email required", "danger")
-            return redirect(url_for('add_student'))
-
-        # -------------------------
-        # Duplicate Check
-        # -------------------------
+        # ---------------- DUPLICATE CHECK ----------------
         existing = supabase.table("student_performance") \
             .select("id") \
             .eq("email", email) \
@@ -474,32 +936,20 @@ def add_student():
             .execute()
 
         if existing.data:
-            flash("Student with this email already exists", "danger")
+            flash("Student already exists!", "danger")
             return redirect(url_for('add_student'))
 
-        # -------------------------
-        # Convert Status → Score
-        # -------------------------
+        # ---------------- STATUS TO SCORE ----------------
+        assignment = 100 if assignment == "Completed" else 0
 
-        # Assignment conversion
-        if assignment_status == "Completed":
-            assignment_score = 100
-        elif assignment_status == "Pending":
-            assignment_score = 50
-        else:
-            assignment_score = 0
-
-        # Quiz conversion
-        if quiz_status == "Good":
+        if quiz == "Good":
             quiz_score = 100
-        elif quiz_status == "Average":
+        elif quiz == "Average":
             quiz_score = 50
         else:
             quiz_score = 0
 
-        # -------------------------
-        # Risk Calculation
-        # -------------------------
+        # ---------------- RISK CALCULATION ----------------
         risk_score = 0
         risk_reason = []
 
@@ -507,11 +957,11 @@ def add_student():
             risk_score += 40
             risk_reason.append("Low Monthly Score")
 
-        if attendance < 60:
+        if avg_attendance < 60:
             risk_score += 30
             risk_reason.append("Low Attendance")
 
-        if assignment_score < 50:
+        if assignment < 50:
             risk_score += 15
             risk_reason.append("Low Assignment")
 
@@ -521,56 +971,42 @@ def add_student():
 
         risk_status = "At Risk" if risk_score >= 60 else "Safe"
 
-        # -------------------------
-        # Insert Data
-        # -------------------------
+        # ---------------- INSERT ----------------
         insert_data = {
-            "name": name,
-            "roll": roll,
-            "standard": standard,
-            "division": division,
-            "gender": gender,
-            "email": email,
-            "parent_email": parent_email,
-            "monthly_test_score": monthly_test_score,
-            "attendance": attendance,
+    "name": name,
+    "roll": roll,
+    "standard": int(standard),
+    "division": division,
+    "email": email,
+    "gender": gender,
+    "monthly_test_score": monthly_test_score,
+    "attendance": avg_attendance,
 
-            # Store both status & score
-            "assignment_status": assignment_status,
-            "assignment_score": assignment_score,
-            "quiz_status": quiz_status,
-            "quiz_score": quiz_score,
+    # ✅ Only status (no score columns)
+    "assignment": assignment,
+    "quiz": quiz,
 
-            "behaviour": behaviour,
-            "month": month,
 
-            "risk_score": risk_score,
-            "risk_reason": ", ".join(risk_reason),
-            "risk_status": risk_status,
+    "risk_score": risk_score,
+    "risk_reason": ", ".join(risk_reason),
+    "risk_status": risk_status,
 
-            "parent_name": parent_name,
-            "parent_phone": parent_phone,
-            "parent_alt_phone": parent_alt_phone,
-            "parent_address": parent_address,
-            "is_deleted": False
-        }
+    "parent_name": parent_name,
+    "parent_phone": parent_phone,
+    "parent_alt_phone": parent_alt_phone,
+    "parent_address": parent_address,
 
-        try:
-            response = supabase.table("student_performance") \
-                .insert(insert_data) \
-                .execute()
+    "is_deleted": False
+}
+        response = supabase.table("student_performance") \
+            .insert(insert_data) \
+            .execute()
 
-            if response.data:
-                flash("Student Added Successfully", "success")
-                return redirect(url_for('student_records'))
-            else:
-                flash("Insert failed. Check Supabase RLS.", "danger")
-                return redirect(url_for('add_student'))
-
-        except Exception as e:
-            print("INSERT FAILED:", str(e))
-            flash("Error adding student.", "danger")
-            return redirect(url_for('add_student'))
+        if response.data:
+            flash("Student Added Successfully!", "success")
+            return redirect(url_for('student_records'))
+        else:
+            flash("Insert failed! Check RLS Policy.", "danger")
 
     return render_template("teacher/add_student.html")
 @app.route('/teacher/student_records')
@@ -579,52 +1015,48 @@ def student_records():
     if session.get('role') != 'teacher':
         return redirect(url_for('index'))
 
-    # ✅ FIXED ORDER COLUMN
-    response = supabase.table("student_performance") \
-        .select("*") \
-        .execute()
+    try:
+        # ✅ Fetch only active students
+        response = supabase.table("student_performance") \
+            .select("*") \
+            .eq("is_deleted", False) \
+            .order("standard", desc=False) \
+            .order("division", desc=False) \
+            .order("roll", desc=False) \
+            .execute()
 
-    students = response.data or []
+        students = response.data or []
 
-    print("RAW RESPONSE:", response)
-    print("FETCHED STUDENTS:", students)
+    except Exception as e:
+        print("FETCH ERROR:", e)
+        students = []
 
-
-
-    # ---------------- FIX RISK DATA ----------------
+    # ---------------- SAFE RISK FIX ----------------
     for s in students:
 
-        # Derive risk_status if missing
-        if not s.get("risk_status"):
-            if s.get("risk") == "At Risk":
-                s["risk_status"] = "At Risk"
-                s["risk_score"] = 60
-            else:
-                s["risk_status"] = "Safe"
-                s["risk_score"] = 10
-
-        # Safety fallback
         if s.get("risk_score") is None:
             s["risk_score"] = 0
 
+        if not s.get("risk_status"):
+            s["risk_status"] = "At Risk" if s["risk_score"] >= 60 else "Safe"
+
     # ---------------- RISK COUNTS ----------------
-    high_risk = len([s for s in students if s.get("risk_status") == "At Risk"])
+    high_risk = len([s for s in students if s.get("risk_score", 0) >= 60])
     medium_risk = len([s for s in students if 40 <= s.get("risk_score", 0) < 60])
     low_risk = len([s for s in students if s.get("risk_score", 0) < 40])
 
-    # ---------------- GROUP BY CLASS & DIVISION ----------------
+    # ---------------- GROUP STANDARD WISE (1–8) ----------------
     grouped = {}
 
-    for s in students:
-        standard = s.get("standard") or "Unknown"
-        division = s.get("division") or "Unknown"
+    for std in range(1, 9):   # Force order 1 to 8
 
-        key = f"Class {standard} - {division}"
+        class_students = [
+            s for s in students
+            if str(s.get("standard")) == str(std)
+        ]
 
-        if key not in grouped:
-            grouped[key] = []
-
-        grouped[key].append(s)
+        if class_students:
+            grouped[f"Class {std}"] = class_students
 
     return render_template(
         "teacher/student_records.html",
@@ -670,170 +1102,123 @@ def edit_student(student_id):
 
     return render_template("teacher/edit_student.html", student=student)
 
-@app.route("/dashboard/principal", methods=["GET", "POST"])
+@app.route("/dashboard/principal")
 def dashboard_principal():
 
-    from datetime import datetime, timedelta
+    # -------- SECURITY --------
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
 
+    # -------- FILTERS --------
     selected_class = request.args.get("class_filter")
     selected_risk = request.args.get("risk_filter")
     selected_gender = request.args.get("gender_filter")
+    min_att = request.args.get("min_att")
+    min_marks = request.args.get("min_marks")
+    date_range = request.args.get("date_range")
 
-    response = supabase.table("students").select("*").execute()
+    response = supabase.table("student_performance").select("*").execute()
     rows = response.data or []
 
-    filtered_rows = []
+    filtered = []
+    now = datetime.now()
 
-    # ---------- FILTER ----------
     for r in rows:
-        cls = r.get("class")
-        gender = (r.get("gender") or "").lower()
+
+        cls = str(r.get("class"))
+        gender = str(r.get("gender")).lower()
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
+        updated = r.get("updated_at")
 
         if selected_class and cls != selected_class:
             continue
         if selected_gender and gender != selected_gender.lower():
             continue
+        if min_att and att < int(min_att):
+            continue
+        if min_marks and marks < int(min_marks):
+            continue
 
-        filtered_rows.append(r)
+        if date_range:
+            days = int(date_range)
+            if updated:
+                updated_date = datetime.fromisoformat(updated.replace("Z",""))
+                if updated_date < now - timedelta(days=days):
+                    continue
 
-    total_students = len(filtered_rows)
-    high_risk = 0
-    medium_risk = 0
+        filtered.append(r)
+
+    total_students = len(filtered)
+    high_risk = medium_risk = 0
     total_att = 0
-
     classes = {}
-    boys_risk = 0
-    girls_risk = 0
-
-    red_flag_students = []
+    boys_risk = girls_risk = 0
     students = []
+    red_flags = []
 
-    # ---------- MAIN LOOP ----------
-    for r in filtered_rows:
+    # -------- RISK LOGIC --------
+    for r in filtered:
 
         roll = r.get("roll")
         name = r.get("name")
         cls = r.get("class")
-
-        gender = str(r.get("gender") or "Not Set")
-        gender_lower = gender.strip().lower()
-
+        gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
 
         total_att += att
         classes.setdefault(cls, 0)
 
-        # ---------- RISK LOGIC ----------
+        # Risk Score (0-100)
+        risk_score = max(0, 100 - ((att + marks) / 2))
+
         if att < 75 or marks < 40:
             risk = "High"
             high_risk += 1
             classes[cls] += 1
-            red_flag_students.append(name)
-
-            if gender_lower == "male":
-                boys_risk += 1
-            elif gender_lower == "female":
-                girls_risk += 1
-
+            red_flags.append((name, att))
+            action = "Home Visit"
         elif att < 85 or marks < 55:
             risk = "Medium"
             medium_risk += 1
+            action = "Extra Classes"
         else:
             risk = "Low"
+            action = "Regular Monitoring"
+
+        if gender.lower() == "male" and risk == "High":
+            boys_risk += 1
+        if gender.lower() == "female" and risk == "High":
+            girls_risk += 1
+
+        reason = f"Attendance: {att}%, Marks: {marks}"
 
         if selected_risk and risk != selected_risk:
             continue
 
-        # ---------- EXPLAINABLE AI LOGIC ----------
-        reason = ""
-        suggested_action = ""
+        students.append((roll,name,cls,gender,att,marks,risk,reason,action,int(risk_score)))
 
-        if risk == "High":
-            if att < 75 and marks < 40:
-                reason = f"Low attendance ({att}%) and Low marks ({marks})"
-            elif att < 75:
-                reason = f"Low attendance ({att}%)"
-            else:
-                reason = f"Low marks ({marks})"
+    avg_attendance = round(total_att/total_students,2) if total_students else 0
 
-            suggested_action = "Home Visit"
+    # -------- RED FLAG SORT --------
+    red_flags = sorted(red_flags, key=lambda x: x[1])
 
-        elif risk == "Medium":
-            if att < 85 and marks < 55:
-                reason = f"Attendance ({att}%) and Marks ({marks}) declining"
-            elif att < 85:
-                reason = f"Attendance slightly low ({att}%)"
-            else:
-                reason = f"Marks slightly low ({marks})"
+    # -------- TEACHERS --------
+    teachers = supabase.table("teachers").select("*").execute().data or []
 
-            suggested_action = "Extra Classes"
+    # -------- INTERVENTIONS --------
+    interventions = supabase.table("interventions").select("*").execute().data or []
 
-        else:
-            reason = "Good academic performance"
-            suggested_action = "Regular Monitoring"
+    home_visits = sum(1 for i in interventions if i.get("type")=="home_visit")
+    parent_meetings = sum(1 for i in interventions if i.get("type")=="parent_meeting")
+    high_to_medium = sum(1 for i in interventions if i.get("transition")=="High_to_Medium")
+    medium_to_low = sum(1 for i in interventions if i.get("transition")=="Medium_to_Low")
 
-        students.append((
-            roll,
-            name,
-            cls,
-            att,
-            marks,
-            risk,
-            reason,
-            suggested_action
-        ))
+    success_rate = round(((high_to_medium+medium_to_low)/len(interventions))*100,2) if interventions else 0
 
-    # ---------- AVERAGE ATTENDANCE ----------
-    avg_attendance = round(total_att / total_students, 2) if total_students else 0
-
-    # ---------- TEACHERS ----------
-    teacher_response = supabase.table("teachers").select("*").execute()
-    teachers = teacher_response.data or []
-
-    # ================= INTERVENTION TRACKING =================
-    intervention_response = supabase.table("interventions").select("*").execute()
-    interventions = intervention_response.data or []
-
-    home_visits = 0
-    parent_meetings = 0
-    high_to_medium = 0
-    medium_to_low = 0
-
-    for record in interventions:
-        if record.get("type") == "home_visit":
-            home_visits += 1
-
-        if record.get("type") == "parent_meeting":
-            parent_meetings += 1
-
-        if record.get("transition") == "High_to_Medium":
-            high_to_medium += 1
-
-        if record.get("transition") == "Medium_to_Low":
-            medium_to_low += 1
-
-    # ---------- LAST 30 DAYS ANALYSIS ----------
-    thirty_days_ago = datetime.now() - timedelta(days=30)
-
-    response_30 = supabase.table("students") \
-        .select("*") \
-        .gte("updated_at", thirty_days_ago.isoformat()) \
-        .execute()
-
-    last30_students = response_30.data or []
-
-    improved_students = 0
-    declined_students = 0
-
-    for s in last30_students:
-        attendance = int(s.get("attendance") or 0)
-        marks = int(s.get("marks") or 0)
-
-        if attendance > 75 and marks > 50:
-            improved_students += 1
-        else:
-            declined_students += 1
+    improved_students = high_to_medium
+    declined_students = total_students - improved_students
 
     return render_template(
         "dashboard_principal.html",
@@ -846,21 +1231,47 @@ def dashboard_principal():
         class_values=list(classes.values()),
         boys_risk=boys_risk,
         girls_risk=girls_risk,
-        red_flag_students=red_flag_students,
         teachers=teachers,
-        selected_class=selected_class,
+        red_flags=red_flags,
         improved_students=improved_students,
         declined_students=declined_students,
         home_visits=home_visits,
         parent_meetings=parent_meetings,
         high_to_medium=high_to_medium,
         medium_to_low=medium_to_low,
+        success_rate=success_rate
     )
 
 
+# ================= NGO CSV =================
+@app.route("/export_high_risk_csv")
+def export_high_risk_csv():
+
+    rows = supabase.table("student_performance").select("*").execute().data or []
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Roll","Name","Class","Gender","Attendance","Marks"])
+
+    for r in rows:
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
+        if att < 75 or marks < 40:
+            writer.writerow([r.get("roll"),r.get("name"),r.get("class"),r.get("gender"),att,marks])
+
+    output.seek(0)
+
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition":"attachment;filename=high_risk_students.csv"}
+    )
 # ================= ADD TEACHER =================
 @app.route("/add_teacher", methods=["POST"])
 def add_teacher():
+
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
 
     name = request.form.get("name")
     email = request.form.get("email")
@@ -873,14 +1284,17 @@ def add_teacher():
     }).execute()
 
     return redirect(url_for("dashboard_principal"))
-
-
 # ================= REMOVE TEACHER =================
-@app.route("/remove_teacher/<teacher_id>")
+@app.route('/remove_teacher/<teacher_id>')
 def remove_teacher(teacher_id):
 
+    if "role" not in session or session["role"] != "principal":
+        return redirect(url_for("login"))
+
+    # Delete teacher using UUID
     supabase.table("teachers").delete().eq("id", teacher_id).execute()
 
+    flash("Teacher removed successfully", "success")
     return redirect(url_for("dashboard_principal"))
 
 
@@ -904,44 +1318,7 @@ def send_ngo():
             }).execute()
 
     return redirect(url_for("dashboard_principal"))
-# ---------------- VOLUNTEER DASHBOARD ----------------
-@app.route('/volunteer/dashboard')
-def dashboard_volunteer():
-    if session.get('role') != 'volunteer':
-        flash("Unauthorized access", "error")
-        return redirect(url_for('login'))
 
-    email = session.get('email')
-
-    # -------- FETCH VOLUNTEER --------
-    volunteer_res = supabase.table("users") \
-        .select("*") \
-        .eq("role", "volunteer") \
-        .eq("email", email) \
-        .execute()
-
-    volunteer = volunteer_res.data[0] if volunteer_res.data else None
-
-    # -------- FETCH STUDENT PERFORMANCE (NO INVALID COLUMN) --------
-    students_res = supabase.table("student_performance") \
-        .select("*") \
-        .execute()
-
-    students = students_res.data if students_res.data else []
-
-    # -------- FETCH NGO INTERVENTIONS --------
-    interventions_res = supabase.table("ngo_interventions") \
-        .select("*") \
-        .execute()
-
-    interventions = interventions_res.data if interventions_res.data else []
-
-    return render_template(
-        "dashboard_volunteer.html",
-        volunteer=volunteer,
-        students=students,
-        interventions=interventions
-    )
 # ---------------- ADMIN DASHBOARD ----------------
 @app.route('/teacher/risk_trend')
 def risk_trend():
@@ -960,27 +1337,6 @@ def risk_trend():
         "dates": dates,
         "scores": scores
     })
-
-@app.route('/admin/dashboard')
-def dashboard_admin():
-    if session.get('role') != 'admin':
-        flash("Unauthorized access", "error")
-        return redirect(url_for('login'))
-
-    email = session.get('email')
-    res = supabase.table("users").select("*").eq("role", "admin").eq("email", email).execute()
-    admin = res.data[0] if res.data else None
-
-    return render_template("dashboard_admin.html", admin=admin)
-def predict_future_risk(current_score, past_scores):
-    
-    if len(past_scores) < 2:
-        return current_score
-
-    trend = past_scores[-1] - past_scores[-2]
-    predicted = current_score + trend
-
-    return max(0, min(predicted, 100))
 
 
 # ===== UPDATE STUDENT =====

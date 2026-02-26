@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NGO Admin Register</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+
+body{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:auto;
+  background:linear-gradient(-45deg,#1e3a8a,#2563eb,#0ea5e9,#0284c7);
+  background-size:400% 400%;
+  animation:gradientBG 15s ease infinite;
+  position:relative;
+  padding:20px 0;
+}
+
+@keyframes gradientBG{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+
+body::before, body::after{
+  content:"";
+  position:absolute;
+  width:500px;
+  height:500px;
+  background:rgba(255,255,255,0.08);
+  border-radius:50%;
+  filter:blur(100px);
+  animation:float 10s infinite alternate ease-in-out;
+}
+body::after{right:-150px;bottom:-150px;animation-delay:4s;}
+body::before{left:-150px;top:-150px;}
+
+@keyframes float{
+  from{transform:translateY(0px)}
+  to{transform:translateY(40px)}
+}
+
+.register-card{
+  width:420px;
+  padding:40px 35px;
+  border-radius:24px;
+  background:rgba(255,255,255,0.12);
+  backdrop-filter:blur(22px);
+  border:1px solid rgba(255,255,255,0.25);
+  box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  color:white;
+  animation:fadeIn 1s ease;
+}
+
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(25px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.register-card h2{
+  text-align:center;
+  margin-bottom:25px;
+  font-weight:600;
+}
+
+.input-group{
+  position:relative;
+  margin-bottom:18px;
+}
+
+.input-group input,
+.input-group select{
+  width:100%;
+  padding:14px 12px;
+  border:none;
+  border-radius:12px;
+  outline:none;
+  background:rgba(255,255,255,0.18);
+  color:white;
+  font-size:14px;
+}
+
+/* FIX DROPDOWN OPTION COLORS */
+.input-group select option{
+  color:#1e3a8a;
+  background:white;
+}
+
+.input-group select{
+  appearance:none;
+}
+
+.input-group label{
+  position:absolute;
+  left:12px;
+  top:14px;
+  font-size:13px;
+  color:#e2e8f0;
+  pointer-events:none;
+  transition:0.3s;
+}
+
+.input-group input:focus,
+.input-group select:focus{
+  background:rgba(255,255,255,0.25);
+  box-shadow:0 0 0 2px rgba(255,255,255,0.3);
+}
+
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label{
+  top:-8px;
+  left:10px;
+  font-size:11px;
+  background:rgba(30,58,138,0.9);
+  padding:2px 6px;
+  border-radius:6px;
+}
+
+.toggle-pass{
+  position:absolute;
+  right:12px;
+  top:14px;
+  cursor:pointer;
+  font-size:13px;
+}
+
+button{
+  width:100%;
+  padding:13px;
+  border:none;
+  border-radius:12px;
+  background:white;
+  color:#1e3a8a;
+  font-weight:600;
+  cursor:pointer;
+  font-size:15px;
+  margin-top:10px;
+}
+
+button:hover{
+  transform:translateY(-2px);
+  background:#f1f5f9;
+}
+
+.error-msg{
+  font-size:12px;
+  color:#ffb3b3;
+  margin-top:-10px;
+  margin-bottom:10px;
+  display:none;
+}
+
+.lang-box{
+  margin-top:20px;
+  text-align:center;
+}
+
+.lang-box select{
+  padding:6px 10px;
+  border-radius:8px;
+  border:none;
+}
+
+.back-home{
+  position:absolute;
+  top:20px;
+  left:20px;
+  color:white;
+  text-decoration:none;
+  font-size:14px;
+  opacity:0.8;
+}
+</style>
+</head>
+
+<body>
+
+<a href="/" class="back-home">← Back to Home</a>
+
+<div id="google_translate_element" style="display:none"></div>
+
+<div class="register-card">
+
+<h2>🛡 NGO Admin Registration</h2>
+
+<form method="POST" action="/ngo/admin/register" onsubmit="return validateForm()">
+
+<div class="input-group">
+<input type="text" name="name" required placeholder=" ">
+<label>Full Name</label>
+</div>
+
+<div class="input-group">
+<input type="email" name="email" required placeholder=" ">
+<label>Email Address</label>
+</div>
+
+<div class="input-group">
+<input type="text" name="ngo_name" required placeholder=" ">
+<label>NGO Name</label>
+</div>
+
+<div class="input-group">
+<select name="district" required>
+<option value="" disabled selected>Select Maharashtra District</option>
+<option>Mumbai</option>
+<option>Pune</option>
+<option>Thane</option>
+<option>Nagpur</option>
+<option>Nashik</option>
+<option>Aurangabad</option>
+<option>Solapur</option>
+<option>Kolhapur</option>
+<option>Amravati</option>
+<option>Nanded</option>
+<option>Sangli</option>
+<option>Satara</option>
+<option>Raigad</option>
+<option>Ahmednagar</option>
+<option>Jalgaon</option>
+<option>Beed</option>
+<option>Latur</option>
+<option>Dhule</option>
+<option>Chandrapur</option>
+<option>Akola</option>
+<option>Parbhani</option>
+<option>Jalna</option>
+<option>Bhandara</option>
+<option>Gondia</option>
+<option>Yavatmal</option>
+<option>Wardha</option>
+<option>Osmanabad</option>
+<option>Ratnagiri</option>
+<option>Sindhudurg</option>
+<option>Washim</option>
+<option>Hingoli</option>
+<option>Gadchiroli</option>
+<option>Palghar</option>
+<option>Nandurbar</option>
+</select>
+</div>
+
+<div class="input-group">
+<input type="password" id="password" name="password" required placeholder=" " maxlength="6">
+<label>Create 6-digit Password</label>
+<span class="toggle-pass" onclick="togglePassword('password')">👁</span>
+</div>
+
+<div class="input-group">
+<input type="password"
+       id="confirmPassword"
+       name="confirm_password"
+       required
+       placeholder=" "
+       maxlength="6">
+       <label>Confirm Password</label>
+<span class="toggle-pass" onclick="togglePassword('confirmPassword')">👁</span>
+</div>
+
+<div class="error-msg" id="errorMsg">Passwords do not match</div>
+
+<button type="submit">Register</button>
+
+</form>
+
+<p style="text-align:center;margin-top:15px;">
+Already have an account?
+<a href="/ngo/admin/login" style="color:white;text-decoration:underline;">Login here</a>
+</p>
+
+<div class="lang-box">
+<label style="font-size:13px;">🌐 Language</label><br>
+<select id="langSelect">
+<option value="">Select</option>
+<option value="en">English</option>
+<option value="hi">Hindi</option>
+<option value="mr">Marathi</option>
+</select>
+</div>
+
+</div>
+
+<script>
+function togglePassword(id){
+const field=document.getElementById(id);
+field.type=field.type==="password"?"text":"password";
+}
+
+function validateForm(){
+const pass=document.getElementById("password").value;
+const confirm=document.getElementById("confirmPassword").value;
+const error=document.getElementById("errorMsg");
+
+if(pass.length!==6){
+error.innerText="Password must be 6 digits";
+error.style.display="block";
+return false;
+}
+
+if(pass!==confirm){
+error.innerText="Passwords do not match";
+error.style.display="block";
+return false;
+}
+
+return true;
+}
+
+function googleTranslateElementInit(){
+new google.translate.TranslateElement(
+{ pageLanguage:'en', autoDisplay:false },
+'google_translate_element'
+);
+}
+
+document.getElementById("langSelect").addEventListener("change",function(){
+const lang=this.value;
+if(!lang)return;
+const timer=setInterval(()=>{
+const combo=document.querySelector(".goog-te-combo");
+if(combo){
+combo.value=lang;
+combo.dispatchEvent(new Event("change"));
+clearInterval(timer);
+}
+},300);
+});
+</script>
+
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+</body>
+</html>

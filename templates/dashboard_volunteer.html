@@ -52,8 +52,47 @@ body{margin:0;font-family:Arial,sans-serif}
 .card{background:#ffffffee;padding:20px;border-radius:16px;margin-bottom:20px}
 
 /* TABLE */
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #ddd}
+/* TABLE FIX */
+.table-wrapper{
+  width:100%;
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  min-width:1200px; /* prevent squeeze */
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid #ddd;
+  text-align:left;
+  vertical-align:top;
+  word-wrap:break-word;
+}
+
+/* Limit AI reason column */
+#riskTable td:nth-child(5){
+  max-width:250px;
+  white-space:normal;
+}
+
+.reason-box{
+  margin-top:8px;
+  padding:10px;
+  background:#f1f5f9;
+  border-radius:8px;
+  font-size:14px;
+}
+
+.dark-mode .reason-box{
+  background:#1e293b;
+}
+
+
+
 
 /* BADGES */
 .badge-high{color:#fff;background:#dc2626;padding:5px 10px;border-radius:20px}
@@ -124,27 +163,39 @@ select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
   </div>
 
   <div class="metric-card">
-    <h2>{{ interventions | length }}</h2>
-    <p>Total Interventions</p>
+<h2>{{ active_interventions }}</h2>
+<p>Active Interventions</p>
+
   </div>
 </div>
-<!-- FILTER -->
-<div class="card">
-<label>Filter by Risk</label>
+<pre>
+
+
 <select onchange="filterRisk(this.value)">
   <option value="all">All</option>
-  <option value="High">High</option>
+  <option value="At Risk">At Risk</option>
   <option value="Medium">Medium</option>
 </select>
-</div></pre>
+
 
 <!-- STUDENTS -->
 <div class="card">
 <h2>⚠️ At-Risk Students</h2>
+
+<div class="table-wrapper">
 <table id="riskTable">
+
 <thead>
 <tr>
-<th>Name</th><th>Roll</th><th>Division</th><th>Risk</th><th>Reason</th><th>Action</th>
+<th>Name</th>
+<th>Roll</th>
+<th>Division</th>
+<th>Risk</th>
+<th>AI Insight</th>
+<th>Current Intervention</th>
+<th>Status</th>
+<th>Notes</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody>
@@ -154,34 +205,68 @@ select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
 <td>{{ s.roll }}</td>
 <td>{{ s.division }}</td>
 <td>
-{% if s.risk == 'High' %}
-<span class="badge-high">URGENT</span>
+{% if s.risk in ['High', 'At Risk'] %}
+  <span class="badge-high">URGENT</span>
 {% else %}
-<span class="badge-medium">ATTENTION</span>
+  <span class="badge-medium">ATTENTION</span>
+{% endif %}
+
+</td>
+<td>
+<button class="btn-primary" onclick="toggleReason(this)">
+  View
+</button>
+
+<div class="reason-box" style="display:none;">
+  <strong>AI Reason:</strong><br>
+  {{ s.ai_reason }}<br>
+  <small>Confidence: {{ s.ai_confidence }}</small>
+</div>
+</td>
+
+
+
+<td>{{ s.current_intervention }}</td>
+
+<td>
+{% if s.current_status == "Ongoing" %}
+  <span class="badge-high">Ongoing</span>
+{% elif s.current_status == "Planned" %}
+  <span class="badge-medium">Planned</span>
+{% else %}
+  {{ s.current_status }}
 {% endif %}
 </td>
+<td>{{ s.current_notes }}</td>
+
+
+
 <td>
-Attendance: {{ s.attendance }}%<br>
-Assignment: {{ s.assignment }}<br>
-Quiz: {{ s.quiz }}
-</td>
-<td>
-<form method="POST" action="/ngo/action/{{ s.roll }}">
-<select name="action_type" required>
-<option value="">Intervention</option>
-<option>Counselling</option>
-<option>Parent Meeting</option>
-<option>Financial Aid</option>
-<option>Mentorship</option>
-</select>
-<select name="status" required>
-<option value="">Status</option>
-<option>Planned</option>
-<option>Ongoing</option>
-<option>Completed</option>
-</select>
-<textarea name="notes" rows="2" placeholder="Notes" required></textarea>
-<button class="btn-primary">Save</button>
+<form method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="student_id" value="{{ s.id }}">
+
+  <select name="intervention_type">
+    <option value="">Intervention</option>
+    <option>Counselling</option>
+    <option>Parent Meeting</option>
+    <option>Financial Aid</option>
+    <option>Mentorship</option>
+  </select>
+
+  <select name="status" required onchange="toggleUpload(this)">
+    <option value="">Status</option>
+    <option>Planned</option>
+    <option>Ongoing</option>
+    <option>Completed</option>
+  </select>
+
+  <div class="proof-upload" style="display:none;">
+    <label>Upload Proof Photo:</label>
+    <input type="file" name="proof_image">
+  </div>
+
+  <textarea name="notes" required></textarea>
+  <button class="btn-primary">Save</button>
 </form>
 </td>
 </tr>
@@ -189,27 +274,50 @@ Quiz: {{ s.quiz }}
 </tbody>
 </table>
 </div>
+</div>
 
-<!-- INTERVENTIONS -->
+
+<!-- INTERVENTION HISTORY -->
 <div class="card">
-<h2>📋 Intervention History</h2>
+  <h2>📋 Intervention History</h2>
 
-{% if interventions %}
-<ul class="timeline">
-{% for a in interventions %}
-<li>
-<strong>{{ a.type }}</strong> —
-{{ a.status }}<br>
-🧑 Roll: {{ a.roll }}<br>
-📝 {{ a.notes }}<br>
-👤 By: {{ a.by }}
-</li>
-{% endfor %}
-</ul>
-{% else %}
-<p>No interventions recorded yet.</p>
-{% endif %}
+  {% if interventions %}
+  <table>
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Roll</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Notes</th>
+        <th>Handled By</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in interventions %}
+      <tr>
+        <td>{{ a.student_performance.name }}</td>
+        <td>{{ a.student_performance.roll }}</td>
+        <td>{{ a.type }}</td>
+        <td>
+          {% if a.status == "Completed" %}
+            <span class="badge-medium">Completed</span>
+          {% elif a.status == "Ongoing" %}
+            <span class="badge-high">Ongoing</span>
+          {% else %}
+            Planned
+          {% endif %}
+        </td>
+        <td>{{ a.notes }}</td>
+        <td>{{ a.by }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
+  {% else %}
+    <p>No interventions recorded yet.</p>
+  {% endif %}
 </div>
 
 
@@ -226,6 +334,17 @@ function googleTranslateElementInit() {
 }
 </script>
 
+<script>
+function toggleUpload(select){
+  const box = select.closest("form").querySelector(".proof-upload");
+  if(select.value === "Completed"){
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+  }
+}
+</script>
+
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
 <script>
@@ -239,9 +358,24 @@ function toggleDark(){
 
 function filterRisk(val){
   document.querySelectorAll("#riskTable tbody tr").forEach(r=>{
-    r.style.display = (val==="all"||r.dataset.risk===val)?"":"none"
+    const rowRisk = (r.dataset.risk || '').trim();
+    if(val === "all" || rowRisk === val) r.style.display = "";
+    else r.style.display = "none";
   })
 }
+
+function toggleReason(btn){
+  const box = btn.nextElementSibling;
+
+  if(box.style.display === "none"){
+    box.style.display = "block";
+    btn.textContent = "Hide";
+  } else {
+    box.style.display = "none";
+    btn.textContent = "View";
+  }
+}
+
 
 /* 🌐 LANGUAGE CHANGE FIX */
 document.getElementById("langSelect").addEventListener("change", function () {
