@@ -19,6 +19,11 @@ import numpy as np
 import shap
 import cloudinary
 import cloudinary.uploader
+# -------- NLP & GENERATIVE AI --------
+from textblob import TextBlob
+import google.generativeai as genai
+
+genai.configure(api_key="AIzaSyAmrqETn5QCtrvDw0eYqexXqPIBiQPzSgs")
 
 cloudinary.config(
     cloud_name="de20jxqpu",
@@ -338,30 +343,26 @@ def dashboard_volunteer():
 
     # -------- AI PREDICTION FUNCTION (nested helper) --------
     def predict_student_risk(student):
-        # ---- Assignment Encoding ----
-        assignment_map = {"Completed": 1, "Pending": 0}
-        # ---- Quiz Encoding ----
-        quiz_map = {"Excellent": 3, "Good": 2, "Average": 1, "Poor": 0}
+        attendance_val = float(student.get("attendance", student.get("avg", 0)))
+        monthly_test_val = float(student.get("monthly_test_score", 0))
+        assignment_val = float(student.get("assignment", 0))
+        quiz_val = float(student.get("quiz", 0))
 
-        avg_val = float(student.get("avg", 0))
-        assignment_val = assignment_map.get(student.get("assignment"), 0)
-        quiz_val = quiz_map.get(student.get("quiz"), 0)
-
-        subjects = student.get("subjects", [])
-        if subjects:
-            values = [s.get("attendance", 0) for s in subjects]
-            subjects_attendance = sum(values) / len(values)
-        else:
-            subjects_attendance = 0
-
-        # MUST match training order: ["assignment", "quiz", "avg", "subjects_attendance"]
-        input_data = np.array([[assignment_val, quiz_val, avg_val, subjects_attendance]])
+        # MUST match training order: ["attendance", "monthly_test", "assignment", "quiz"]
+        input_data = np.array([[attendance_val, monthly_test_val, assignment_val, quiz_val]])
 
         prediction = model.predict(input_data)[0]
         probability = model.predict_proba(input_data)[0]
         confidence = round(max(probability) * 100, 2)
 
-        return prediction, confidence, avg_val, assignment_val, quiz_val, subjects_attendance
+        # SHAP explainability
+        shap_values = explainer.shap_values(input_data)
+        # shap_values is a list of arrays (one per class). Use the predicted class.
+        feature_names = ["Attendance", "Monthly Test", "Assignment", "Quiz"]
+        shap_for_pred = shap_values[int(prediction)][0] if isinstance(shap_values, list) else shap_values[0]
+        shap_dict = {feature_names[i]: round(float(shap_for_pred[i]), 4) for i in range(len(feature_names))}
+
+        return prediction, confidence, attendance_val, monthly_test_val, assignment_val, quiz_val, shap_dict
 
     # ---- Fetch volunteer info (THIS MUST BE OUTSIDE predict_student_risk) ----
     volunteer_res = supabase.table("users") \
@@ -466,53 +467,35 @@ def dashboard_volunteer():
 
         students = filtered_students
 
-        # -------- ADD AI EXPLANATION --------
+        # -------- ADD AI EXPLANATION + SHAP --------
         for s in students:
             try:
-                prediction, confidence, avg_val, assignment_val, quiz_val, subjects_attendance = predict_student_risk(s)
-                attendance_percent = round(avg_val, 1)
+                prediction, confidence, attendance_val, monthly_test_val, assignment_val, quiz_val, shap_dict = predict_student_risk(s)
 
-                assignment_text = (
-                    "incomplete assignments"
-                    if assignment_val == 0
-                    else "consistent assignment completion"
+                # Build explanation from SHAP - find top contributing factors
+                sorted_factors = sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)
+                top_factors = [f"{name} ({val:+.3f})" for name, val in sorted_factors[:3]]
+
+                risk_labels = {0: "Low Risk", 1: "Medium Risk", 2: "High Risk"}
+                risk_label = risk_labels.get(prediction, "Unknown")
+
+                factors_str = ", ".join(top_factors)
+                ai_reason = (
+                    f"AI predicts {risk_label}. "
+                    f"Key factors: {factors_str}. "
+                    f"Attendance: {attendance_val:.0f}%, Monthly Test: {monthly_test_val:.0f}, "
+                    f"Assignment: {assignment_val:.0f}, Quiz: {quiz_val:.0f}."
                 )
-
-                quiz_text = {
-                    0: "poor quiz outcomes",
-                    1: "average quiz performance",
-                    2: "good quiz performance",
-                    3: "excellent quiz performance"
-                }.get(quiz_val, "quiz performance")
-
-                if prediction == 2:
-                    ai_reason = (
-                        f"Based on the student’s {assignment_text} and {quiz_text}, "
-                        f"combined with a low attendance rate of {attendance_percent}%, "
-                        f"there is a high probability of academic disengagement. "
-                        f"Immediate academic and motivational intervention is recommended."
-                    )
-                elif prediction == 1:
-                    ai_reason = (
-                        f"The student shows moderate academic concern due to "
-                        f"{assignment_text} and {quiz_text}. "
-                        f"Attendance stands at {attendance_percent}%. "
-                        f"Preventive academic guidance is advised."
-                    )
-                else:
-                    ai_reason = (
-                        f"The student demonstrates stable academic performance with "
-                        f"{assignment_text}, {quiz_text}, and attendance at {attendance_percent}%. "
-                        f"Current indicators do not suggest immediate academic risk."
-                    )
 
                 s["ai_reason"] = ai_reason
                 s["ai_confidence"] = f"{confidence}%"
+                s["shap_values"] = shap_dict
 
             except Exception as e:
                 print("AI ERROR:", e)
                 s["ai_reason"] = "AI unavailable"
                 s["ai_confidence"] = "-"
+                s["shap_values"] = {}
 
     except Exception as e:
         print("Supabase .in_() may not be supported; falling back. Error:", e)
@@ -877,13 +860,29 @@ def student_feedback():
 
     teacher_name = request.form.get('teacher_name', '')
 
+    # -------- SENTIMENT ANALYSIS (TextBlob) --------
+    try:
+        sentiment = TextBlob(feedback_text).sentiment
+        sentiment_score = round(sentiment.polarity, 2)
+        if sentiment_score > 0.1:
+            sentiment_label = "Positive"
+        elif sentiment_score < -0.1:
+            sentiment_label = "Negative"
+        else:
+            sentiment_label = "Neutral"
+    except:
+        sentiment_score = 0.0
+        sentiment_label = "Neutral"
+
     supabase.table("student_feedback").insert({
         "student_id": str(student_id),
         "student_name": student_name,
         "standard": standard,
         "division": division,
         "feedback_text": feedback_text,
-        "teacher_name": teacher_name
+        "teacher_name": teacher_name,
+        "sentiment_score": sentiment_score,
+        "sentiment_label": sentiment_label
     }).execute()
 
     flash("Feedback submitted successfully!", "success")
@@ -931,6 +930,92 @@ def student_leave():
 
     flash("Leave application submitted successfully!", "success")
     return redirect(url_for('dashboard_student'))
+
+
+# # ---------------- AI CHATBOT (Gemini + Smart Fallback) ----------------
+# # Commented out — Gemini API key quota exhausted. Uncomment when a working key is available.
+# import time as _time
+# _gemini_cooldown = 0
+#
+# def _smart_fallback(message, student_data):
+#     msg = message.lower()
+#     p = student_data or {}
+#     name = p.get("name", "there")
+#     att = int(p.get("attendance", 0))
+#     monthly = int(p.get("monthly_test_score", 0))
+#     assign = int(p.get("assignment", 0))
+#     quiz_score = int(p.get("quiz", 0))
+#     risk = p.get("risk_status", p.get("risk", "Unknown"))
+#     scores = {"attendance": att, "monthly test": monthly, "assignments": assign, "quizzes": quiz_score}
+#     weakest = min(scores, key=scores.get)
+#     strongest = max(scores, key=scores.get)
+#     if any(w in msg for w in ["how am i", "my performance", "how do i", "my score", "my marks", "my result"]):
+#         tips = []
+#         if att < 75: tips.append(f"Your attendance is {att}% — aim for 75%+ by attending regularly.")
+#         if monthly < 40: tips.append(f"Monthly test score is {monthly} — try solving previous year papers.")
+#         if assign < 50: tips.append(f"Assignment score is {assign} — submit all pending work to boost this.")
+#         if quiz_score < 50: tips.append(f"Quiz score is {quiz_score} — daily 15-min revision can help.")
+#         if not tips: return f"Great job {name}! Your scores look good. Keep it up!"
+#         return f"Hi {name}! Here's what needs attention: " + " ".join(tips)
+#     elif any(w in msg for w in ["improve", "better", "help", "tip", "study", "advice"]):
+#         return f"Focus on your weakest area ({weakest}) and practice daily. You're strong in {strongest} — keep that up!"
+#     elif any(w in msg for w in ["stress", "worried", "scared", "anxious", "sad", "depressed", "motivation"]):
+#         return f"It's completely normal to feel this way, {name}. Take it one step at a time. Talk to your teacher if you need support."
+#     elif any(w in msg for w in ["hello", "hi", "hey", "good morning", "good evening"]):
+#         return f"Hello {name}! I'm EduBot. Ask me about your performance, study tips, or how to improve."
+#     elif any(w in msg for w in ["risk", "danger", "dropout", "at risk"]):
+#         return f"Your status is {risk}. Focus on {weakest} (score: {scores[weakest]}). Small daily improvements help!"
+#     else:
+#         return f"Hi {name}! Attendance: {att}%, Test: {monthly}, Assignment: {assign}, Quiz: {quiz_score}. Strongest: {strongest}."
+#
+# @app.route('/api/chat', methods=['POST'])
+# def api_chat():
+#     if session.get('role') != 'student':
+#         return jsonify({"error": "Unauthorized"}), 401
+#     data = request.get_json()
+#     message = data.get('message', '') if data else ''
+#     if not message:
+#         return jsonify({"error": "No message provided"}), 400
+#     student_id = session.get('student_id')
+#     student_data = None
+#     context = ""
+#     try:
+#         student_account = supabase.table("students").select("*").eq("id", student_id).execute()
+#         if student_account.data:
+#             perf_id = student_account.data[0].get("student_performance_id")
+#             if perf_id:
+#                 perf = supabase.table("student_performance").select("*").eq("id", perf_id).execute()
+#                 if perf.data:
+#                     student_data = perf.data[0]
+#                     p = student_data
+#                     context = (
+#                         f"Student Profile:\n"
+#                         f"- Name: {p.get('name', 'N/A')}\n"
+#                         f"- Attendance: {p.get('attendance', 'N/A')}%\n"
+#                         f"- Monthly Test Score: {p.get('monthly_test_score', 'N/A')}\n"
+#                         f"- Assignment Score: {p.get('assignment', 'N/A')}\n"
+#                         f"- Quiz Score: {p.get('quiz', 'N/A')}\n"
+#                         f"- Risk Status: {p.get('risk_status', p.get('risk', 'N/A'))}\n"
+#                     )
+#     except Exception as e:
+#         print("CHAT CONTEXT ERROR:", e)
+#     global _gemini_cooldown
+#     if _time.time() > _gemini_cooldown:
+#         try:
+#             prompt = (
+#                 "You are EduBot, a friendly AI academic counselor for school students. "
+#                 "Keep responses concise (2-3 sentences max). Be supportive.\n\n"
+#             )
+#             if context: prompt += f"Student data:\n{context}\n"
+#             prompt += f"Student's message: {message}"
+#             response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
+#                 prompt, request_options={"timeout": 5}
+#             )
+#             return jsonify({"response": response.text})
+#         except Exception as e:
+#             _gemini_cooldown = _time.time() + 300
+#             print(f"GEMINI FAILED ({type(e).__name__}) — cooldown 5 min")
+#     return jsonify({"response": _smart_fallback(message, student_data)})
 
 
 @app.route('/student/register', methods=['GET', 'POST'])

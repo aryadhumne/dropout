@@ -92,9 +92,9 @@
   }
 </style>
 </head>
-<body>
+<body style="height:100vh;overflow:hidden;display:flex;flex-direction:column;">
 
-<div style="display:flex;justify-content:flex-end;padding:16px 24px;">
+<div style="display:flex;justify-content:flex-end;padding:16px 24px;flex-shrink:0;">
   <div class="lang-switcher">
     <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Change language">
       <option value="en">English</option>
@@ -104,7 +104,7 @@
   </div>
 </div>
 
-<main class="role-page" role="main" style="padding-top:0;">
+<main class="role-page" role="main" style="padding-top:0;min-height:0;flex:1;">
   <div class="role-page-header">
     <div class="hero-badge" style="margin-bottom:20px;">GET STARTED</div>
     <h1>Who are you?</h1>

@@ -11,9 +11,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 {% block head %}{% endblock %}
 </head>
-<body>
+<body style="height:100vh;overflow:hidden;display:flex;flex-direction:column;">
 
-<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;flex-shrink:0;">
   <a href="{{ url_for('select_role') }}" class="auth-back" aria-label="Back to role selection" style="position:static;">
     <i class="bi bi-arrow-left" aria-hidden="true"></i> Back
   </a>
@@ -26,7 +26,7 @@
   </div>
 </div>
 
-<main class="auth-wrapper" role="main">
+<main class="auth-wrapper" role="main" style="min-height:0;flex:1;">
   <div class="auth-card" role="region" aria-label="Authentication form">
 
     <h1 class="auth-title">{% block form_title %}Welcome{% endblock %}</h1>

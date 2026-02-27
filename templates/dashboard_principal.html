@@ -189,7 +189,7 @@
   {% if feedbacks %}
   <div class="table-responsive">
     <table class="table-clean">
-      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>About Teacher</th><th>Feedback</th><th>Date</th></tr></thead>
+      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>About Teacher</th><th>Feedback</th><th>Sentiment</th><th>Date</th></tr></thead>
       <tbody>
         {% for f in feedbacks %}
         <tr>
@@ -198,6 +198,17 @@
           <td>{{ f.division or '-' }}</td>
           <td>{{ f.teacher_name or '-' }}</td>
           <td>{{ f.feedback_text }}</td>
+          <td>
+            {% if f.sentiment_label == 'Positive' %}
+              <span class="badge-success" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% elif f.sentiment_label == 'Negative' %}
+              <span class="badge-danger" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% elif f.sentiment_label %}
+              <span class="badge-warning" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% else %}
+              <span style="color:var(--muted);">-</span>
+            {% endif %}
+          </td>
           <td>{{ f.created_at[:10] if f.created_at else '-' }}</td>
         </tr>
         {% endfor %}
