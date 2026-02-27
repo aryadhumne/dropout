@@ -23,7 +23,7 @@ import cloudinary.uploader
 from textblob import TextBlob
 import google.generativeai as genai
 
-genai.configure(api_key="AIzaSyAmrqETn5QCtrvDw0eYqexXqPIBiQPzSgs")
+genai.configure(api_key="api key")
 
 cloudinary.config(
     cloud_name="de20jxqpu",
