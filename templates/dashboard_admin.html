@@ -1,241 +1,106 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>NGO Admin Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% block title %}NGO Admin Dashboard - EduDrop{% endblock %}
 
-<meta name="google" content="notranslate">
+{% block page_title %}Admin Dashboard{% endblock %}
 
-<style>
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family: 'Poppins', sans-serif;
-}
+{% block sidebar %}
+<a href="#" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="/admin/add-volunteer"><i class="bi bi-people"></i><span>Add Volunteer</span></a>
+{% endblock %}
 
-body{
-  min-height:100vh;
-  background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-  display:flex;
-  color:white;
-  overflow:hidden;
-}
+{% block content %}
 
-/* SIDEBAR */
-.sidebar{
-  width:260px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(25px);
-  border-right:1px solid rgba(255,255,255,0.2);
-  padding:30px 20px;
-  transition:0.4s;
-}
-
-.sidebar.collapsed{
-  width:80px;
-}
-
-.sidebar h2{
-  font-size:22px;
-  margin-bottom:40px;
-}
-
-.sidebar ul{
-  list-style:none;
-}
-
-.sidebar ul li{
-  margin:20px 0;
-  cursor:pointer;
-  font-size:16px;
-  opacity:0.85;
-  transition:0.3s;
-}
-
-.sidebar ul li:hover{
-  opacity:1;
-  transform:translateX(5px);
-}
-
-/* MAIN */
-.main{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-
-/* TOPBAR */
-.topbar{
-  height:70px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:0 30px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(255,255,255,0.2);
-}
-
-.menu-btn{
-  font-size:22px;
-  cursor:pointer;
-}
-
-.right-menu{
-  display:flex;
-  align-items:center;
-  gap:15px;
-}
-
-.right-menu select,
-.right-menu button,
-.right-menu a{
-  padding:8px 14px;
-  border-radius:12px;
-  border:none;
-  background:rgba(255,255,255,0.2);
-  color:white;
-  font-size:14px;
-  cursor:pointer;
-  backdrop-filter:blur(10px);
-  transition:0.3s;
-  text-decoration:none;
-}
-
-.right-menu select{
-  color:black;
-  font-weight:500;
-}
-
-.right-menu select option{
-  color:black;
-}
-
-.right-menu button:hover,
-.right-menu a:hover{
-  background:rgba(255,255,255,0.35);
-}
-
-/* CONTENT */
-.content{
-  flex:1;
-  padding:40px;
-  overflow:auto;
-}
-
-.content h1{
-  font-size:34px;
-  font-weight:600;
-}
-
-.ngo-name{
-  font-size:20px;
-  margin-top:8px;
-  opacity:0.85;
-}
-
-.glass-box{
-  margin-top:30px;
-  padding:30px;
-  border-radius:20px;
-  background:rgba(255,255,255,0.12);
-  backdrop-filter:blur(25px);
-  border:1px solid rgba(255,255,255,0.2);
-}
-
-/* DARK MODE */
-.dark{
-  background: linear-gradient(135deg,#020617,#0f172a);
-}
-
-.dark .sidebar,
-.dark .topbar{
-  background:rgba(0,0,0,0.4);
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="sidebar" id="sidebar">
-  <h2>EduTrack</h2>
-  <ul>
-    <li onclick="window.location.href='/admin/add-volunteer'">👥 Add Volunteer</li>    <li>📋 Interventions</li>
-
-  </ul>
+<!-- Welcome Card -->
+<div class="card mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h4 style="font-weight:600;margin-bottom:8px;">Welcome, {{ admin.name }}</h4>
+      <p style="color:var(--muted);margin:0;">{{ admin.ngo_name }}</p>
+    </div>
+    <div style="font-size:3rem;color:var(--primary);">
+      <i class="bi bi-shield-check"></i>
+    </div>
+  </div>
 </div>
 
-<div class="main">
-
-  <div class="topbar">
-    <div class="menu-btn" onclick="toggleSidebar()">☰</div>
-
-    <div class="right-menu">
-      <select id="langSelect">
-        <option value="">🌐 Select Language</option>
-        <option value="en">English</option>
-        <option value="hi">Hindi</option>
-        <option value="mr">Marathi</option>
-      </select>
-
-      <button onclick="toggleDark()">🌙</button>
-      <a href="/logout">🚪 Logout</a>
+<!-- Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-sm-6 col-lg-4">
+    <div class="stat-card" style="border-left-color:var(--warning);">
+      <div class="stat-label" style="color:var(--warning);">Pending Approvals</div>
+      <div class="stat-value" style="color:var(--warning);">{{ pending_cases|length }}</div>
     </div>
   </div>
-
-  <div class="content">
-    <h1>Admin Dashboard</h1>
-    <div class="ngo-name">{{ admin.ngo_name }}</div>
-
-    <div class="glass-box">
-      <h2>Welcome, {{ admin.name }}</h2>
-      <p style="margin-top:10px; opacity:0.85;">
-        Manage volunteers, monitor student risk levels,
-        and oversee intervention activities from here.
-      </p>
+  <div class="col-sm-6 col-lg-4">
+    <div class="stat-card">
+      <div class="stat-label">Quick Actions</div>
+      <a href="/admin/add-volunteer" class="btn btn-primary" style="margin-top:8px;font-size:0.85rem;"><i class="bi bi-person-plus"></i> Add Volunteer</a>
     </div>
-
   </div>
+</div>
 
+<!-- Pending Intervention Approvals -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;color:var(--warning);">
+    <i class="bi bi-clock-history"></i> Pending Intervention Approvals
+  </h6>
+  {% if pending_cases %}
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th><th>Proof</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for c in pending_cases %}
+        <tr>
+          <td>{{ c.student_performance.name if c.student_performance else 'N/A' }}</td>
+          <td>{{ c.student_performance.roll if c.student_performance else '-' }}</td>
+          <td>
+            {{ c.type or '-' }}
+            {% if c.type == 'Financial Aid' %}
+            <br><small style="color:var(--danger);font-weight:600;">Requires Approval</small>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.status == 'Awaiting Approval' %}
+              <span class="badge-danger">Awaiting Approval</span>
+            {% else %}
+              <span class="badge-warning">{{ c.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ c.notes or '-' }}</td>
+          <td>{{ c.by or '-' }}</td>
+          <td>
+            {% if c.proof_image %}
+            <a href="{{ c.proof_image }}" target="_blank" style="display:inline-block;">
+              <img src="{{ c.proof_image }}" alt="Proof" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+            </a>
+            {% else %}
+            <span style="color:var(--muted);font-size:0.85rem;">No proof</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              <form method="POST" action="/approve-intervention/{{ c.id }}" style="margin:0;">
+                <button type="submit" class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Approve this intervention?')">
+                  <i class="bi bi-check-lg"></i> Approve
+                </button>
+              </form>
+              <form method="POST" action="/reject-intervention/{{ c.id }}" style="margin:0;">
+                <button type="submit" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Reject this intervention?')">
+                  <i class="bi bi-x-lg"></i> Reject
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--muted);">No pending interventions to review.</p>
+  {% endif %}
+</div>
 
-
-<!-- GOOGLE TRANSLATE -->
-<div id="google_translate_element" style="display:none"></div>
-
-<script>
-function toggleSidebar(){
-  document.getElementById("sidebar").classList.toggle("collapsed");
-}
-
-function toggleDark(){
-  document.body.classList.toggle("dark");
-}
-
-function googleTranslateElementInit() {
-  new google.translate.TranslateElement(
-    {pageLanguage:'en',autoDisplay:false},
-    'google_translate_element'
-  );
-}
-
-document.getElementById("langSelect").addEventListener("change",function(){
-  const lang=this.value;
-  if(!lang)return;
-  const timer=setInterval(()=>{
-    const combo=document.querySelector(".goog-te-combo");
-    if(combo){
-      combo.value=lang;
-      combo.dispatchEvent(new Event("change"));
-      clearInterval(timer);
-    }
-  },300);
-});
-</script>
-
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-</body>
-</html>
+{% endblock %}

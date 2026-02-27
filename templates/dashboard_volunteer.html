@@ -1,398 +1,164 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+{% extends "base.html" %}
+{% block title %}Volunteer Dashboard - EduDrop{% endblock %}
 
-<meta charset="UTF-8">
-<title>NGO Volunteer Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% block page_title %}NGO Volunteer Dashboard{% endblock %}
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<meta name="google" content="notranslate">
+{% block sidebar %}
+<a href="#" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="/about"><i class="bi bi-info-circle"></i><span>About Us</span></a>
+{% endblock %}
 
-<style>
-body{margin:0;font-family:Arial,sans-serif}
-.layout{display:flex;min-height:100vh}
+{% block content %}
 
-/* SIDEBAR */
-.sidebar{width:250px;background:#1e293b;color:#fff;padding:20px;transition:.3s}
-.sidebar.collapsed{width:70px}
-.sidebar a{color:#fff;text-decoration:none;display:flex;gap:10px;padding:10px;border-radius:8px}
-.sidebar a:hover{background:#334155}
-.sidebar.collapsed span{display:none}
+<!-- Metrics -->
+<div class="row g-4 mb-4">
+  <div class="col-sm-6 col-lg-4">
+    <div class="stat-card">
+      <div class="stat-label">At-Risk Students</div>
+      <div class="stat-value">{{ students | length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="stat-card" style="border-left-color:var(--accent);">
+      <div class="stat-label">Students Helped</div>
+      <div class="stat-value">{{ interventions | length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="stat-card" style="border-left-color:var(--warning);">
+      <div class="stat-label">Active Interventions</div>
+      <div class="stat-value">{{ active_interventions }}</div>
+    </div>
+  </div>
+</div>
 
-/* MAIN */
-.main{flex:1}
-.volunteer-bg{
-  min-height:100vh;
-  background:linear-gradient(rgba(255,255,255,.45),rgba(255,255,255,.45)),
-  url("{{ url_for('static', filename='images/sg.jpeg') }}");
-  background-size:cover;
-  padding:30px;
-}
-
-.dashboard-container{max-width:1200px;margin:auto}
-
-/* HEADER */
-.dashboard-header{
-  display:flex;justify-content:space-between;align-items:center;
-  background:#ffffffee;color:#000000;
-  padding:15px 20px;border-radius:14px;margin-bottom:20px
-}
-.toggle-btn{background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:8px}
-.btn-logout{background:#dc2626;color:#fff;padding:8px 14px;border-radius:8px;text-decoration:none}
-
-/* METRICS */
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
-.metric-card{
-  background:#ffffffee;padding:20px;border-radius:14px;text-align:center
-}
-.metric-card h2{margin:0;font-size:32px;color:#2563eb}
-
-/* CARDS */
-.card{background:#ffffffee;padding:20px;border-radius:16px;margin-bottom:20px}
-
-/* TABLE */
-/* TABLE FIX */
-.table-wrapper{
-  width:100%;
-  overflow-x:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
-  min-width:1200px; /* prevent squeeze */
-}
-
-th,td{
-  padding:10px;
-  border-bottom:1px solid #ddd;
-  text-align:left;
-  vertical-align:top;
-  word-wrap:break-word;
-}
-
-/* Limit AI reason column */
-#riskTable td:nth-child(5){
-  max-width:250px;
-  white-space:normal;
-}
-
-.reason-box{
-  margin-top:8px;
-  padding:10px;
-  background:#f1f5f9;
-  border-radius:8px;
-  font-size:14px;
-}
-
-.dark-mode .reason-box{
-  background:#1e293b;
-}
-
-
-
-
-/* BADGES */
-.badge-high{color:#fff;background:#dc2626;padding:5px 10px;border-radius:20px}
-.badge-medium{color:#fff;background:#f59e0b;padding:5px 10px;border-radius:20px}
-
-/* FORM */
-.form-row{display:flex;gap:10px;margin-bottom:10px}
-select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #ccc}
-.btn-primary{background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:8px}
-
-/* INTERVENTION */
-.timeline li{margin-bottom:8px}
-
-/* DARK */
-.dark-mode .card,
-.dark-mode .metric-card,
-.dark-mode .dashboard-header{background:#0f172add;color:#fff}
-.dark-mode select,.dark-mode textarea{background:#020617;color:#fff}
-</style>
-
-</head>
-
-<body>
-  <!-- GOOGLE TRANSLATE -->
-<div id="google_translate_element" style="display:none"></div>
-
-<div class="layout">
-
-<!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
-  <h2><strong>EduTrack</strong></h2>
-  <a href="/about">ℹ️ <span>About Us</span></a>
-
-  <label>🌐 Language</label>
-  <select id="langSelect">
-    <option value="">Select</option>
-    <option value="en">English</option>
-    <option value="hi">Hindi</option>
-    <option value="mr">Marathi</option>
+<!-- Risk Filter -->
+<div class="mb-4">
+  <select class="form-control" style="max-width:200px;" onchange="filterRisk(this.value)">
+    <option value="all">All Risk Levels</option>
+    <option value="At Risk">At Risk</option>
+    <option value="Medium">Medium</option>
   </select>
 </div>
 
-<!-- MAIN -->
-<div class="main">
-<div class="volunteer-bg" id="themeRoot">
-<div class="dashboard-container">
-
-<!-- HEADER -->
-<div class="dashboard-header">
-  <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
-  <h1>🤝 NGO Volunteer Dashboard</h1>
-  <div>
-    <button class="toggle-btn" onclick="toggleDark()">🌙</button>
-    <a href="/logout" class="btn-logout">Logout</a>
+<!-- At-Risk Students -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;color:var(--danger);">At-Risk Students</h6>
+  <div class="table-responsive">
+    <table class="table-clean" id="riskTable">
+      <thead>
+        <tr>
+          <th>Name</th><th>Roll</th><th>Division</th><th>Risk</th>
+          <th>AI Insight</th><th>Intervention</th><th>Status</th><th>Notes</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr data-risk="{{ s.risk }}">
+          <td>{{ s.name }}</td>
+          <td>{{ s.roll }}</td>
+          <td>{{ s.division }}</td>
+          <td>
+            {% if s.risk in ['High', 'At Risk'] %}
+              <span class="badge-danger">URGENT</span>
+            {% else %}
+              <span class="badge-warning">ATTENTION</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="toggleReason(this)">View</button>
+            <div class="reason-box" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:0.85rem;">
+              <strong>AI Reason:</strong><br>{{ s.ai_reason }}<br>
+              <small style="color:var(--muted);">Confidence: {{ s.ai_confidence }}</small>
+            </div>
+          </td>
+          <td>{{ s.current_intervention }}</td>
+          <td>
+            {% if s.current_status == "Ongoing" %}<span class="badge-danger">Ongoing</span>
+            {% elif s.current_status == "Planned" %}<span class="badge-warning">Planned</span>
+            {% else %}{{ s.current_status }}{% endif %}
+          </td>
+          <td>{{ s.current_notes }}</td>
+          <td>
+            <form method="POST" enctype="multipart/form-data" style="min-width:200px;">
+              <input type="hidden" name="student_id" value="{{ s.id }}">
+              <select name="intervention_type" class="form-control mb-2" style="font-size:0.85rem;">
+                <option value="">Intervention</option>
+                <option>Counselling</option>
+                <option>Parent Meeting</option>
+                <option>Financial Aid</option>
+                <option>Mentorship</option>
+              </select>
+              <select name="status" class="form-control mb-2" style="font-size:0.85rem;" required onchange="toggleUpload(this)">
+                <option value="">Status</option>
+                <option>Planned</option>
+                <option>Ongoing</option>
+                <option>Completed</option>
+              </select>
+              <div class="proof-upload" style="display:none;margin-bottom:8px;">
+                <label class="form-label" style="font-size:0.8rem;">Proof Photo:</label>
+                <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;">
+              </div>
+              <textarea name="notes" class="form-control mb-2" style="font-size:0.85rem;" rows="2" required placeholder="Notes..."></textarea>
+              <button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
-<!-- METRICS -->
-<div class="metrics">
-  <div class="metric-card">
-    <h2>{{ students | length }}</h2>
-    <p>At-Risk Students</p>
-  </div>
-
-  <div class="metric-card">
-    <h2>{{ interventions | length }}</h2>
-    <p>Students Helped</p>
-  </div>
-
-  <div class="metric-card">
-<h2>{{ active_interventions }}</h2>
-<p>Active Interventions</p>
-
-  </div>
-</div>
-<pre>
-
-
-<select onchange="filterRisk(this.value)">
-  <option value="all">All</option>
-  <option value="At Risk">At Risk</option>
-  <option value="Medium">Medium</option>
-</select>
-
-
-<!-- STUDENTS -->
+<!-- Intervention History -->
 <div class="card">
-<h2>⚠️ At-Risk Students</h2>
-
-<div class="table-wrapper">
-<table id="riskTable">
-
-<thead>
-<tr>
-<th>Name</th>
-<th>Roll</th>
-<th>Division</th>
-<th>Risk</th>
-<th>AI Insight</th>
-<th>Current Intervention</th>
-<th>Status</th>
-<th>Notes</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody>
-{% for s in students %}
-<tr data-risk="{{ s.risk }}">
-<td>{{ s.name }}</td>
-<td>{{ s.roll }}</td>
-<td>{{ s.division }}</td>
-<td>
-{% if s.risk in ['High', 'At Risk'] %}
-  <span class="badge-high">URGENT</span>
-{% else %}
-  <span class="badge-medium">ATTENTION</span>
-{% endif %}
-
-</td>
-<td>
-<button class="btn-primary" onclick="toggleReason(this)">
-  View
-</button>
-
-<div class="reason-box" style="display:none;">
-  <strong>AI Reason:</strong><br>
-  {{ s.ai_reason }}<br>
-  <small>Confidence: {{ s.ai_confidence }}</small>
-</div>
-</td>
-
-
-
-<td>{{ s.current_intervention }}</td>
-
-<td>
-{% if s.current_status == "Ongoing" %}
-  <span class="badge-high">Ongoing</span>
-{% elif s.current_status == "Planned" %}
-  <span class="badge-medium">Planned</span>
-{% else %}
-  {{ s.current_status }}
-{% endif %}
-</td>
-<td>{{ s.current_notes }}</td>
-
-
-
-<td>
-<form method="POST" enctype="multipart/form-data">
-  <input type="hidden" name="student_id" value="{{ s.id }}">
-
-  <select name="intervention_type">
-    <option value="">Intervention</option>
-    <option>Counselling</option>
-    <option>Parent Meeting</option>
-    <option>Financial Aid</option>
-    <option>Mentorship</option>
-  </select>
-
-  <select name="status" required onchange="toggleUpload(this)">
-    <option value="">Status</option>
-    <option>Planned</option>
-    <option>Ongoing</option>
-    <option>Completed</option>
-  </select>
-
-  <div class="proof-upload" style="display:none;">
-    <label>Upload Proof Photo:</label>
-    <input type="file" name="proof_image">
-  </div>
-
-  <textarea name="notes" required></textarea>
-  <button class="btn-primary">Save</button>
-</form>
-</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
-</div>
-</div>
-
-
-<!-- INTERVENTION HISTORY -->
-<div class="card">
-  <h2>📋 Intervention History</h2>
-
+  <h6 style="font-weight:600;margin-bottom:16px;">Intervention History</h6>
   {% if interventions %}
-  <table>
-    <thead>
-      <tr>
-        <th>Student</th>
-        <th>Roll</th>
-        <th>Type</th>
-        <th>Status</th>
-        <th>Notes</th>
-        <th>Handled By</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for a in interventions %}
-      <tr>
-        <td>{{ a.student_performance.name }}</td>
-        <td>{{ a.student_performance.roll }}</td>
-        <td>{{ a.type }}</td>
-        <td>
-          {% if a.status == "Completed" %}
-            <span class="badge-medium">Completed</span>
-          {% elif a.status == "Ongoing" %}
-            <span class="badge-high">Ongoing</span>
-          {% else %}
-            Planned
-          {% endif %}
-        </td>
-        <td>{{ a.notes }}</td>
-        <td>{{ a.by }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th></tr>
+      </thead>
+      <tbody>
+        {% for a in interventions %}
+        <tr>
+          <td>{{ a.student_performance.name }}</td>
+          <td>{{ a.student_performance.roll }}</td>
+          <td>{{ a.type }}</td>
+          <td>
+            {% if a.status == "Completed" %}<span class="badge-success">Completed</span>
+            {% elif a.status == "Ongoing" %}<span class="badge-danger">Ongoing</span>
+            {% else %}<span class="badge-warning">Planned</span>{% endif %}
+          </td>
+          <td>{{ a.notes }}</td>
+          <td>{{ a.by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-    <p>No interventions recorded yet.</p>
+  <p style="color:var(--muted);">No interventions recorded yet.</p>
   {% endif %}
 </div>
 
-
-<!-- SCRIPTS -->
- <script>
-function googleTranslateElementInit() {
-  new google.translate.TranslateElement(
-    {
-      pageLanguage: 'en',
-      autoDisplay: false
-    },
-    'google_translate_element'
-  );
-}
-</script>
-
 <script>
-function toggleUpload(select){
+function toggleUpload(select) {
   const box = select.closest("form").querySelector(".proof-upload");
-  if(select.value === "Completed"){
-    box.style.display = "block";
-  } else {
-    box.style.display = "none";
-  }
-}
-</script>
-
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-<script>
-function toggleSidebar(){
-  document.getElementById("sidebar").classList.toggle("collapsed")
+  box.style.display = select.value === "Completed" ? "block" : "none";
 }
 
-function toggleDark(){
-  document.getElementById("themeRoot").classList.toggle("dark-mode")
+function filterRisk(val) {
+  document.querySelectorAll("#riskTable tbody tr").forEach(r => {
+    r.style.display = (val === "all" || (r.dataset.risk || '').trim() === val) ? "" : "none";
+  });
 }
 
-function filterRisk(val){
-  document.querySelectorAll("#riskTable tbody tr").forEach(r=>{
-    const rowRisk = (r.dataset.risk || '').trim();
-    if(val === "all" || rowRisk === val) r.style.display = "";
-    else r.style.display = "none";
-  })
-}
-
-function toggleReason(btn){
+function toggleReason(btn) {
   const box = btn.nextElementSibling;
-
-  if(box.style.display === "none"){
-    box.style.display = "block";
-    btn.textContent = "Hide";
-  } else {
-    box.style.display = "none";
-    btn.textContent = "View";
-  }
+  if (box.style.display === "none") { box.style.display = "block"; btn.textContent = "Hide"; }
+  else { box.style.display = "none"; btn.textContent = "View"; }
 }
-
-
-/* 🌐 LANGUAGE CHANGE FIX */
-document.getElementById("langSelect").addEventListener("change", function () {
-  const lang = this.value;
-  if (!lang) return;
-
-  const timer = setInterval(() => {
-    const combo = document.querySelector(".goog-te-combo");
-    if (combo) {
-      combo.value = lang;
-      combo.dispatchEvent(new Event("change"));
-      clearInterval(timer);
-    }
-  }, 300);
-});
 </script>
 
-
-</body>
-</html>
+{% endblock %}

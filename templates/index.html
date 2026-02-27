@@ -2,331 +2,188 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Edu Drop</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
-
-<style>
-
-:root{
-  --bg-gradient: linear-gradient(135deg, #c7e0ff, #9ec5fe, #6ea8fe);
-  --glass-bg: rgba(255,255,255,0.28);
-  --glass-border: rgba(255,255,255,0.55);
-  --text:#0f172a;
-  --highlight:#1d4ed8;
-  --accent:#2563eb;
-}
-
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:"Poppins", sans-serif;
-}
-
-body{
-  background: var(--bg-gradient);
-  color: var(--text);
-  overflow-x:hidden;
-  position:relative;
-}
-
-/* Floating Blur Background */
-body::before,
-body::after{
-  content:"";
-  position:absolute;
-  border-radius:50%;
-  filter:blur(120px);
-  opacity:0.35;
-  animation: float 12s infinite alternate ease-in-out;
-  z-index:0;
-}
-
-body::before{
-  width:450px;
-  height:450px;
-  background:#3b82f6;
-  top:-120px;
-  left:-120px;
-}
-
-body::after{
-  width:380px;
-  height:380px;
-  background:#2563eb;
-  bottom:-120px;
-  right:-120px;
-}
-
-@keyframes float{
-  from{ transform: translateY(0px); }
-  to{ transform: translateY(50px); }
-}
-
-/* NAVBAR */
-.navbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:20px 60px;
-  position:relative;
-  z-index:1;
-}
-
-.logo{
-  font-size:24px;
-  font-weight:700;
-  color:var(--highlight);
-}
-
-/* SECTIONS (Reduced Vertical Space) */
-section{
-  padding:20px 60px;   /* 🔥 Reduced from 35px to 20px */
-  position:relative;
-  z-index:1;
-}
-
-/* Glassmorphism */
-.glass{
-  background:var(--glass-bg);
-  backdrop-filter:blur(25px);
-  -webkit-backdrop-filter:blur(25px);
-  border:1px solid var(--glass-border);
-  border-radius:20px;
-  padding:35px;
-  box-shadow:0 15px 40px rgba(0, 0, 0, 0.08);
-  transition: all 0.4s ease;
-}
-
-.glass:hover{
-  transform:translateY(-5px);
-  box-shadow:0 20px 50px rgba(37,99,235,0.15);
-}
-
-/* Welcome */
-.welcome{
-  text-align:center;
-}
-
-.welcome h1{
-  font-size:40px;
-  margin-bottom:12px;
-  background: linear-gradient(90deg, var(--highlight), var(--accent));
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-}
-
-.welcome p{
-  max-width:750px;
-  margin:auto;
-  opacity:0.9;
-}
-
-/* IDEA + FEATURES */
-.side-container{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:25px;
-}
-
-.idea h2,
-.features h2{
-  margin-bottom:15px;
-  font-size:26px;
-  color:var(--highlight);
-}
-
-.idea p{
-  line-height:1.8;
-  margin-bottom:14px;
-  font-size:14.5px;
-}
-
-/* Features */
-.feature-list{
-  display:grid;
-  gap:12px;
-}
-
-.feature-item{
-  padding:15px;
-  border-radius:12px;
-  background:rgba(255,255,255,0.45);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(29,78,216,0.2);
-  transition:0.3s;
-}
-
-.feature-item:hover{
-  transform:translateX(6px);
-  background:rgba(255,255,255,0.65);
-}
-
-/* CTA */
-.cta-section{
-  margin-top:10px;  /* Reduced top gap */
-  padding:60px 60px;
-  background: linear-gradient(135deg, #2563eb, #1e40af);
-  color:#ffffff;
-}
-
-.cta-box{
-  max-width:1100px;
-  margin:auto;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:40px;
-}
-
-.cta-text h2{
-  font-size:32px;
-  margin-bottom:12px;
-}
-
-.get-started-btn{
-  display:inline-block;
-  padding:12px 35px;
-  border-radius:25px;
-  background:#ffffff;
-  color:#1e40af;
-  font-weight:600;
-  text-decoration:none;
-  transition:0.3s;
-}
-
-.get-started-btn:hover{
-  transform:scale(1.07);
-  box-shadow:0 10px 25px rgba(0,0,0,0.2);
-}
-
-/* IMAGE */
-.image-circle{
-  width:260px;
-  height:260px;
-  border-radius:50%;
-  overflow:hidden;
-  box-shadow:0 15px 40px rgba(0,0,0,0.2);
-}
-
-.image-circle img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-
-/* Footer */
-.footer{
-  text-align:center;
-  padding:20px;
-  opacity:0.7;
-  font-size:14px;
-}
-
-/* Responsive */
-@media(max-width:900px){
-  .side-container{
-    grid-template-columns:1fr;
-  }
-  .cta-box{
-    flex-direction:column;
-    text-align:center;
-  }
-}
-
-</style>
+<title>EduDrop - Proactive Education Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
-
 <body>
 
-<div class="navbar">
-  <div class="logo">🎓 Edu Drop</div>
-</div>
+<nav class="landing-nav" role="navigation" aria-label="Main navigation">
+  <a href="{{ url_for('index') }}" class="logo" style="text-decoration:none;color:inherit;"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i> EduDrop</a>
+  <div style="display:flex;align-items:center;gap:28px;">
+    <a href="#features" style="color:rgba(255,255,255,0.8);font-weight:600;font-size:0.92rem;">Features</a>
+    <a href="#about" style="color:rgba(255,255,255,0.8);font-weight:600;font-size:0.92rem;">About</a>
+    <div class="lang-switcher">
+      <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Change language">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="mr">मराठी</option>
+      </select>
+    </div>
+    <a href="{{ url_for('select_role') }}" class="btn btn-primary">Get Started <i class="bi bi-arrow-right"></i></a>
+  </div>
+</nav>
 
-<section>
-  <div class="glass welcome">
-    <h1>Welcome to Edu Drop</h1>
-    <p>
-      Empowering schools with intelligent analytics to prevent student dropouts
-      and ensure every child completes their education journey successfully.
-    </p>
+<main>
+<section class="hero" role="banner">
+  <div class="hero-badge">FEATURES</div>
+  <h1>Smarter Predictions.<br>Better Outcomes. <span>Greater Impact.</span></h1>
+  <p>An automation-first platform that connects schools, teachers, and NGOs to identify at-risk students early and deliver timely interventions.</p>
+  <a href="{{ url_for('select_role') }}" class="btn btn-primary btn-lg">Start Using EduDrop</a>
+</section>
+
+<section id="features" class="features-grid" aria-label="Features">
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-graph-up-arrow"></i></div>
+    <h3>Risk Prediction</h3>
+    <p>AI-based system to detect potential dropout risks early using attendance and academic data.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-calendar-check"></i></div>
+    <h3>Real-Time Monitoring</h3>
+    <p>Automatically tracks attendance and performance data, syncing directly with teacher inputs.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-bell"></i></div>
+    <h3>Early Alerts</h3>
+    <p>Automated notifications for teachers and principals when students show warning signs.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-headset"></i></div>
+    <h3>NGO Integration</h3>
+    <p>Connects schools with NGO volunteers for targeted intervention and community support.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-bar-chart-line"></i></div>
+    <h3>Dashboard Insights</h3>
+    <p>Clear visual analytics for attendance, performance, and risk trends across the school.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon" style="background:var(--bg-neutral);color:var(--text);"><i class="bi bi-cpu"></i></div>
+    <h3>AI Explainability</h3>
+    <p>Understand why each student is flagged with transparent AI reasoning and confidence scores.</p>
   </div>
 </section>
 
-<section>
-  <div class="side-container">
+<!-- About Section -->
+<section id="about" style="max-width:1050px;margin:0 auto;padding:80px 24px;">
+  <div style="text-align:center;margin-bottom:52px;">
+    <div class="hero-badge" style="margin-bottom:16px;">ABOUT</div>
+    <h2>What is EduDrop?</h2>
+    <p style="color:var(--text-muted);max-width:620px;margin:14px auto 0;font-size:1.05rem;">A digital platform designed to reduce primary school dropouts through early identification and structured intervention.</p>
+  </div>
 
-    <div class="glass idea">
-      <h2>💡 Our Main Idea</h2>
-      <p>
-        Edu Drop is built to proactively identify students who may be at risk of dropping out 
-        by analyzing attendance patterns, academic performance trends, behavioral data, 
-        and overall engagement levels.
-      </p>
-      <p>
-        By combining data analytics with intelligent monitoring systems, the platform 
-        generates early-warning indicators that allow educators to intervene before 
-        problems become critical.
-      </p>
-      <p>
-        Instead of reacting after a student disengages, our system focuses on prevention — 
-        enabling schools to take timely, data-driven action that improves retention rates 
-        and academic success.
-      </p>
-      <p>
-        Our vision is to create a supportive digital ecosystem where teachers, 
-        administrators, and institutions work together using real-time insights 
-        to guide every student toward successful completion of their education.
-      </p>
-    </div>
-
-    <div class="glass features">
-      <h2>✨ Key Features</h2>
-      <div class="feature-list">
-        <div class="feature-item">
-          <h3>📊 Risk Prediction</h3>
-          <p>AI-based system to detect potential dropout risks early.</p>
-        </div>
-        <div class="feature-item">
-          <h3>🔔 Early Alerts</h3>
-          <p>Automated notifications for timely intervention.</p>
-        </div>
-        <div class="feature-item">
-          <h3>📈 Dashboard Insights</h3>
-          <p>Clear visual analytics for attendance & performance.</p>
-        </div>
-        <div class="feature-item">
-          <h3>🎯 Targeted Support</h3>
-          <p>Personalized intervention planning tools.</p>
-        </div>
+  <div class="about-steps">
+    <div class="about-step">
+      <div class="about-step-line">
+        <div class="about-step-num">1</div>
+        <div class="about-step-connector"></div>
+      </div>
+      <div class="about-step-content">
+        <h4>Teachers Update Student Data</h4>
+        <p>Attendance, grades, assignments, and quiz scores are entered into the system regularly by teachers for each student.</p>
       </div>
     </div>
-
+    <div class="about-step">
+      <div class="about-step-line">
+        <div class="about-step-num">2</div>
+        <div class="about-step-connector"></div>
+      </div>
+      <div class="about-step-content">
+        <h4>AI Identifies At-Risk Students</h4>
+        <p>Our prediction engine analyzes patterns and flags students showing early warning signs of dropping out, with explainable reasoning.</p>
+      </div>
+    </div>
+    <div class="about-step">
+      <div class="about-step-line">
+        <div class="about-step-num">3</div>
+        <div class="about-step-connector"></div>
+      </div>
+      <div class="about-step-content">
+        <h4>Principals Review &amp; Verify</h4>
+        <p>School principals get a complete dashboard with analytics, risk trends, and can verify flagged cases before escalation.</p>
+      </div>
+    </div>
+    <div class="about-step">
+      <div class="about-step-line">
+        <div class="about-step-num">4</div>
+      </div>
+      <div class="about-step-content">
+        <h4>NGOs Intervene &amp; Support</h4>
+        <p>Verified at-risk cases are forwarded to NGO volunteers who provide counselling, parent meetings, financial aid, and mentorship.</p>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="cta-section">
-  <div class="cta-box">
-    <div class="cta-text">
-      <h2>Ready to Make a Difference?</h2>
-      <p>
-        Start using Edu Drop today and prevent student dropouts
-        through intelligent early detection and data-driven support.
-      </p>
-      <a href="select_role" class="get-started-btn">Get Started</a>
-    </div>
+<section class="cta-section" aria-label="Call to action">
+  <h2>Ready to Make a Difference?</h2>
+  <p>Start using EduDrop today and help every child complete their education.</p>
+  <a href="{{ url_for('select_role') }}" class="btn">Get Started <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+</section>
+</main>
 
-    <div class="image-circle">
-      <img src="https://media.istockphoto.com/id/1392743605/photo/happy-girl-kid-in-uniform-standing-at-school-corridor-while-other-kids-passing-concept-of.jpg?s=612x612&w=0&k=20&c=QPAvJy0gmybJy1R7PG4LjLTMVFB5nfESECCiMmmPSbM=" alt="Student">
+<footer class="landing-footer" role="contentinfo">
+  <div class="footer-grid">
+    <div>
+      <div class="footer-brand"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i> EduDrop</div>
+      <div class="footer-brand-sub">Proactive Education Assistant</div>
+      <p class="footer-desc">Connecting schools, teachers, and NGOs to identify at-risk students early and deliver timely interventions.</p>
+    </div>
+    <div class="footer-col">
+      <h6>Platform</h6>
+      <a href="#features">Features</a>
+      <a href="#about">How It Works</a>
+      <a href="{{ url_for('select_role') }}">Get Started</a>
+    </div>
+    <div class="footer-col">
+      <h6>Roles</h6>
+      <a href="/login/student">Student</a>
+      <a href="/login/teacher">Teacher</a>
+      <a href="/login/principal">Principal</a>
+      <a href="/login/ngo">NGO</a>
+    </div>
+    <div class="footer-col">
+      <h6>About</h6>
+      <p class="footer-desc">A digital platform designed to reduce primary school dropouts through early identification and structured intervention.</p>
     </div>
   </div>
-</section>
+  <div class="footer-bottom">
+    &copy; 2026 EduDrop &bull; Built for better education outcomes
+  </div>
+</footer>
 
-<div class="footer">
-  © 2026 Edu Drop | Intelligent Education Monitoring System
-</div>
+<!-- Google Translate (hidden element) -->
+<div id="google_translate_element" style="display:none;"></div>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateInit"></script>
+<script>
+function googleTranslateInit() {
+  new google.translate.TranslateElement({pageLanguage: 'en', autoDisplay: false}, 'google_translate_element');
+  setTimeout(function() {
+    var saved = getCookie('edudrop_lang');
+    if (saved && saved !== 'en') triggerTranslate(saved);
+    var sel = document.getElementById('langSelect');
+    if (sel && saved) sel.value = saved;
+  }, 1000);
+}
+function changeLanguage(lang) {
+  setCookie('edudrop_lang', lang, 365);
+  if (lang === 'en') {
+    setCookie('googtrans', '', -1);
+    document.cookie = 'googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+    document.cookie = 'googtrans=; path=/; domain=.' + location.hostname + '; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+    location.reload();
+  } else { triggerTranslate(lang); }
+}
+function triggerTranslate(lang) {
+  var combo = document.querySelector('.goog-te-combo');
+  if (combo) { combo.value = lang; combo.dispatchEvent(new Event('change')); }
+}
+function setCookie(n,v,d) { var e=new Date(); e.setTime(e.getTime()+(d*864e5)); document.cookie=n+'='+v+';expires='+e.toUTCString()+';path=/'; }
+function getCookie(n) { var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)')); return m?m[2]:null; }
+</script>
 
 </body>
 </html>

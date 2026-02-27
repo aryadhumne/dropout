@@ -1,115 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>{% block title %}Teacher{% endblock %}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/teacher.css') }}">
-
-</head>
-<body>
-
-<div class="layout">
-
-    <!-- SIDEBAR -->
-   <aside class="sidebar" id="sidebar">
-    <h4>EduDrop</h4>
-
-    <a href="{{ url_for('teacher_dashboard') }}"
-
-       class="{% if request.endpoint == 'dashboard_teacher' %}active{% endif %}">
-        <i class="bi bi-speedometer2"></i>
-        <span>Dashboard</span>
-    </a>
-
-    <a href="{{ url_for('add_student') }}"
-       class="{% if request.endpoint == 'add_student' %}active{% endif %}">
-        <i class="bi bi-person-plus"></i>
-        <span>Add Student</span>
-    </a>
-
-    <a href="{{ url_for('student_records') }}"
-       class="{% if request.endpoint == 'student_records' %}active{% endif %}">
-        <i class="bi bi-folder"></i>
-        <span>Student Records</span>
-    </a>
-
-    <a href="{{ url_for('logout') }}" class="logout">
-        <i class="bi bi-box-arrow-right"></i>
-        <span>Logout</span>
-    </a>
-</aside>
-
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-
-        <!-- TOPBAR -->
-        <header class="topbar">
-
-            <div class="d-flex align-items-center gap-3">
-                <button onclick="toggleSidebar()">
-                    <i class="bi bi-list"></i>
-                </button>
-
-                <h5 class="mb-0">
-                    {% if teacher %}
-                        Welcome, {{ teacher.name }}
-                    {% else %}
-                        Welcome, Teacher
-                    {% endif %}
-                </h5>
-            </div>
-            <li class="nav-item position-relative">
-    <span style="font-size: 22px;">🔔</span>
-
-    {% if high_risk is defined and high_risk > 0 %}
-
-    <span class="position-absolute top-0 start-100 translate-middle badge bg-danger">
-        {{ high_risk }}
-    </span>
-    {% endif %}
-</li>
-
-
-            <button onclick="toggleTheme()" id="themeIcon">
-                <i class="bi bi-moon"></i>
-            </button>
-
-        </header>
-
-        <div class="container-fluid mt-4">
-            {% block content %}{% endblock %}
-        </div>
-
-    </main>
-
-</div>
-
-<script>
-function toggleSidebar() {
-    document.getElementById("sidebar").classList.toggle("collapsed");
-}
-
-function toggleTheme() {
-    document.body.classList.toggle("light");
-
-    const icon = document.getElementById("themeIcon").querySelector("i");
-
-    if (document.body.classList.contains("light")) {
-        icon.classList.remove("bi-moon");
-        icon.classList.add("bi-sun");
-    } else {
-        icon.classList.remove("bi-sun");
-        icon.classList.add("bi-moon");
-    }
-}
-</script>
+{% block head %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
 
+{% block page_title %}
+{% if teacher %}Welcome, {{ teacher.name }}{% else %}Teacher Dashboard{% endif %}
+{% endblock %}
 
-</body>
-</html>
+{% block topbar_right %}
+{% if high_risk is defined and high_risk > 0 %}
+<span class="badge-danger" style="font-size:0.75rem;padding:4px 10px;">{{ high_risk }} High Risk</span>
+{% endif %}
+{% endblock %}
+
+{% block sidebar %}
+<a href="{{ url_for('teacher_dashboard') }}" class="{% if request.endpoint == 'teacher_dashboard' or request.endpoint == 'dashboard_teacher' %}active{% endif %}">
+  <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+</a>
+<a href="{{ url_for('add_student') }}" class="{% if request.endpoint == 'add_student' %}active{% endif %}">
+  <i class="bi bi-person-plus"></i><span>Add Student</span>
+</a>
+<a href="{{ url_for('student_records') }}" class="{% if request.endpoint == 'student_records' %}active{% endif %}">
+  <i class="bi bi-folder"></i><span>Student Records</span>
+</a>
+{% endblock %}

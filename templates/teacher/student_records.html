@@ -1,195 +1,145 @@
 {% extends "teacher/base.html" %}
+{% block title %}Student Records - EduDrop{% endblock %}
 {% block content %}
 
-<h3 class="mb-4">Student Records</h3>
+<h5 style="font-weight:600;margin-bottom:20px;">Student Records</h5>
 
-<!-- ================= FILTER SECTION ================= -->
-<div class="card-box mb-4">
-    <div class="row">
-
-        <!-- Standard Filter -->
-        <div class="col-md-4 mb-2">
-            <label>Select Standard</label>
-            <select id="standardFilter" class="form-control">
-                <option value="">All</option>
-                {% for i in range(1,9) %}
-                <option value="{{ i }}">{{ i }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Division Filter -->
-        <div class="col-md-4 mb-2">
-            <label>Select Division</label>
-            <select id="divisionFilter" class="form-control">
-                <option value="">All</option>
-                <option>A</option>
-                <option>B</option>
-                <option>C</option>
-                <option>D</option>
-                <option>E</option>
-                <option>F</option>
-            </select>
-        </div>
-
-        <!-- Name Search -->
-        <div class="col-md-4 mb-2">
-            <label>Search by Name</label>
-            <input type="text" id="nameSearch" class="form-control" placeholder="Enter student name">
-        </div>
-
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Standard</label>
+      <select id="standardFilter" class="form-control">
+        <option value="">All</option>
+        {% for i in range(1,9) %}
+        <option value="{{ i }}">{{ i }}</option>
+        {% endfor %}
+      </select>
     </div>
+    <div class="col-md-4">
+      <label class="form-label">Division</label>
+      <select id="divisionFilter" class="form-control">
+        <option value="">All</option>
+        <option>A</option><option>B</option><option>C</option>
+        <option>D</option><option>E</option><option>F</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Search by Name</label>
+      <input type="text" id="nameSearch" class="form-control" placeholder="Enter student name">
+    </div>
+  </div>
 </div>
 
-<!-- ================= STUDENT TABLE ================= -->
+<!-- Student Tables -->
 {% for group, students in grouped.items() %}
-<div class="card-box mt-4">
-<h5>{{ group }}</h5>
-
-<table class="table table-dark table-hover">
-<thead>
-<tr>
-<th>Name</th>
-<th>Roll</th>
-<th>Standard</th>
-<th>Division</th>
-<th>Gender</th>
-<th>Risk %</th>
-<th>Risk Reason</th>
-<th>Assignment</th>
-<th>Behaviour</th>
-<th>Parent</th>
-<th>Phone</th>
-<th>Action</th>
-</tr>
-</thead>
-
-<tbody>
-{% for s in students %}
-<tr class="student-row"
-    id="row-{{ s.get('id') }}"
-    data-standard="{{ s.get('standard') }}"
-    data-division="{{ s.get('division') }}"
-    data-name="{{ s.get('name','') | lower }}">
-
-<td>{{ s.get("name") }}</td>
-<td>{{ s.get("roll") }}</td>
-<td>{{ s.get("standard") }}</td>
-<td>{{ s.get("division") }}</td>
-<td>{{ s.get("gender") }}</td>
-
-<td>
-{% set risk = s.get("risk_score", 0) %}
-{% if risk >= 60 %}
-<span class="badge bg-danger">{{ risk }}%</span>
-{% elif risk >= 40 %}
-<span class="badge bg-warning text-dark">{{ risk }}%</span>
-{% else %}
-<span class="badge bg-success">{{ risk }}%</span>
-{% endif %}
-</td>
-
-<td>{{ s.get("risk_reason") or "-" }}</td>
-<td>{{ s.get("assignment_status") or "-" }}</td>
-<td>{{ s.get("behaviour") or "-" }}</td>
-<td>{{ s.get("parent_name") or "-" }}</td>
-<td>{{ s.get("parent_phone") or "-" }}</td>
-
-<td>
-<a href="{{ url_for('edit_student', student_id=s.get('id')) }}"
-   class="btn btn-warning btn-sm">
-   Edit
-</a>
-
-<button type="button"
-        class="btn btn-danger btn-sm"
-        onclick="confirmDelete('{{ s.get('id') }}', '{{ s.get('name') }}')">
-    Delete
-</button>
-</td>
-</tr>
-
-<tr id="address-row-{{ s.get('id') }}">
-<td colspan="12">
-<strong>Address:</strong> {{ s.get("parent_address") or "-" }}
-</td>
-</tr>
-
-{% endfor %}
-</tbody>
-</table>
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">{{ group }}</h6>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Roll</th>
+          <th>Std</th>
+          <th>Div</th>
+          <th>Gender</th>
+          <th>Risk %</th>
+          <th>Reason</th>
+          <th>Assignment</th>
+          <th>Behaviour</th>
+          <th>Parent</th>
+          <th>Phone</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr class="student-row" id="row-{{ s.get('id') }}"
+            data-standard="{{ s.get('standard') }}"
+            data-division="{{ s.get('division') }}"
+            data-name="{{ s.get('name','') | lower }}">
+          <td>{{ s.get("name") }}</td>
+          <td>{{ s.get("roll") }}</td>
+          <td>{{ s.get("standard") }}</td>
+          <td>{{ s.get("division") }}</td>
+          <td>{{ s.get("gender") }}</td>
+          <td>
+            {% set risk = s.get("risk_score", 0) %}
+            {% if risk >= 60 %}
+            <span class="badge-danger">{{ risk }}%</span>
+            {% elif risk >= 40 %}
+            <span class="badge-warning">{{ risk }}%</span>
+            {% else %}
+            <span class="badge-success">{{ risk }}%</span>
+            {% endif %}
+          </td>
+          <td>{{ s.get("risk_reason") or "-" }}</td>
+          <td>{{ s.get("assignment_status") or "-" }}</td>
+          <td>{{ s.get("behaviour") or "-" }}</td>
+          <td>{{ s.get("parent_name") or "-" }}</td>
+          <td>{{ s.get("parent_phone") or "-" }}</td>
+          <td style="white-space:nowrap;">
+            <a href="{{ url_for('edit_student', student_id=s.get('id')) }}" class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;">Edit</a>
+            <button type="button" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="confirmDelete('{{ s.get('id') }}', '{{ s.get('name') }}')">Delete</button>
+          </td>
+        </tr>
+        <tr id="address-row-{{ s.get('id') }}">
+          <td colspan="12" style="font-size:0.85rem;color:var(--muted);"><strong>Address:</strong> {{ s.get("parent_address") or "-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endfor %}
 
-<!-- ================= FILTER SCRIPT ================= -->
 <script>
+// Filters
 document.getElementById("standardFilter").addEventListener("change", filterStudents);
 document.getElementById("divisionFilter").addEventListener("change", filterStudents);
 document.getElementById("nameSearch").addEventListener("input", filterStudents);
 
 function filterStudents() {
+  const standard = document.getElementById("standardFilter").value;
+  const division = document.getElementById("divisionFilter").value;
+  const name = document.getElementById("nameSearch").value.toLowerCase();
+  const rows = document.querySelectorAll(".student-row");
 
-    let standard = document.getElementById("standardFilter").value;
-    let division = document.getElementById("divisionFilter").value;
-    let name = document.getElementById("nameSearch").value.toLowerCase();
-
-    let rows = document.querySelectorAll(".student-row");
-
-    rows.forEach(row => {
-
-        let rowStd = row.dataset.standard;
-        let rowDiv = row.dataset.division;
-        let rowName = row.dataset.name;
-
-        let matchStandard = !standard || rowStd == standard;
-        let matchDivision = !division || rowDiv == division;
-        let matchName = !name || rowName.includes(name);
-
-        if (matchStandard && matchDivision && matchName) {
-            row.style.display = "";
-            document.getElementById("address-row-" + row.id.split("-")[1]).style.display = "";
-        } else {
-            row.style.display = "none";
-            document.getElementById("address-row-" + row.id.split("-")[1]).style.display = "none";
-        }
-    });
+  rows.forEach(row => {
+    const match = (!standard || row.dataset.standard == standard) &&
+                  (!division || row.dataset.division == division) &&
+                  (!name || row.dataset.name.includes(name));
+    row.style.display = match ? "" : "none";
+    const addrRow = document.getElementById("address-row-" + row.id.split("-")[1]);
+    if (addrRow) addrRow.style.display = match ? "" : "none";
+  });
 }
-</script>
-<!-- ================= DELETE SCRIPT ================= -->
-<script>
+
+// Delete confirmation
 function confirmDelete(studentId, studentName) {
-
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "Delete " + studentName + "?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-
-        if (result.isConfirmed) {
-
-            fetch(`/teacher/delete_student/${studentId}`, {
-                method: "POST"
-            })
-            .then(response => response.json())
-            .then(data => {
-
-                if (data.success) {
-                    document.getElementById("row-" + studentId).remove();
-                    document.getElementById("address-row-" + studentId).remove();
-                } else {
-                    Swal.fire('Error!', 'Something went wrong.', 'error');
-                }
-
-            });
-
-        }
-
-    });
+  Swal.fire({
+    title: 'Are you sure?',
+    text: "Delete " + studentName + "?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, delete!'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      fetch(`/teacher/delete_student/${studentId}`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById("row-" + studentId).remove();
+            document.getElementById("address-row-" + studentId).remove();
+          } else {
+            Swal.fire('Error', 'Something went wrong.', 'error');
+          }
+        });
+    }
+  });
 }
 </script>
 

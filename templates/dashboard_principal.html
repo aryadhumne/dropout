@@ -1,426 +1,234 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Principal Smart Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% block title %}Principal Dashboard - EduDrop{% endblock %}
+
+{% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+{% endblock %}
 
-<style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:'Poppins',sans-serif;
-}
+{% block page_title %}School Dropout Monitoring{% endblock %}
 
-body{
-background:#f4f6f9;
-display:flex;
-transition:0.3s;
-}
+{% block sidebar %}
+<a href="#" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
+{% endblock %}
 
-/* ================= NIGHT MODE ================= */
-body.dark{
-background:#121212;
-color:#e0e0e0;
-}
+{% block content %}
 
-body.dark .section,
-body.dark .card,
-body.dark .chart-box{
-background:#1e1e1e;
-color:#e0e0e0;
-}
-
-body.dark th{
-background:#222;
-}
-
-body.dark td{
-border-bottom:1px solid #333;
-}
-
-body.dark .sidebar{
-background:#000;
-}
-
-/* ================= SIDEBAR ================= */
-.sidebar{
-width:250px;
-background:#0d47a1;
-color:white;
-min-height:100vh;
-padding:20px;
-position:fixed;
-transition:0.3s;
-}
-
-.sidebar h2{
-margin-bottom:25px;
-text-align:center;
-}
-
-.sidebar a{
-display:block;
-color:white;
-text-decoration:none;
-padding:10px;
-margin-bottom:8px;
-border-radius:6px;
-}
-
-.sidebar a:hover{
-background:rgba(255,255,255,0.2);
-}
-
-/* ================= MAIN ================= */
-.main{
-margin-left:260px;
-padding:25px;
-width:100%;
-}
-
-/* ================= SECTION ================= */
-.section{
-background:white;
-padding:20px;
-margin-bottom:25px;
-border-radius:10px;
-box-shadow:0 5px 15px rgba(0,0,0,0.05);
-transition:0.3s;
-}
-
-/* ================= CARDS ================= */
-.cards{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:15px;
-}
-
-.card{
-padding:15px;
-border-radius:8px;
-box-shadow:0 3px 8px rgba(0,0,0,0.05);
-}
-
-/* ================= TABLE ================= */
-.table-container{
-overflow-x:auto;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-margin-top:15px;
-min-width:800px;
-}
-
-th{
-background:#0d47a1;
-color:white;
-padding:8px;
-}
-
-td{
-padding:8px;
-text-align:center;
-border-bottom:1px solid #ddd;
-}
-
-/* ================= BUTTON ================= */
-button{
-padding:8px 12px;
-background:#1565c0;
-color:white;
-border:none;
-border-radius:5px;
-cursor:pointer;
-}
-
-button:hover{
-background:#0b3c91;
-}
-
-/* ================= RISK COLORS ================= */
-.high{color:#dc2626;font-weight:600}
-.medium{color:#f59e0b;font-weight:600}
-.low{color:#16a34a;font-weight:600}
-.red-flag{color:#dc2626;font-weight:600}
-
-/* ================= CHART ================= */
-.chart-container{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-gap:20px;
-}
-
-.chart-box{
-background:#fff;
-padding:15px;
-border-radius:10px;
-box-shadow:0 3px 10px rgba(0,0,0,0.05);
-height:350px;
-position:relative;
-}
-
-.chart-box canvas{
-height:100% !important;
-width:100% !important;
-}
-
-/* ================= DARK TOGGLE ================= */
-.toggle-btn{
-position:fixed;
-top:20px;
-right:20px;
-background:#1565c0;
-color:white;
-padding:8px 15px;
-border-radius:20px;
-cursor:pointer;
-z-index:1000;
-}
-
-/* ================= RESPONSIVE ================= */
-@media(max-width:900px){
-.sidebar{
-width:200px;
-}
-.main{
-margin-left:210px;
-}
-}
-
-@media(max-width:768px){
-body{
-flex-direction:column;
-}
-.sidebar{
-position:relative;
-width:100%;
-min-height:auto;
-}
-.main{
-margin-left:0;
-}
-}
-</style>
-</head>
-
-<body>
-
-<div class="toggle-btn" onclick="toggleDark()">🌙 Night Mode</div>
-
-<div class="sidebar">
-<h2>📊 Principal Panel</h2>
-<a href="#">Dashboard</a>
-<a href="{{ url_for('export_high_risk_csv') }}">Download High Risk CSV</a>
-<a href="#">Download PDF Report</a>
-<a href="#">Download Excel Report</a>
-<a href="{{ url_for('logout') }}">Logout</a>
+<!-- Filters -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">Filters</h6>
+  <form method="GET">
+    <div class="row g-3">
+      <div class="col-md-2">
+        <select name="class_filter" class="form-control">
+          <option value="">All Classes</option>
+          {% for i in range(1,9) %}<option value="{{i}}">Class {{i}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="risk_filter" class="form-control">
+          <option value="">All Risk</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="gender_filter" class="form-control">
+          <option value="">All Gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <input type="number" name="min_att" class="form-control" placeholder="Min Attendance %">
+      </div>
+      <div class="col-md-2">
+        <input type="number" name="min_marks" class="form-control" placeholder="Min Marks">
+      </div>
+      <div class="col-md-2">
+        <select name="date_range" class="form-control">
+          <option value="">All Dates</option>
+          <option value="7">Last 7 Days</option>
+          <option value="30">Last 30 Days</option>
+          <option value="90">Last 90 Days</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
+  </form>
 </div>
 
-<div class="main">
-
-<h1 style="margin-bottom:20px;">Smart School Dropout Monitoring</h1>
-
-<!-- FILTER SECTION -->
-<div class="section">
-<h3>🎯 Smart Filters</h3>
-<form method="GET">
-<select name="class_filter">
-<option value="">All Classes</option>
-{% for i in range(1,9) %}
-<option value="{{i}}">Class {{i}}</option>
-{% endfor %}
-</select>
-
-<select name="risk_filter">
-<option value="">All Risk</option>
-<option value="High">High</option>
-<option value="Medium">Medium</option>
-<option value="Low">Low</option>
-</select>
-
-<select name="gender_filter">
-<option value="">All Gender</option>
-<option value="male">Male</option>
-<option value="female">Female</option>
-</select>
-
-<input type="number" name="min_att" placeholder="Min Attendance %">
-<input type="number" name="min_marks" placeholder="Min Marks">
-
-<select name="date_range">
-<option value="">All Dates</option>
-<option value="7">Last 7 Days</option>
-<option value="30">Last 30 Days</option>
-<option value="90">Last 90 Days</option>
-</select>
-
-<button type="submit">Apply Filters</button>
-</form>
+<!-- Analytics Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value">{{ total_students }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--danger);"><div class="stat-label" style="color:var(--danger);">High Risk</div><div class="stat-value" style="color:var(--danger);">{{ high_risk }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--warning);"><div class="stat-label" style="color:var(--warning);">Medium Risk</div><div class="stat-value" style="color:var(--warning);">{{ medium_risk }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--success);"><div class="stat-label" style="color:var(--success);">Low Risk</div><div class="stat-value" style="color:var(--success);">{{ total_students - high_risk - medium_risk }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Avg Attendance</div><div class="stat-value">{{ avg_attendance }}%</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--success);"><div class="stat-label">Improved</div><div class="stat-value">{{ improved_students }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--danger);"><div class="stat-label">Declined</div><div class="stat-value">{{ declined_students }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Total Teachers</div><div class="stat-value">{{ teachers|length }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Home Visits</div><div class="stat-value">{{ home_visits }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Parent Meetings</div><div class="stat-value">{{ parent_meetings }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">High to Medium</div><div class="stat-value">{{ high_to_medium }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--accent);"><div class="stat-label">Success Rate</div><div class="stat-value">{{ success_rate }}%</div></div>
+  </div>
 </div>
 
-<!-- ANALYTICS CARDS -->
-<div class="section">
-<h3>📊 Complete Analytics</h3>
-<div class="cards">
-<div class="card"><h4>Total Students</h4><h2>{{ total_students }}</h2></div>
-<div class="card"><h4>High Risk</h4><h2 class="high">{{ high_risk }}</h2></div>
-<div class="card"><h4>Medium Risk</h4><h2 class="medium">{{ medium_risk }}</h2></div>
-<div class="card"><h4>Low Risk</h4><h2 class="low">{{ total_students - high_risk - medium_risk }}</h2></div>
-<div class="card"><h4>Average Attendance</h4><h2>{{ avg_attendance }}%</h2></div>
-<div class="card"><h4>Improved Students</h4><h2>{{ improved_students }}</h2></div>
-<div class="card"><h4>Declined Students</h4><h2>{{ declined_students }}</h2></div>
-<div class="card"><h4>Total Teachers</h4><h2>{{ teachers|length }}</h2></div>
-<div class="card"><h4>Home Visits</h4><h2>{{ home_visits }}</h2></div>
-<div class="card"><h4>Parent Meetings</h4><h2>{{ parent_meetings }}</h2></div>
-<div class="card"><h4>High→Medium</h4><h2>{{ high_to_medium }}</h2></div>
-<div class="card"><h4>Medium→Low</h4><h2>{{ medium_to_low }}</h2></div>
-<div class="card"><h4>Success Rate</h4><h2>{{ success_rate }}%</h2></div>
-</div>
+<!-- Charts -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Risk Distribution</h6><canvas id="riskChart"></canvas></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Class-wise High Risk</h6><canvas id="classChart"></canvas></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Gender-wise Risk</h6><canvas id="genderChart"></canvas></div>
+  </div>
 </div>
 
-<!-- CHARTS -->
-<div class="section">
-<h3>📈 Advanced Charts</h3>
-<div class="chart-container">
-<div class="chart-box"><canvas id="riskChart"></canvas></div>
-<div class="chart-box"><canvas id="classChart"></canvas></div>
-<div class="chart-box"><canvas id="genderChart"></canvas></div>
-</div>
-</div>
-
-<!-- RED FLAG -->
-<div class="section">
-<h3>🚨 Red Flag Students (Critical)</h3>
-<div class="table-container">
-<table>
-<tr><th>Name</th><th>Attendance</th></tr>
-{% for r in red_flags %}
-<tr class="red-flag">
-<td>{{ r[0] }}</td>
-<td>{{ r[1] }}%</td>
-</tr>
-{% endfor %}
-</table>
-</div>
+<!-- Red Flag Students -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;color:var(--danger);">Red Flag Students (Critical)</h6>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead><tr><th>Name</th><th>Attendance</th></tr></thead>
+      <tbody>
+        {% for r in red_flags %}
+        <tr><td>{{ r[0] }}</td><td><span class="badge-danger">{{ r[1] }}%</span></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<!-- STUDENT TABLE -->
-<div class="section">
-<h3>🧠 Explainable AI Student Analysis</h3>
-<div class="table-container">
-<table>
-<tr>
-<th>Roll</th><th>Name</th><th>Class</th><th>Gender</th>
-<th>Attendance</th><th>Marks</th><th>Risk</th>
-<th>Reason</th><th>Suggested Action</th><th>Risk Score</th>
-</tr>
-{% for s in students %}
-<tr>
-<td>{{ s[0] }}</td>
-<td>{{ s[1] }}</td>
-<td>{{ s[2] }}</td>
-<td>{{ s[3] }}</td>
-<td>{{ s[4] }}%</td>
-<td>{{ s[5] }}</td>
-<td class="{{ s[6]|lower }}">{{ s[6] }}</td>
-<td>{{ s[7] }}</td>
-<td>{{ s[8] }}</td>
-<td>{{ s[9] }}</td>
-</tr>
-{% endfor %}
-</table>
-</div>
+<!-- Student Analysis Table -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">AI Student Analysis</h6>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr><th>Roll</th><th>Name</th><th>Class</th><th>Gender</th><th>Attendance</th><th>Marks</th><th>Risk</th><th>Reason</th><th>Action</th><th>Score</th></tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>{{ s[0] }}</td><td>{{ s[1] }}</td><td>{{ s[2] }}</td><td>{{ s[3] }}</td>
+          <td>{{ s[4] }}%</td><td>{{ s[5] }}</td>
+          <td>
+            {% if s[6] == 'High' %}<span class="badge-danger">{{ s[6] }}</span>
+            {% elif s[6] == 'Medium' %}<span class="badge-warning">{{ s[6] }}</span>
+            {% else %}<span class="badge-success">{{ s[6] }}</span>{% endif %}
+          </td>
+          <td>{{ s[7] }}</td><td>{{ s[8] }}</td><td>{{ s[9] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<!-- TEACHER MANAGEMENT -->
-<div class="section">
-<h3>👨‍🏫 Teacher Management</h3>
-
-<form method="POST" action="{{ url_for('add_teacher') }}">
-<input type="text" name="name" placeholder="Teacher Name" required>
-<input type="email" name="email" placeholder="Email" required>
-<select name="assigned_class" required>
-{% for i in range(1,9) %}
-<option value="{{i}}">Class {{i}}</option>
-{% endfor %}
-</select>
-<button type="submit">Add Teacher</button>
-</form>
-
-<div class="table-container">
-<table>
-<tr><th>ID</th><th>Name</th><th>Email</th><th>Class</th><th>Action</th></tr>
-{% for t in teachers %}
-<tr>
-<td>{{ t.id }}</td>
-<td>{{ t.name }}</td>
-<td>{{ t.email }}</td>
-<td>{{ t.assigned_class }}</td>
-<td>
-<a href="{{ url_for('remove_teacher', teacher_id=t.id) }}"
-onclick="return confirm('Delete this teacher?')">Delete</a>
-</td>
-</tr>
-{% endfor %}
-</table>
-</div>
+<!-- Teacher Management -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">Teacher Management</h6>
+  <form method="POST" action="{{ url_for('add_teacher') }}" class="mb-4">
+    <div class="row g-3">
+      <div class="col-md-3"><input type="text" name="name" class="form-control" placeholder="Teacher Name" required></div>
+      <div class="col-md-3"><input type="email" name="email" class="form-control" placeholder="Email" required></div>
+      <div class="col-md-3">
+        <select name="assigned_class" class="form-control" required>
+          {% for i in range(1,9) %}<option value="{{i}}">Class {{i}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><button type="submit" class="btn btn-primary w-100">Add Teacher</button></div>
+    </div>
+  </form>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Class</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for t in teachers %}
+        <tr>
+          <td>{{ t.id }}</td><td>{{ t.name }}</td><td>{{ t.email }}</td><td>{{ t.assigned_class }}</td>
+          <td><a href="{{ url_for('remove_teacher', teacher_id=t.id) }}" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Delete this teacher?')">Delete</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
+<!-- Student Feedback -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">Student Feedback</h6>
+  {% if feedbacks %}
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>About Teacher</th><th>Feedback</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for f in feedbacks %}
+        <tr>
+          <td>{{ f.student_name }}</td>
+          <td>{{ f.standard or '-' }}</td>
+          <td>{{ f.division or '-' }}</td>
+          <td>{{ f.teacher_name or '-' }}</td>
+          <td>{{ f.feedback_text }}</td>
+          <td>{{ f.created_at[:10] if f.created_at else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted);">No feedback received yet.</p>
+  {% endif %}
 </div>
 
 <script>
-const commonOptions={
-responsive:true,
-maintainAspectRatio:false,
-plugins:{legend:{position:"bottom"}}
-};
+const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } };
 
-new Chart(document.getElementById("riskChart"),{
-type:"pie",
-data:{
-labels:["High","Medium","Low"],
-datasets:[{
-data:[{{high_risk}},{{medium_risk}},{{total_students - high_risk - medium_risk}}],
-backgroundColor:["#dc2626","#f59e0b","#16a34a"]
-}]
-},
-options:commonOptions
+new Chart(document.getElementById("riskChart"), {
+  type: "pie",
+  data: { labels: ["High","Medium","Low"], datasets: [{ data: [{{high_risk}},{{medium_risk}},{{total_students - high_risk - medium_risk}}], backgroundColor: ["#ef4444","#f59e0b","#22c55e"] }] },
+  options: opts
 });
 
-new Chart(document.getElementById("classChart"),{
-type:"bar",
-data:{
-labels:{{class_labels|tojson}},
-datasets:[{
-label:"High Risk",
-data:{{class_values|tojson}},
-backgroundColor:"#1565c0"
-}]
-},
-options:commonOptions
+new Chart(document.getElementById("classChart"), {
+  type: "bar",
+  data: { labels: {{class_labels|tojson}}, datasets: [{ label: "High Risk", data: {{class_values|tojson}}, backgroundColor: "#e72191" }] },
+  options: opts
 });
 
-new Chart(document.getElementById("genderChart"),{
-type:"doughnut",
-data:{
-labels:["Boys","Girls"],
-datasets:[{
-data:[{{boys_risk}},{{girls_risk}}],
-backgroundColor:["#1e88e5","#d81b60"]
-}]
-},
-options:commonOptions
+new Chart(document.getElementById("genderChart"), {
+  type: "doughnut",
+  data: { labels: ["Boys","Girls","Other"], datasets: [{ data: [{{boys_risk}},{{girls_risk}},{{other_risk}}], backgroundColor: ["#e72191","#ff951a","#8b5cf6"] }] },
+  options: opts
 });
-
-function toggleDark(){
-document.body.classList.toggle("dark");
-}
 </script>
 
-</body>
-</html>
+{% endblock %}

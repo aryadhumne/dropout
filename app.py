@@ -384,7 +384,17 @@ def dashboard_volunteer():
             proof_url = None
             approval_status = "Approved"
 
-            if status == "Completed":
+            # Financial Aid always requires admin approval regardless of status
+            if intervention_type == "Financial Aid":
+                approval_status = "Pending"
+                if status == "Completed":
+                    if not proof_file:
+                        flash("Photo proof required for completed Financial Aid cases", "error")
+                        return redirect(url_for("dashboard_volunteer"))
+                    upload_result = cloudinary.uploader.upload(proof_file)
+                    proof_url = upload_result["secure_url"]
+                # For Financial Aid, keep status as-is but always require admin approval
+            elif status == "Completed":
                 if not proof_file:
                     flash("Photo proof required for completed cases", "error")
                     return redirect(url_for("dashboard_volunteer"))
@@ -397,7 +407,7 @@ def dashboard_volunteer():
             supabase.table("ngo_interventions").insert({
                 "student_id": student_id,
                 "type": intervention_type,
-                "status": status,
+                "status": status if intervention_type != "Financial Aid" or status != "Completed" else "Awaiting Approval",
                 "notes": notes,
                 "by": email,
                 "proof_image": proof_url,
@@ -564,12 +574,35 @@ def approve_intervention(id):
     if session.get("role") != "ngo_admin":
         return redirect(url_for("login"))
 
-    supabase.table("ngo_interventions").update({
+    # Check if this is a Financial Aid case awaiting approval
+    intervention = supabase.table("ngo_interventions").select("type,status").eq("id", id).execute()
+    update_data = {
         "approval_status": "Approved",
+        "approved_by": session.get("email")
+    }
+    # If Financial Aid was awaiting approval, mark it as Completed now
+    if intervention.data and intervention.data[0].get("type") == "Financial Aid" and intervention.data[0].get("status") == "Awaiting Approval":
+        update_data["status"] = "Completed"
+
+    supabase.table("ngo_interventions").update(update_data).eq("id", id).execute()
+
+    flash("Intervention approved", "success")
+    return redirect(url_for("dashboard_admin"))
+
+
+@app.route("/reject-intervention/<id>", methods=["POST"])
+def reject_intervention(id):
+    if session.get("role") != "ngo_admin":
+        return redirect(url_for("login"))
+
+    supabase.table("ngo_interventions").update({
+        "approval_status": "Rejected",
         "approved_by": session.get("email")
     }).eq("id", id).execute()
 
+    flash("Intervention rejected", "success")
     return redirect(url_for("dashboard_admin"))
+
 
 @app.route('/admin/add-volunteer', methods=['GET', 'POST'])
 def add_volunteer():
@@ -713,6 +746,48 @@ def role_login(role):
         password = request.form.get("password")
 
         if email and password:
+            # Validate teacher email against teachers table
+            if role == "teacher":
+                teacher_check = supabase.table("teachers").select("id").eq("email", email).execute()
+                if not teacher_check.data:
+                    flash("Invalid Email ID. Please contact your principal.", "danger")
+                    return render_template(template_map[role])
+
+            # Principal register/login validation
+            if role == "principal":
+                action = request.form.get("action")
+
+                if action == "register":
+                    # Check if already registered
+                    existing = supabase.table("users").select("id").eq("email", email).eq("role", "principal").execute()
+                    if existing.data:
+                        flash("Email already registered. Please login.", "danger")
+                        return render_template(template_map[role])
+
+                    supabase.table("users").insert({
+                        "email": email,
+                        "password": generate_password_hash(password),
+                        "role": "principal",
+                        "name": request.form.get("principal_name", ""),
+                        "school_name": request.form.get("school_name", ""),
+                        "school_code": request.form.get("school_code", ""),
+                        "school_address": request.form.get("school_address", ""),
+                        "district": request.form.get("district", "")
+                    }).execute()
+
+                    flash("Registration successful! Please login.", "success")
+                    return render_template(template_map[role])
+
+                else:  # login
+                    principal_check = supabase.table("users").select("*").eq("email", email).eq("role", "principal").execute()
+                    if not principal_check.data:
+                        flash("Invalid Email ID. Account not found.", "danger")
+                        return render_template(template_map[role])
+
+                    if not check_password_hash(principal_check.data[0]["password"], password):
+                        flash("Invalid password.", "danger")
+                        return render_template(template_map[role])
+
             session["user"] = email
             session["role"] = role
 
@@ -761,13 +836,101 @@ def dashboard_student():
         flash("Performance data not found", "danger")
         return redirect(url_for('student_login'))
 
+    # Fetch teachers for feedback dropdown
+    teachers = supabase.table("teachers").select("id,name").execute().data or []
+
     return render_template(
         "student/dashboard.html",
         performance=performance.data,
+        teachers=teachers,
         no_data=False
     )
 
 
+# ---------------- STUDENT FEEDBACK ----------------
+@app.route('/student/feedback', methods=['POST'])
+def student_feedback():
+    if session.get('role') != 'student':
+        return redirect(url_for('select_role'))
+
+    student_id = session.get('student_id')
+    feedback_text = request.form.get('feedback')
+
+    if not feedback_text:
+        flash("Please enter your feedback.", "danger")
+        return redirect(url_for('dashboard_student'))
+
+    # Get student info for display on principal dashboard
+    student_account = supabase.table("students").select("*").eq("id", student_id).execute()
+    student_name = "Unknown"
+    standard = None
+    division = None
+
+    if student_account.data:
+        perf_id = student_account.data[0].get("student_performance_id")
+        if perf_id:
+            perf = supabase.table("student_performance").select("name,standard,division").eq("id", perf_id).execute()
+            if perf.data:
+                student_name = perf.data[0].get("name", "Unknown")
+                standard = perf.data[0].get("standard")
+                division = perf.data[0].get("division")
+
+    teacher_name = request.form.get('teacher_name', '')
+
+    supabase.table("student_feedback").insert({
+        "student_id": str(student_id),
+        "student_name": student_name,
+        "standard": standard,
+        "division": division,
+        "feedback_text": feedback_text,
+        "teacher_name": teacher_name
+    }).execute()
+
+    flash("Feedback submitted successfully!", "success")
+    return redirect(url_for('dashboard_student'))
+
+
+# ---------------- STUDENT LEAVE APPLICATION ----------------
+@app.route('/student/leave', methods=['POST'])
+def student_leave():
+    if session.get('role') != 'student':
+        return redirect(url_for('select_role'))
+
+    student_id = session.get('student_id')
+    leave_date = request.form.get('leave_date')
+    reason = request.form.get('reason')
+
+    if not leave_date or not reason:
+        flash("Please fill in all fields.", "danger")
+        return redirect(url_for('dashboard_student'))
+
+    # Get student info
+    student_account = supabase.table("students").select("*").eq("id", student_id).execute()
+    student_name = "Unknown"
+    standard = None
+    division = None
+
+    if student_account.data:
+        perf_id = student_account.data[0].get("student_performance_id")
+        if perf_id:
+            perf = supabase.table("student_performance").select("name,standard,division").eq("id", perf_id).execute()
+            if perf.data:
+                student_name = perf.data[0].get("name", "Unknown")
+                standard = perf.data[0].get("standard")
+                division = perf.data[0].get("division")
+
+    supabase.table("student_leaves").insert({
+        "student_id": str(student_id),
+        "student_name": student_name,
+        "standard": standard,
+        "division": division,
+        "leave_date": leave_date,
+        "reason": reason,
+        "status": "Pending"
+    }).execute()
+
+    flash("Leave application submitted successfully!", "success")
+    return redirect(url_for('dashboard_student'))
 
 
 @app.route('/student/register', methods=['GET', 'POST'])
@@ -883,6 +1046,12 @@ def teacher_dashboard():
         ])
         standard_risk_counts.append(count)
 
+    # -------- STUDENT LEAVE REQUESTS --------
+    try:
+        leave_requests = supabase.table("student_leaves").select("*").order("created_at", desc=True).execute().data or []
+    except:
+        leave_requests = []
+
     return render_template(
         "teacher/dashboard.html",
         total_students=total_students,
@@ -890,8 +1059,25 @@ def teacher_dashboard():
         medium_risk=medium_risk,
         low_risk=low_risk,
         standards=standards,
-        standard_risk_counts=standard_risk_counts
+        standard_risk_counts=standard_risk_counts,
+        leave_requests=leave_requests
     )
+
+
+@app.route('/teacher/leave/<leave_id>/<action>', methods=['POST'])
+def teacher_leave_action(leave_id, action):
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+
+    if action in ('Approved', 'Rejected'):
+        supabase.table("student_leaves").update({
+            "status": action
+        }).eq("id", leave_id).execute()
+        flash(f"Leave {action.lower()}.", "success")
+
+    return redirect(url_for('teacher_dashboard'))
+
+
 @app.route('/teacher/add_student', methods=['GET', 'POST'])
 def add_student():
 
@@ -1153,7 +1339,7 @@ def dashboard_principal():
     high_risk = medium_risk = 0
     total_att = 0
     classes = {}
-    boys_risk = girls_risk = 0
+    boys_risk = girls_risk = other_risk = 0
     students = []
     red_flags = []
 
@@ -1189,8 +1375,10 @@ def dashboard_principal():
 
         if gender.lower() == "male" and risk == "High":
             boys_risk += 1
-        if gender.lower() == "female" and risk == "High":
+        elif gender.lower() == "female" and risk == "High":
             girls_risk += 1
+        elif risk == "High":
+            other_risk += 1
 
         reason = f"Attendance: {att}%, Marks: {marks}"
 
@@ -1220,6 +1408,12 @@ def dashboard_principal():
     improved_students = high_to_medium
     declined_students = total_students - improved_students
 
+    # -------- STUDENT FEEDBACK --------
+    try:
+        feedbacks = supabase.table("student_feedback").select("*").order("created_at", desc=True).execute().data or []
+    except:
+        feedbacks = []
+
     return render_template(
         "dashboard_principal.html",
         students=students,
@@ -1231,6 +1425,7 @@ def dashboard_principal():
         class_values=list(classes.values()),
         boys_risk=boys_risk,
         girls_risk=girls_risk,
+        other_risk=other_risk,
         teachers=teachers,
         red_flags=red_flags,
         improved_students=improved_students,
@@ -1239,7 +1434,8 @@ def dashboard_principal():
         parent_meetings=parent_meetings,
         high_to_medium=high_to_medium,
         medium_to_low=medium_to_low,
-        success_rate=success_rate
+        success_rate=success_rate,
+        feedbacks=feedbacks
     )
 
 

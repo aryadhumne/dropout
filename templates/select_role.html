@@ -2,142 +2,186 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Select Role</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Select Role - EduDrop</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 <style>
-:root{
-  --glass-bg: rgba(255,255,255,0.12);
-  --glass-border: rgba(255,255,255,0.25);
-  --neon-blue:#00e5ff;
-  --neon-pink:#ff4ecd;
-  --neon-green:#2bff88;
-}
+  .role-page { min-height:100vh; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; }
+  .role-page-header { text-align:center; margin-bottom:48px; }
+  .role-page-header h1 { font-size:2.5rem; font-weight:800; margin-bottom:10px; letter-spacing:-0.03em; }
+  .role-page-header p { color:var(--text-muted); font-size:1.05rem; }
 
-body{
-  min-height:100vh;
-  background: radial-gradient(circle at top, #1a2a6c, #000);
-  color:#fff;
-  font-family:'Poppins', sans-serif;
-}
+  .role-tiles { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; max-width:720px; width:100%; }
 
-.glass{
-  background:var(--glass-bg);
-  backdrop-filter: blur(18px);
-  border-radius:20px;
-  border:1px solid var(--glass-border);
-  box-shadow:0 25px 60px rgba(0,0,0,0.6);
-}
+  .role-tile {
+    position:relative;
+    background:var(--card-bg);
+    border-radius:var(--radius-lg);
+    padding:36px 28px;
+    cursor:pointer;
+    transition:all 0.3s;
+    text-decoration:none;
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    border:2px solid var(--card-border);
+    overflow:hidden;
+  }
 
-.page-title{
-  font-size:2.2rem;
-  font-weight:700;
-  background:linear-gradient(45deg,var(--neon-blue),var(--neon-pink));
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-}
+  .role-tile::before {
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height:4px;
+    background:var(--gradient);
+    opacity:0;
+    transition:opacity 0.3s;
+  }
 
-.role-card{
-  cursor:pointer;
-  transition:all 0.35s ease;
-  height:100%;
-}
+  .role-tile:hover {
+    transform:translateY(-6px);
+    box-shadow:0 12px 40px rgba(231,33,145,0.12);
+    border-color:transparent;
+  }
 
-.role-card:hover{
-  transform:translateY(-12px) scale(1.03);
-  box-shadow:0 20px 50px rgba(0,229,255,0.35);
-}
+  .role-tile:hover::before { opacity:1; }
 
-.role-icon{
-  font-size:3rem;
-  margin-bottom:12px;
-}
+  .role-tile-top { display:flex; align-items:center; justify-content:space-between; }
 
-.role-title{
-  font-weight:600;
-  font-size:1.1rem;
-}
+  .role-tile-icon {
+    width:52px; height:52px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.35rem;
+    transition:all 0.3s;
+  }
 
-.role-desc{
-  font-size:0.85rem;
-  opacity:0.85;
-}
+  .role-tile:hover .role-tile-icon {
+    background:var(--gradient) !important;
+    color:#fff !important;
+  }
+
+  .role-tile-arrow {
+    width:36px; height:36px;
+    border-radius:50%;
+    background:var(--bg-neutral);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-light);
+    font-size:1rem;
+    transition:all 0.3s;
+  }
+
+  .role-tile:hover .role-tile-arrow {
+    background:var(--gradient);
+    color:#fff;
+  }
+
+  .role-tile h3 { font-size:1.15rem; font-weight:700; margin:0; }
+  .role-tile p { font-size:0.88rem; color:var(--text-muted); margin:0; line-height:1.55; }
+
+  .role-back { margin-top:36px; font-size:0.9rem; color:var(--text-muted); display:flex; align-items:center; gap:6px; }
+  .role-back:hover { color:var(--accent); }
+
+  @media (max-width:600px) {
+    .role-tiles { grid-template-columns:1fr; max-width:400px; }
+    .role-page-header h1 { font-size:1.75rem; }
+    .role-tile { padding:28px 22px; }
+  }
 </style>
 </head>
-
 <body>
 
-<div class="container min-vh-100 d-flex align-items-center">
-  <div class="row justify-content-center w-100">
-    <div class="col-lg-10 glass p-5">
-
-      <h3 class="text-center mb-2 page-title">
-        Choose Your Role
-      </h3>
-      <p class="text-center mb-4">
-        Join the proactive education system to reduce primary school dropouts
-      </p>
-
-      <div class="row g-4 justify-content-center">
-
-        <!-- Student -->
-        <div class="col-md-3 col-6">
-          <div class="glass p-4 role-card text-center" onclick="goToLogin('student')">
-            <div class="role-icon">🎓</div>
-            <div class="role-title">Student</div>
-            <div class="role-desc">
-              Track learning progress & receive AI support
-            </div>
-          </div>
-        </div>
-
-        <!-- Teacher -->
-        <div class="col-md-3 col-6">
-          <div class="glass p-4 role-card text-center" onclick="goToLogin('teacher')">
-            <div class="role-icon">👩‍🏫</div>
-            <div class="role-title">Teacher</div>
-            <div class="role-desc">
-              Monitor attendance & predict dropout risks
-            </div>
-          </div>
-        </div>
-
-        <!-- Principal -->
-        <div class="col-md-3 col-6">
-          <div class="glass p-4 role-card text-center" onclick="goToLogin('principal')">
-            <div class="role-icon">🏫</div>
-            <div class="role-title">Principal</div>
-            <div class="role-desc">
-              Analyze school-level insights & reports
-            </div>
-          </div>
-        </div>
-
-        <!-- NGO -->
-        <div class="col-md-3 col-6">
-          <div class="glass p-4 role-card text-center" onclick="goToLogin('ngo')">
-            <div class="role-icon">🤝</div>
-            <div class="role-title">NGO</div>
-            <div class="role-desc">
-              Support at-risk students & community outreach
-            </div>
-          </div>
-        </div>
-
-     
-
-      </div>
-
-    </div>
+<div style="display:flex;justify-content:flex-end;padding:16px 24px;">
+  <div class="lang-switcher">
+    <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Change language">
+      <option value="en">English</option>
+      <option value="hi">हिन्दी</option>
+      <option value="mr">मराठी</option>
+    </select>
   </div>
 </div>
 
+<main class="role-page" role="main" style="padding-top:0;">
+  <div class="role-page-header">
+    <div class="hero-badge" style="margin-bottom:20px;">GET STARTED</div>
+    <h1>Who are you?</h1>
+    <p>Choose your role to continue to EduDrop</p>
+  </div>
+
+  <div class="role-tiles" role="list" aria-label="Role selection">
+    <a href="/login/student" class="role-tile" role="listitem" aria-label="Student - Track attendance, grades, and alerts">
+      <div class="role-tile-top">
+        <div class="role-tile-icon" style="background:var(--primary-light);color:var(--primary);"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i></div>
+        <div class="role-tile-arrow"><i class="bi bi-arrow-right" aria-hidden="true"></i></div>
+      </div>
+      <h3>Student</h3>
+      <p>Track your attendance, grades, and get alerts about your academic progress.</p>
+    </a>
+
+    <a href="/login/teacher" class="role-tile" role="listitem" aria-label="Teacher - Monitor students and manage classroom">
+      <div class="role-tile-top">
+        <div class="role-tile-icon" style="background:var(--accent-light);color:var(--accent);"><i class="bi bi-person-workspace" aria-hidden="true"></i></div>
+        <div class="role-tile-arrow"><i class="bi bi-arrow-right" aria-hidden="true"></i></div>
+      </div>
+      <h3>Teacher</h3>
+      <p>Monitor students, predict dropout risks, and manage your classroom data.</p>
+    </a>
+
+    <a href="/login/principal" class="role-tile" role="listitem" aria-label="Principal - School-wide analytics and management">
+      <div class="role-tile-top">
+        <div class="role-tile-icon" style="background:var(--warning-light);color:var(--warning);"><i class="bi bi-building" aria-hidden="true"></i></div>
+        <div class="role-tile-arrow"><i class="bi bi-arrow-right" aria-hidden="true"></i></div>
+      </div>
+      <h3>Principal</h3>
+      <p>Analyze school-wide risk analytics, manage teachers, and oversee interventions.</p>
+    </a>
+
+    <a href="/login/ngo" class="role-tile" role="listitem" aria-label="NGO - Support at-risk students">
+      <div class="role-tile-top">
+        <div class="role-tile-icon" style="background:var(--danger-light);color:var(--danger);"><i class="bi bi-heart-pulse-fill" aria-hidden="true"></i></div>
+        <div class="role-tile-arrow"><i class="bi bi-arrow-right" aria-hidden="true"></i></div>
+      </div>
+      <h3>NGO</h3>
+      <p>Support at-risk students through counselling, home visits, and community aid.</p>
+    </a>
+  </div>
+
+  <a href="{{ url_for('index') }}" class="role-back" aria-label="Back to home page">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to home
+  </a>
+</main>
+
+<!-- Google Translate (hidden element) -->
+<div id="google_translate_element" style="display:none;"></div>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateInit"></script>
 <script>
-function goToLogin(role) {
-    window.location.href = "/login/" + role;
+function googleTranslateInit() {
+  new google.translate.TranslateElement({pageLanguage: 'en', autoDisplay: false}, 'google_translate_element');
+  setTimeout(function() {
+    var saved = getCookie('edudrop_lang');
+    if (saved && saved !== 'en') triggerTranslate(saved);
+    var sel = document.getElementById('langSelect');
+    if (sel && saved) sel.value = saved;
+  }, 1000);
 }
+function changeLanguage(lang) {
+  setCookie('edudrop_lang', lang, 365);
+  if (lang === 'en') {
+    setCookie('googtrans', '', -1);
+    document.cookie = 'googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+    document.cookie = 'googtrans=; path=/; domain=.' + location.hostname + '; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+    location.reload();
+  } else { triggerTranslate(lang); }
+}
+function triggerTranslate(lang) {
+  var combo = document.querySelector('.goog-te-combo');
+  if (combo) { combo.value = lang; combo.dispatchEvent(new Event('change')); }
+}
+function setCookie(n,v,d) { var e=new Date(); e.setTime(e.getTime()+(d*864e5)); document.cookie=n+'='+v+';expires='+e.toUTCString()+';path=/'; }
+function getCookie(n) { var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)')); return m?m[2]:null; }
 </script>
 
 </body>

@@ -1,423 +1,265 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Student Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% block title %}Student Dashboard - EduDrop{% endblock %}
 
+{% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+{% endblock %}
 
-<!-- Sound Effects -->
-<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
-<audio id="winSound" src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3"></audio>
+{% block page_title %}Student Dashboard{% endblock %}
 
-<style>
-/* ===== YOUR ORIGINAL CSS (UNCHANGED) ===== */
-:root{
-  --glass: rgba(255,255,255,0.15);
-  --border: rgba(255,255,255,0.25);
-  --blue:#2563eb;
-  --green:#16a34a;
-  --orange:#f59e0b;
-  --red:#dc2626;
-  --purple:#7c3aed;
-}
+{% block sidebar %}
+<a href="#" class="active" onclick="showSection('studentInfo',this);return false;"><i class="bi bi-person"></i><span>Student Info</span></a>
+<a href="#" onclick="showSection('attendance',this);return false;"><i class="bi bi-bar-chart"></i><span>Attendance</span></a>
+<a href="#" onclick="showSection('alerts',this);return false;"><i class="bi bi-exclamation-triangle"></i><span>Alerts</span></a>
+<a href="#" onclick="showSection('feedback',this);return false;"><i class="bi bi-star"></i><span>Feedback</span></a>
+<a href="#" onclick="showSection('applyforleave',this);return false;"><i class="bi bi-calendar-check"></i><span>Apply for Leave</span></a>
+{% endblock %}
 
-body{
-  margin:0;
-  font-family:'Segoe UI',sans-serif;
-  background: linear-gradient(-45deg,#667eea,#764ba2,#6dd5ed,#2193b0);
-  background-size:400% 400%;
-  animation: gradientBG 15s ease infinite;
-  color:white;
-}
+{% block topbar_right %}
+{% if performance %}
+{% set p = performance[0] %}
+{% if p.risk_score|default(0)|int >= 60 or p.risk_status == 'At Risk' %}
+<span class="badge-danger" style="font-size:0.75rem;padding:4px 10px;">At Risk</span>
+{% elif p.risk_score|default(0)|int >= 30 %}
+<span class="badge-warning" style="font-size:0.75rem;padding:4px 10px;">Medium Risk</span>
+{% else %}
+<span class="badge-success" style="font-size:0.75rem;padding:4px 10px;">Safe</span>
+{% endif %}
+{% endif %}
+{% endblock %}
 
-@keyframes gradientBG{
-  0%{background-position:0% 50%;}
-  50%{background-position:100% 50%;}
-  100%{background-position:0% 50%;}
-}
-
-.sidebar{
-  width:260px;
-  backdrop-filter: blur(18px);
-  background: var(--glass);
-  border-right:1px solid var(--border);
-  position:fixed;
-  height:100%;
-  padding:25px 20px;
-  display:flex;
-  flex-direction:column;
-}
-
-.sidebar a{
-  display:flex;
-  padding:12px;
-  border-radius:12px;
-  color:white;
-  text-decoration:none;
-  margin-bottom:12px;
-  transition:.3s;
-}
-
-.sidebar a:hover,
-.sidebar a.active-link{
-  background:rgba(255,255,255,0.25);
-  transform:translateX(5px);
-}
-
-.sidebar-bottom{ margin-top:auto; }
-
-.logout-btn{
-  background:var(--red);
-  text-align:center;
-  border-radius:12px;
-  padding:10px;
-  color:white;
-  text-decoration:none;
-}
-
-.main{ margin-left:260px; padding:40px; }
-
-.card-custom, .game-box{
-  backdrop-filter: blur(20px);
-  background: var(--glass);
-  border:1px solid var(--border);
-  border-radius:20px;
-  padding:25px;
-  margin-bottom:25px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.25);
-  transition:0.3s;
-}
-
-.card-custom:hover, .game-box:hover{
-  transform:scale(1.02);
-}
-
-.stat-card{
-  border-radius:20px;
-  padding:25px;
-  text-align:center;
-  backdrop-filter: blur(15px);
-  background:rgba(255,255,255,0.2);
-}
-
-.ring{
-  width:170px;
-  height:170px;
-  border-radius:50%;
-  background:conic-gradient(var(--blue) var(--percent), rgba(255,255,255,0.2) 0);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:30px;
-  font-weight:bold;
-  margin:auto;
-}
-
-.dashboard-section{ display:none; opacity:0; transition:0.4s; }
-.dashboard-section.active{ display:block; opacity:1; }
-
-.memory-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-
-.memory-card{
-  background:white;
-  color:black;
-  padding:20px;
-  text-align:center;
-  font-weight:bold;
-  border-radius:10px;
-  cursor:pointer;
-}
-</style>
-</head>
-
-<body>
+{% block content %}
 
 {% if performance %}
 {% set p = performance[0] %}
-{% endif %}
 
-<div class="sidebar">
-  <h2>EduTrack</h2>
-  <a href="#" onclick="showSection('studentInfo',this)">👤 Student Info</a>
-  <a href="#" onclick="showSection('attendance',this)">📈 Attendance</a>
-  <a href="#" onclick="showSection('alerts',this)">🚨 Alerts</a>
-  <a href="#" onclick="showSection('games',this)">🎮 Games</a>
- <a href="#" onclick="showSection('feedback',this)">⭐Feedback</a>
-  <a href="#" onclick="showSection('applyforleave',this)">📝Apply For Leave</a>
+<!-- Student Info Section -->
+<div id="studentInfo" class="dashboard-section">
+  <h4 style="font-weight:600;margin-bottom:20px;">Welcome, {{ p.name }}</h4>
 
-  {% if performance %}
-  <div class="mt-4 p-3 rounded" style="background:rgba(0,0,0,0.3);">
-    <h6>🤖 AI Dropout Prediction</h6>
-    <small>
-      {% if p.avg|int < 60 %}
-        High Risk 🚨
-      {% elif p.avg|int < 75 %}
-        Medium Risk ⚠
-      {% else %}
-        Low Risk ✅
-      {% endif %}
-    </small>
+  <div class="row g-4 mb-4">
+    <!-- Left: Academic & Personal Details -->
+    <div class="col-lg-7">
+      <div class="card" style="height:100%;">
+        <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-mortarboard" style="margin-right:6px;color:var(--accent);"></i>Academic Details</h6>
+        <table style="width:100%;font-size:0.9rem;border-collapse:separate;border-spacing:0 8px;">
+          <tr>
+            <td style="color:var(--muted);width:130px;padding:4px 0;">Standard</td>
+            <td style="font-weight:600;padding:4px 0;">{{ p.standard }}</td>
+            <td style="color:var(--muted);width:130px;padding:4px 0;">Division</td>
+            <td style="font-weight:600;padding:4px 0;">{{ p.division }}</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted);padding:4px 0;">Roll No</td>
+            <td style="font-weight:600;padding:4px 0;">{{ p.roll_no or p.roll }}</td>
+            <td style="color:var(--muted);padding:4px 0;">Gender</td>
+            <td style="font-weight:600;padding:4px 0;">{{ p.gender or 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted);padding:4px 0;">Email</td>
+            <td colspan="3" style="font-weight:600;padding:4px 0;">{{ p.email or 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td style="color:var(--muted);padding:4px 0;">Month</td>
+            <td style="font-weight:600;padding:4px 0;">{{ p.month or 'N/A' }}</td>
+            <td style="color:var(--muted);padding:4px 0;">Risk Status</td>
+            <td style="font-weight:600;padding:4px 0;">
+              {% if p.risk_status == 'At Risk' or p.risk == 'High' %}
+                <span class="badge-danger">{{ p.risk_status or p.risk }}</span>
+              {% elif p.risk == 'Medium' %}
+                <span class="badge-warning">{{ p.risk_status or p.risk }}</span>
+              {% else %}
+                <span class="badge-success">{{ p.risk_status or p.risk or 'N/A' }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% if p.risk_reason %}
+          <tr>
+            <td style="color:var(--muted);padding:4px 0;">Risk Reason</td>
+            <td colspan="3" style="font-weight:500;padding:4px 0;color:var(--danger);font-size:0.85rem;">{{ p.risk_reason }}</td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Performance Overview -->
+    <div class="col-lg-5">
+      <div class="card" style="height:100%;">
+        <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-graph-up" style="margin-right:6px;color:var(--accent);"></i>Performance Overview</h6>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Attendance</div>
+            <div style="font-size:1.5rem;font-weight:700;color:{% if p.attendance|default(p.avg|default(0))|int < 75 %}var(--danger){% else %}var(--text){% endif %};">{{ p.attendance|default(p.avg|default(0))|int }}%</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Monthly Test</div>
+            <div style="font-size:1.5rem;font-weight:700;">{{ p.monthly_test_score|default(0)|int }}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Assignment</div>
+            <div style="font-size:1.5rem;font-weight:700;">{{ p.assignment|default(0)|int }}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Quiz</div>
+            <div style="font-size:1.5rem;font-weight:700;">{{ p.quiz|default(0)|int }}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
+          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Risk Score</div>
+            <div style="font-size:1.2rem;font-weight:700;color:{% if p.risk_score|default(0)|int >= 60 %}var(--danger){% elif p.risk_score|default(0)|int >= 30 %}var(--warning){% else %}var(--success){% endif %};">{{ p.risk_score|default(0)|int }}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Performance</div>
+            <div style="font-size:1.2rem;font-weight:700;">{{ ((p.attendance|default(p.avg|default(0))|int + p.assignment|default(0)|int + p.quiz|default(0)|int)//3) }}%</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Risk Level</div>
+            <div style="font-size:1.2rem;font-weight:700;color:{% if p.risk_status == 'At Risk' or p.risk == 'High' %}var(--danger){% elif p.risk == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">{{ p.risk_status or p.risk or 'Safe' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if p.parent_name %}
+  <div class="card mb-4">
+    <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-people" style="margin-right:6px;color:var(--accent);"></i>Parent / Guardian Details</h6>
+    <table style="width:100%;font-size:0.9rem;border-collapse:separate;border-spacing:0 8px;">
+      <tr>
+        <td style="color:var(--muted);width:130px;padding:4px 0;">Name</td>
+        <td style="font-weight:600;padding:4px 0;">{{ p.parent_name }}</td>
+        <td style="color:var(--muted);width:130px;padding:4px 0;">Phone</td>
+        <td style="font-weight:600;padding:4px 0;">{{ p.parent_phone or 'N/A' }}</td>
+      </tr>
+      <tr>
+        <td style="color:var(--muted);padding:4px 0;">Alt. Phone</td>
+        <td style="font-weight:600;padding:4px 0;">{{ p.parent_alt_phone or 'N/A' }}</td>
+        {% if p.parent_address %}
+        <td style="color:var(--muted);padding:4px 0;">Address</td>
+        <td style="font-weight:600;padding:4px 0;">{{ p.parent_address }}</td>
+        {% else %}
+        <td></td><td></td>
+        {% endif %}
+      </tr>
+    </table>
   </div>
   {% endif %}
-
-  <div class="sidebar-bottom mt-4">
-    <a href="/logout" class="logout-btn">🚪 Logout</a>
-  </div>
 </div>
 
-<div class="main">
-
-{% if performance %}
-
-<!-- STUDENT INFO -->
-<div id="studentInfo" class="dashboard-section active">
-  <h2 class="mb-4">Welcome, {{ p.name }} 👋</h2>
-
-  <!-- Academic Details Card (NEW ADDED ONLY) -->
-  <div class="card-custom mb-4">
-    <h5 class="mb-3">🎓 Academic Details</h5>
-    <div class="row">
-      <div class="col-md-4">
-        <p><strong>Standard:</strong> {{ p.standard }}</p>
-      </div>
-      <div class="col-md-4">
-        <p><strong>Division:</strong> {{ p.division }}</p>
-      </div>
-      <div class="col-md-4">
-        <p><strong>Roll No:</strong> {{ p.roll_no }}</p>
-      </div>
+<!-- Attendance Section -->
+<div id="attendance" class="dashboard-section" style="display:none;">
+  <div class="card mb-4 text-center">
+    <h6 style="font-weight:600;margin-bottom:16px;">Attendance Progress</h6>
+    <div style="width:170px;height:170px;border-radius:50%;background:conic-gradient(var(--accent) {{ p.attendance|default(p.avg|default(0))|int }}%, var(--border) 0);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;margin:0 auto;color:var(--text);">
+      {{ p.attendance|default(p.avg|default(0))|int }}%
     </div>
   </div>
-
-  <!-- Performance Cards -->
-  <div class="row g-4 mb-4">
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>📊 Attendance</h6>
-        <h3>{{ p.avg|int }}%</h3>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>📝 Assignments</h6>
-        <h3>{{ p.assignment|int }}</h3>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>📚 Quiz</h6>
-        <h3>{{ p.quiz|int }}</h3>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>⚠ Risk</h6>
-        <h3>{{ p.risk }}</h3>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>🏆 Performance Score</h6>
-        <h3>{{ (p.avg|int + p.assignment|int + p.quiz|int)//3 }}%</h3>
-      </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="stat-card">
-        <h6>📅 Month</h6>
-        <h3>{{ p.month }}</h3>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ATTENDANCE -->
-<div id="attendance" class="dashboard-section">
-  <div class="card-custom text-center">
-    <h4>Attendance Progress</h4>
-    <div class="ring" style="--percent: {{ p.avg|int }}%;">
-      {{ p.avg|int }}%
-    </div>
-  </div>
-  <div class="card-custom">
-    <h4>Attendance Chart</h4>
+  <div class="card">
+    <h6 style="font-weight:600;margin-bottom:16px;">Attendance Chart</h6>
     <canvas id="attendanceChart"></canvas>
   </div>
 </div>
 
-<!-- ALERTS -->
-<div id="alerts" class="dashboard-section">
-  <div class="card-custom">
-    <h4>Alerts</h4>
-    {% if p.avg|int < 75 %}
-    <div class="alert alert-danger">Attendance below 75%</div>
+<!-- Alerts Section -->
+<div id="alerts" class="dashboard-section" style="display:none;">
+  <div class="card">
+    <h6 style="font-weight:600;margin-bottom:16px;">Alerts</h6>
+    {% if p.risk_reason %}
+    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
+      <strong>AI Risk Flags:</strong> {{ p.risk_reason }}
+    </div>
     {% endif %}
-    {% if p.assignment|int < 50 %}
-    <div class="alert alert-warning">Low assignment submission</div>
+    {% if (p.attendance|default(p.avg|default(0))|int) < 75 %}
+    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
+      Attendance below 75% - Please improve your attendance.
+    </div>
     {% endif %}
-    {% if p.quiz|int < 50 %}
-    <div class="alert alert-warning">Low quiz performance</div>
+    {% if p.assignment|default(0)|int < 50 %}
+    <div style="padding:12px;background:rgba(245,158,11,0.1);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;color:var(--warning);">
+      Low assignment submission - Submit your pending assignments.
+    </div>
+    {% endif %}
+    {% if p.quiz|default(0)|int < 50 %}
+    <div style="padding:12px;background:rgba(245,158,11,0.1);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;color:var(--warning);">
+      Low quiz performance - Focus on improving quiz scores.
+    </div>
+    {% endif %}
+    {% if p.monthly_test_score|default(0)|int < 35 %}
+    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
+      Monthly test score below 35 - Needs immediate improvement.
+    </div>
+    {% endif %}
+    {% if (p.attendance|default(p.avg|default(0))|int) >= 75 and p.assignment|default(0)|int >= 50 and p.quiz|default(0)|int >= 50 and p.monthly_test_score|default(100)|int >= 35 %}
+    <div style="padding:12px;background:rgba(34,197,94,0.1);border-left:4px solid var(--success);border-radius:8px;color:var(--success);">
+      Great job! No alerts at the moment.
+    </div>
     {% endif %}
   </div>
 </div>
 
-<!-- GAMES -->
-<div id="games" class="dashboard-section">
-
-  <!-- ORIGINAL GAMES (NOT REMOVED) -->
-  <div class="game-box mb-4">
-    <h4>🎯 Quick Math Game</h4>
-    <p id="question"></p>
-    <input type="number" id="answer" class="form-control w-50 mx-auto mb-3">
-    <button class="btn btn-light" onclick="checkAnswer()">Submit</button>
-    <p id="result" class="mt-3"></p>
-    <p><strong>Points:</strong> <span id="points">0</span></p>
+<!-- Feedback Section -->
+<div id="feedback" class="dashboard-section" style="display:none;">
+  <div class="card">
+    <h6 style="font-weight:600;margin-bottom:16px;">Submit Feedback</h6>
+    <form method="POST" action="/student/feedback">
+      <div class="mb-3">
+        <label class="form-label">About Teacher</label>
+        <select name="teacher_name" class="form-control" required>
+          <option value="">Select a teacher</option>
+          {% for t in teachers %}
+          <option value="{{ t.name }}">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Your Feedback</label>
+        <textarea name="feedback" class="form-control" rows="4" placeholder="Share your thoughts about this teacher..." required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Feedback</button>
+    </form>
   </div>
+</div>
 
-  <!-- NEW RANDOM GAMES -->
-  <div class="game-box">
-    <h4>🎮 Today's Random Games</h4>
-    <div id="randomGames"></div>
+<!-- Apply for Leave Section -->
+<div id="applyforleave" class="dashboard-section" style="display:none;">
+  <div class="card">
+    <h6 style="font-weight:600;margin-bottom:16px;">Apply for Leave</h6>
+    <form method="POST" action="/student/leave">
+      <div class="mb-3">
+        <label class="form-label">Leave Date</label>
+        <input type="date" name="leave_date" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Reason</label>
+        <textarea name="reason" class="form-control" rows="3" placeholder="Reason for leave..." required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Apply</button>
+    </form>
   </div>
-
 </div>
 
 {% endif %}
-</div>
 
 <script>
-/* Section Switch */
-function showSection(id){
-  document.querySelectorAll(".dashboard-section").forEach(sec=>{
-    sec.classList.remove("active");
-  });
-  document.getElementById(id).classList.add("active");
-  document.getElementById("clickSound").play();
+function showSection(id, el) {
+  document.querySelectorAll(".dashboard-section").forEach(s => s.style.display = "none");
+  document.getElementById(id).style.display = "block";
+  document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
+  if (el) el.classList.add("active");
 }
 
-/* Attendance Chart */
-document.addEventListener("DOMContentLoaded", function(){
-const ctx = document.getElementById("attendanceChart");
-if(ctx){
-  new Chart(ctx,{
-    type:"bar",
-    data:{
-      labels:["Attendance"],
-      datasets:[{
-        label:"Attendance %",
-        data:[{{ p.avg|int }}],
-        backgroundColor:"#ffffff"
-      }]
-    },
-    options:{scales:{y:{beginAtZero:true,max:100}}}
-  });
-}
+document.addEventListener("DOMContentLoaded", function() {
+  const ctx = document.getElementById("attendanceChart");
+  if (ctx) {
+    new Chart(ctx, {
+      type: "bar",
+      data: { labels: ["Attendance"], datasets: [{ label: "Attendance %", data: [{{ p.attendance|default(p.avg|default(0))|int }}], backgroundColor: "#e72191" }] },
+      options: { scales: { y: { beginAtZero: true, max: 100 } }, responsive: true }
+    });
+  }
 });
-
-/* ORIGINAL MATH GAME */
-let points=0;
-let num1=Math.floor(Math.random()*10);
-let num2=Math.floor(Math.random()*10);
-document.getElementById("question").innerText=`What is ${num1} + ${num2}?`;
-
-function checkAnswer(){
-  let user=document.getElementById("answer").value;
-  if(user==num1+num2){
-    points+=10;
-    document.getElementById("result").innerText="Correct! 🎉";
-    document.getElementById("winSound").play();
-  }else{
-    document.getElementById("result").innerText="Try Again ❌";
-  }
-  document.getElementById("points").innerText=points;
-}
-
-/* 20 RANDOM GAMES */
-const games=[
-"Word Scramble","Capital Quiz","Guess Number","Even or Odd","Memory Challenge",
-"Riddle Time","Science Quiz","Typing Speed","Color Guess","Brain Teaser",
-"Quick Multiply","Spell Check","GK Quiz","Find Pattern","Odd One Out",
-"True or False","History Quiz","Animal Quiz","Logic Puzzle","Math Challenge"
-];
-
-function loadGames(){
-  let shuffled=[...games].sort(()=>0.5-Math.random());
-  let selected=shuffled.slice(0,2);
-  let container=document.getElementById("randomGames");
-  container.innerHTML="";
-  selected.forEach(game=>{
-    container.innerHTML+=`
-      <div class="mb-3 p-3 bg-light text-dark rounded">
-        <h5>${game}</h5>
-        <button class="btn btn-primary mt-2" onclick="playGame('${game}')">Play Now</button>
-      </div>
-    `;
-  });
-}
-
-function playGame(game){
-  document.getElementById("clickSound").play();
-  const container=document.getElementById("randomGames");
-
-  let questions={
-    "Word Scramble": {q:"Unscramble: lppa e", a:"apple"},
-    "Capital Quiz": {q:"Capital of India?", a:"new delhi"},
-    "Guess Number": {q:"Guess a number between 1-5", a:String(Math.floor(Math.random()*5)+1)},
-    "Even or Odd": {q:"Is 14 Even or Odd?", a:"even"},
-    "Memory Challenge": {q:"Remember this: 321 (type it)", a:"321"},
-    "Riddle Time": {q:"I have keys but no locks. What am I?", a:"keyboard"},
-    "Science Quiz": {q:"H2O is called?", a:"water"},
-    "Typing Speed": {q:"Type this word: education", a:"education"},
-    "Color Guess": {q:"Mix red + blue = ?", a:"purple"},
-    "Brain Teaser": {q:"5 + 3 × 2 = ?", a:"11"},
-    "Quick Multiply": {q:"6 × 7 = ?", a:"42"},
-    "Spell Check": {q:"Correct spelling: recieve/receive?", a:"receive"},
-    "GK Quiz": {q:"Largest planet?", a:"jupiter"},
-    "Find Pattern": {q:"2,4,6,8, ?", a:"10"},
-    "Odd One Out": {q:"Apple, Mango, Car, Banana", a:"car"},
-    "True or False": {q:"Sun rises from West?", a:"false"},
-    "History Quiz": {q:"Who discovered India sea route?", a:"vasco da gama"},
-    "Animal Quiz": {q:"Fastest land animal?", a:"cheetah"},
-    "Logic Puzzle": {q:"16 + 16 = ?", a:"32"},
-    "Math Challenge": {q:"√64 = ?", a:"8"}
-  };
-
-  let gameData=questions[game];
-
-  container.innerHTML=`
-    <div class="mb-3 p-3 bg-light text-dark rounded">
-      <h5>${game}</h5>
-      <p>${gameData.q}</p>
-      <input id="gameInput" class="form-control mb-2">
-      <button class="btn btn-success" onclick="checkGameAnswer('${gameData.a}')">Submit</button>
-      <p id="gameResult" class="mt-2"></p>
-    </div>
-  `;
-}
-
-function checkGameAnswer(correct){
-  let user=document.getElementById("gameInput").value.toLowerCase().trim();
-  if(user===correct.toLowerCase()){
-    document.getElementById("gameResult").innerHTML="Correct! 🎉";
-    document.getElementById("winSound").play();
-  }else{
-    document.getElementById("gameResult").innerHTML="Try Again ❌";
-  }
-}
-
-document.addEventListener("DOMContentLoaded",loadGames);
 </script>
 
-</body>
-</html>
+{% endblock %}

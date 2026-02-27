@@ -3,16 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NGO Portal - EduDrop</title>
+<title>{% block title %}EduDrop{% endblock %}</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% block head %}{% endblock %}
 </head>
 <body>
 
 <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;">
-  <a href="{{ url_for('select_role') }}" class="auth-back" style="position:static;">
-    <i class="bi bi-arrow-left"></i> Back
+  <a href="{{ url_for('select_role') }}" class="auth-back" aria-label="Back to role selection" style="position:static;">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i> Back
   </a>
   <div class="lang-switcher">
     <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Change language">
@@ -23,27 +26,31 @@
   </div>
 </div>
 
-<div class="auth-wrapper" style="flex-direction:column;gap:32px;">
-  <div style="text-align:center;">
-    <div class="hero-badge" style="margin-bottom:16px;">NGO PORTAL</div>
-    <h2>Select Your Role</h2>
-    <p class="text-muted">Choose how you'd like to participate</p>
-  </div>
+<main class="auth-wrapper" role="main">
+  <div class="auth-card" role="region" aria-label="Authentication form">
 
-  <div class="role-grid" style="max-width:500px;">
-    <div class="role-card" onclick="location.href='/volunteer/register'">
-      <div class="role-icon" style="background:var(--accent-light);"><i class="bi bi-person-raised-hand" style="color:var(--accent)"></i></div>
-      <div class="role-title">Volunteer</div>
-      <div class="role-desc">Register or login as an NGO volunteer</div>
-    </div>
+    <h1 class="auth-title">{% block form_title %}Welcome{% endblock %}</h1>
+    <p class="auth-subtitle">{% block form_subtitle %}{% endblock %}</p>
 
-    <div class="role-card" onclick="location.href='/ngo/admin/login'">
-      <div class="role-icon" style="background:var(--primary-light);"><i class="bi bi-shield-check" style="color:var(--primary)"></i></div>
-      <div class="role-title">Admin</div>
-      <div class="role-desc">Login as NGO administrator</div>
-    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block form_content %}{% endblock %}
+
+    {% block form_footer %}{% endblock %}
+
   </div>
-</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
 
 <!-- Google Translate (hidden element) -->
 <div id="google_translate_element" style="display:none;"></div>

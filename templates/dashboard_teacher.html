@@ -1,107 +1,85 @@
 {% extends 'teacher/base.html' %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Teacher Dashboard - EduDrop{% endblock %}
 
 {% block content %}
 
-<!-- WELCOME CARD -->
-<div class="card card-glass mb-4 p-4 d-flex flex-row align-items-center justify-content-between">
-  <div>
-    <h4 class="mb-1">Welcome back, </h4>
-    <p class="text-muted mb-0">
-      You have {{ total_students }} students assigned to you
-    </p>
+<!-- Welcome Card -->
+<div class="card mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h4 style="font-weight:600;margin-bottom:4px;">Welcome back</h4>
+      <p style="color:var(--muted);margin:0;">You have {{ total_students }} students assigned to you</p>
+    </div>
   </div>
-  <img src="{{ url_for('static', filename='img/teacher-illustration.png') }}"
-       style="height:120px;">
 </div>
 
-<!-- ROW 1 -->
+<!-- Row 1 -->
 <div class="row g-4 mb-4">
-
-  <!-- STUDENT STATISTICS -->
   <div class="col-md-5">
-    <div class="card card-glass p-3 h-100">
-      <h6 class="mb-3">Student Statistics</h6>
+    <div class="card" style="height:100%;">
+      <h6 style="font-weight:600;margin-bottom:12px;">Student Statistics</h6>
       <canvas id="studentStatsChart"></canvas>
     </div>
   </div>
-
-  <!-- CLASS PROGRESS -->
   <div class="col-md-3">
-    <div class="card card-glass p-3 h-100">
-      <h6 class="mb-3">Class Progress</h6>
-
+    <div class="card" style="height:100%;">
+      <h6 style="font-weight:600;margin-bottom:12px;">Class Progress</h6>
       {% for c in class_progress %}
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <span>{{ c.name }}</span>
-        <div class="progress w-50">
-          <div class="progress-bar bg-primary"
-               style="width: {{ c.percent }}%">
-          </div>
+        <span style="font-size:0.9rem;">{{ c.name }}</span>
+        <div style="flex:1;margin-left:12px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+          <div style="width:{{ c.percent }}%;height:100%;background:var(--accent);border-radius:4px;"></div>
         </div>
       </div>
       {% endfor %}
     </div>
   </div>
-
-  <!-- UPCOMING ACTIVITIES -->
   <div class="col-md-4">
-    <div class="card card-glass p-3 h-100">
-      <h6 class="mb-3">Upcoming Activities</h6>
-
+    <div class="card" style="height:100%;">
+      <h6 style="font-weight:600;margin-bottom:12px;">Upcoming Activities</h6>
       {% for e in events %}
       <div class="d-flex align-items-center mb-3">
-        <span class="badge bg-primary me-3">{{ e.date }}</span>
+        <span class="badge-success" style="margin-right:12px;font-size:0.75rem;padding:4px 8px;">{{ e.date }}</span>
         <div>
-          <strong>{{ e.title }}</strong><br>
-          <small class="text-muted">{{ e.class_info }}</small>
+          <strong style="font-size:0.9rem;">{{ e.title }}</strong><br>
+          <small style="color:var(--muted);">{{ e.class_info }}</small>
         </div>
       </div>
       {% endfor %}
     </div>
   </div>
-
 </div>
 
-<!-- ROW 2 -->
+<!-- Row 2 -->
 <div class="row g-4">
-
-  <!-- ATTENDANCE -->
   <div class="col-md-6">
-    <div class="card card-glass p-3">
-      <h6 class="mb-3">Attendance</h6>
+    <div class="card">
+      <h6 style="font-weight:600;margin-bottom:12px;">Attendance</h6>
       <canvas id="attendanceChart"></canvas>
     </div>
   </div>
-
-  <!-- STAFF ROOM -->
   <div class="col-md-3">
-    <div class="card card-glass p-3">
-      <h6 class="mb-3">Staff Room</h6>
-
+    <div class="card">
+      <h6 style="font-weight:600;margin-bottom:12px;">Staff Room</h6>
       {% for t in staff %}
       <div class="d-flex align-items-center mb-3">
-        <div class="avatar me-2">{{ t.initials }}</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.8rem;margin-right:10px;">{{ t.initials }}</div>
         <div>
-          <strong>{{ t.name }}</strong><br>
-          <small>{{ t.subject }}</small>
+          <strong style="font-size:0.9rem;">{{ t.name }}</strong><br>
+          <small style="color:var(--muted);">{{ t.subject }}</small>
         </div>
       </div>
       {% endfor %}
     </div>
   </div>
-
-  <!-- DOCUMENTS -->
   <div class="col-md-3">
-    <div class="card card-glass p-3">
-      <h6 class="mb-3">Documents</h6>
-
-      <div class="doc-item">📄 Class Notes</div>
-      <div class="doc-item">📄 Exam Schedule</div>
-      <div class="doc-item">📄 Student List</div>
+    <div class="card">
+      <h6 style="font-weight:600;margin-bottom:12px;">Documents</h6>
+      <div style="padding:10px;background:var(--bg);border-radius:8px;margin-bottom:8px;"><i class="bi bi-file-earmark-text"></i> Class Notes</div>
+      <div style="padding:10px;background:var(--bg);border-radius:8px;margin-bottom:8px;"><i class="bi bi-file-earmark-text"></i> Exam Schedule</div>
+      <div style="padding:10px;background:var(--bg);border-radius:8px;"><i class="bi bi-file-earmark-text"></i> Student List</div>
     </div>
   </div>
-
 </div>
 
 {% endblock %}
