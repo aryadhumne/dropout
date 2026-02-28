@@ -587,6 +587,55 @@ def dashboard_volunteer():
                 s["ai_confidence"] = "-"
                 s["shap_values"] = {}
 
+        # -------- GEMINI AI SUGGESTIONS (stored in DB) --------
+        import requests as _req
+        api_key = os.getenv("GEMINI_API_KEY")
+        for s in students:
+            # Use stored suggestion if already exists
+            if s.get("ai_suggestion"):
+                s["ai_suggestions"] = s["ai_suggestion"]
+                continue
+            # Generate new one-liner suggestion via Gemini
+            try:
+                suggestion_prompt = (
+                    "You are an expert child welfare advisor. Based on the student profile below, "
+                    "generate exactly ONE actionable suggestion for the NGO volunteer. "
+                    "STRICT RULE: Output ONLY a single sentence, maximum 15 words. No bullet points, no numbering, no intro.\n\n"
+                    f"Student: {s.get('name', 'N/A')} | Gender: {s.get('gender', 'N/A')} | "
+                    f"Class: {s.get('standard', 'N/A')} | Risk: {s.get('risk', 'N/A')} | "
+                    f"Attendance: {s.get('attendance', s.get('avg', 'N/A'))} | "
+                    f"Test: {s.get('monthly_test_score', 'N/A')} | "
+                    f"Assignment: {s.get('assignment', 'N/A')} | Quiz: {s.get('quiz', 'N/A')}\n\n"
+                    "Examples of good output:\n"
+                    "Schedule weekly home visits to improve attendance and build family trust.\n"
+                    "Arrange peer tutoring sessions focused on math and science fundamentals.\n"
+                    "Connect parents with scholarship programs to address financial barriers."
+                )
+                gemini_resp = _req.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
+                    json={"contents": [{"parts": [{"text": suggestion_prompt}]}]},
+                    timeout=8
+                )
+                if gemini_resp.status_code == 200:
+                    resp_data = gemini_resp.json()
+                    suggestion_text = resp_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                    if suggestion_text:
+                        s["ai_suggestions"] = suggestion_text
+                        # Save to DB so it's not regenerated next time
+                        try:
+                            supabase.table("student_performance").update(
+                                {"ai_suggestion": suggestion_text}
+                            ).eq("id", s["id"]).execute()
+                        except Exception as db_err:
+                            print("SUGGESTION DB SAVE ERROR:", db_err)
+                    else:
+                        s["ai_suggestions"] = ""
+                else:
+                    s["ai_suggestions"] = ""
+            except Exception as e:
+                print("SUGGESTION ERROR:", e)
+                s["ai_suggestions"] = ""
+
     except Exception as e:
         print("Supabase .in_() may not be supported; falling back. Error:", e)
         all_res = supabase.table("student_performance").select("*").execute()
@@ -1057,6 +1106,19 @@ def _get_system_prompt(role):
             "interventions, manage teachers, and make data-driven decisions about student welfare. "
             "Keep responses concise (2-3 sentences). Be strategic and data-focused."
         ),
+        'volunteer': (
+            "You are EduBot, an AI assistant for NGO volunteers working with at-risk school students. "
+            "Help volunteers with intervention strategies, how to approach students sensitively "
+            "(considering gender, cultural background, family situations), mentoring tips, "
+            "counselling approaches, and how to handle difficult situations like child reluctance or "
+            "family resistance. Keep responses concise (2-3 sentences). Be empathetic and practical."
+        ),
+        'ngo_admin': (
+            "You are EduBot, an AI assistant for NGO administrators managing volunteer programs. "
+            "Help admins with volunteer management, reviewing intervention effectiveness, "
+            "resource allocation, reporting strategies, and best practices for child welfare programs. "
+            "Keep responses concise (2-3 sentences). Be professional and strategic."
+        ),
     }
     return prompts.get(role, prompts['homepage'])
 
@@ -1152,6 +1214,78 @@ def _get_principal_context(sess):
         print("CHAT CONTEXT ERROR (principal):", e)
     return {'context': context, 'data': data}
 
+def _get_volunteer_context(sess):
+    context = ""
+    try:
+        students_res = supabase.table("student_performance") \
+            .select("*") \
+            .in_("risk", ["High Risk", "Medium Risk"]) \
+            .execute()
+        students = students_res.data or []
+        interventions_res = supabase.table("ngo_interventions") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .limit(50) \
+            .execute()
+        interventions = interventions_res.data or []
+        completed = sum(1 for i in interventions if i.get("status") == "Completed")
+        ongoing = sum(1 for i in interventions if i.get("status") == "Ongoing")
+        planned = sum(1 for i in interventions if i.get("status") == "Planned")
+        context = (
+            f"Volunteer Dashboard:\n"
+            f"- At-Risk Students: {len(students)}\n"
+            f"- Total Interventions: {len(interventions)}\n"
+            f"- Completed: {completed}\n"
+            f"- Ongoing: {ongoing}\n"
+            f"- Planned: {planned}\n\n"
+            f"At-Risk Student Profiles:\n"
+        )
+        for s in students[:15]:
+            context += (
+                f"  - {s.get('name', 'N/A')} | Gender: {s.get('gender', 'N/A')} | "
+                f"Class: {s.get('standard', '?')} | Risk: {s.get('risk', 'N/A')} | "
+                f"Attendance: {s.get('attendance', 'N/A')} | "
+                f"Test: {s.get('monthly_test_score', 'N/A')}\n"
+            )
+    except Exception as e:
+        print("CHAT CONTEXT ERROR (volunteer):", e)
+    return {'context': context}
+
+def _get_ngo_admin_context(sess):
+    context = ""
+    try:
+        pending_res = supabase.table("ngo_interventions") \
+            .select("*, student_performance(name, roll)") \
+            .eq("approval_status", "Pending") \
+            .execute()
+        pending = pending_res.data or []
+        all_res = supabase.table("ngo_interventions") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .limit(30) \
+            .execute()
+        all_interventions = all_res.data or []
+        completed = sum(1 for i in all_interventions if i.get("status") == "Completed")
+        ongoing = sum(1 for i in all_interventions if i.get("status") == "Ongoing")
+        context = (
+            f"NGO Admin Dashboard:\n"
+            f"- Pending Approvals: {len(pending)}\n"
+            f"- Completed Interventions: {completed}\n"
+            f"- Ongoing Interventions: {ongoing}\n"
+            f"- Total Recent Interventions: {len(all_interventions)}\n"
+        )
+        if pending:
+            context += "\nPending Cases:\n"
+            for p in pending[:10]:
+                student = p.get("student_performance", {}) or {}
+                context += (
+                    f"  - Student: {student.get('name', 'N/A')} | Type: {p.get('type', 'N/A')} | "
+                    f"Status: {p.get('status', 'N/A')} | By: {p.get('by', 'N/A')}\n"
+                )
+    except Exception as e:
+        print("CHAT CONTEXT ERROR (ngo_admin):", e)
+    return {'context': context}
+
 # --- Simple fallback (only used if Gemini is down) ---
 def _safe_int(val, default=0):
     try:
@@ -1194,14 +1328,30 @@ def api_chat():
     data = request.get_json()
     message = data.get('message', '') if data else ''
     role = data.get('role', '') if data else ''
+    lang = data.get('lang', 'en') if data else 'en'
     if not message:
         return jsonify({"error": "No message provided"}), 400
 
-    allowed_roles = ['homepage', 'student', 'teacher', 'principal']
-    if role not in allowed_roles:
-        return jsonify({"error": "Unauthorized"}), 401
-    if role != 'homepage' and session.get('role') != role:
-        return jsonify({"error": "Unauthorized"}), 401
+    allowed_roles = ['homepage', 'student', 'teacher', 'principal', 'volunteer', 'ngo_admin']
+    # Use session role if available, fall back to requested role for homepage
+    session_role = session.get('role')
+    if role == 'homepage':
+        pass  # No auth needed for homepage
+    elif session_role in allowed_roles:
+        role = session_role  # Trust the session, not the frontend
+    else:
+        return jsonify({"error": "Please log in to use the chatbot."}), 401
+
+    # Language name map
+    _lang_names = {
+        'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'te': 'Telugu',
+        'mr': 'Marathi', 'ta': 'Tamil', 'gu': 'Gujarati', 'kn': 'Kannada',
+        'ml': 'Malayalam', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese',
+        'ur': 'Urdu', 'sa': 'Sanskrit', 'ne': 'Nepali', 'sd': 'Sindhi',
+        'ks': 'Kashmiri', 'doi': 'Dogri', 'mai': 'Maithili',
+        'mni-Mtei': 'Manipuri', 'sat': 'Santali', 'gom': 'Konkani'
+    }
+    lang_name = _lang_names.get(lang, 'English')
 
     context = ""
     extra_data = None
@@ -1213,6 +1363,12 @@ def api_chat():
         context = extra_data.get('context', '')
     elif role == 'principal':
         extra_data = _get_principal_context(session)
+        context = extra_data.get('context', '')
+    elif role == 'volunteer':
+        extra_data = _get_volunteer_context(session)
+        context = extra_data.get('context', '')
+    elif role == 'ngo_admin':
+        extra_data = _get_ngo_admin_context(session)
         context = extra_data.get('context', '')
 
     system_prompt = _get_system_prompt(role)
