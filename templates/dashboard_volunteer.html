@@ -48,18 +48,30 @@
     <table class="table-clean" id="riskTable">
       <thead>
         <tr>
-          <th>Name</th><th>Roll</th><th>Division</th><th>Risk</th>
-          <th>AI Insight</th><th>Intervention</th><th>Status</th><th>Notes</th><th>Action</th>
+<th>Name</th>
+<th>Roll</th>
+<th>Division</th>
+<th>Parent Phone</th>
+<th>Parent Address</th>
+<th>Risk</th>
+<th>Insight</th>
+<th>Intervention</th>
+<th>Status</th>
+<th>Notes</th>
+<th>Action</th>
         </tr>
       </thead>
       <tbody>
         {% for s in students %}
         <tr data-risk="{{ s.risk }}">
-          <td>{{ s.name }}</td>
-          <td>{{ s.roll }}</td>
-          <td>{{ s.division }}</td>
-          <td>
-            {% if s.risk in ['High', 'At Risk'] %}
+<td>{{ s.name }}</td>
+<td>{{ s.roll }}</td>
+<td>{{ s.division }}</td>
+<td>{{ s.parent_phone or '-' }}</td>
+<td style="max-width:150px;word-break:break-word;">
+    {{ s.parent_address or '-' }}
+</td><td>
+            {% if s.risk in ['High Risk', 'Medium Risk'] %}
               <span class="badge-danger">URGENT</span>
             {% else %}
               <span class="badge-warning">ATTENTION</span>
@@ -68,7 +80,7 @@
           <td>
             <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="toggleReason(this)">View</button>
             <div class="reason-box" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:0.85rem;">
-              <strong>AI Reason:</strong><br>{{ s.ai_reason }}<br>
+              <strong>Reason:</strong><br>{{ s.ai_reason }}<br>
               <small style="color:var(--muted);">Confidence: {{ s.ai_confidence }}</small>
             </div>
           </td>

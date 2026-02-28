@@ -79,20 +79,36 @@
             <span style="color:var(--muted);font-size:0.85rem;">No proof</span>
             {% endif %}
           </td>
-          <td>
-            <div class="d-flex gap-2">
-              <form method="POST" action="/approve-intervention/{{ c.id }}" style="margin:0;">
-                <button type="submit" class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Approve this intervention?')">
-                  <i class="bi bi-check-lg"></i> Approve
-                </button>
-              </form>
-              <form method="POST" action="/reject-intervention/{{ c.id }}" style="margin:0;">
-                <button type="submit" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Reject this intervention?')">
-                  <i class="bi bi-x-lg"></i> Reject
-                </button>
-              </form>
-            </div>
-          </td>
+<td>
+  <div class="d-flex gap-2 align-items-start">
+    <!-- Approve form (unchanged) -->
+    <form method="POST" action="/approve-intervention/{{ c.id }}" style="margin:0;">
+      <button type="submit" class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;"
+              onclick="return confirm('Approve this intervention?')">
+        <i class="bi bi-check-lg"></i> Approve
+      </button>
+    </form>
+
+    <!-- Reject toggle + inline form -->
+    <div style="position:relative;">
+      <button type="button" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;"
+              onclick="toggleRejectForm('{{ c.id }}')">
+        <i class="bi bi-x-lg"></i> Reject
+      </button>
+
+      <form id="reject-form-{{ c.id }}" method="POST" action="/reject-intervention/{{ c.id }}"
+            style="display:none; margin-top:8px; background:var(--bg); padding:8px; border-radius:6px; box-shadow:var(--shadow);">
+        <textarea name="approval_notes" placeholder="Reason for rejection (optional)" rows="3"
+                  style="width:260px; resize:vertical; font-size:0.85rem; padding:6px; border-radius:6px;"></textarea>
+        <div class="d-flex gap-2" style="margin-top:6px;">
+          <button type="submit" class="btn btn-danger" style="font-size:0.8rem;padding:4px 10px;"
+                  onclick="return confirm('Reject and save note?')">Submit Reject</button>
+          <button type="button" class="btn btn-outline" onclick="toggleRejectForm('{{ c.id }}')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -102,5 +118,13 @@
   <p style="color:var(--muted);">No pending interventions to review.</p>
   {% endif %}
 </div>
+
+<script>
+function toggleRejectForm(id) {
+  const form = document.getElementById(`reject-form-${id}`);
+  if (!form) return;
+  form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
+}
+</script>
 
 {% endblock %}
