@@ -21,9 +21,8 @@ import cloudinary
 import cloudinary.uploader
 # -------- NLP & GENERATIVE AI --------
 from textblob import TextBlob
-import google.generativeai as genai
-
-genai.configure(api_key="api key")
+# import google.generativeai as genai
+# genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 cloudinary.config(
     cloud_name="de20jxqpu",
@@ -738,13 +737,6 @@ def role_login(role):
         password = request.form.get("password")
 
         if email and password:
-            # Validate teacher email against teachers table
-            if role == "teacher":
-                teacher_check = supabase.table("teachers").select("id").eq("email", email).execute()
-                if not teacher_check.data:
-                    flash("Invalid Email ID. Please contact your principal.", "danger")
-                    return render_template(template_map[role])
-
             # Principal register/login validation
             if role == "principal":
                 action = request.form.get("action")
@@ -941,7 +933,6 @@ def student_leave():
 
 
 # # ---------------- AI CHATBOT (Gemini + Smart Fallback) ----------------
-# # Commented out — Gemini API key quota exhausted. Uncomment when a working key is available.
 # import time as _time
 # _gemini_cooldown = 0
 #
@@ -1012,12 +1003,13 @@ def student_leave():
 #         try:
 #             prompt = (
 #                 "You are EduBot, a friendly AI academic counselor for school students. "
-#                 "Keep responses concise (2-3 sentences max). Be supportive.\n\n"
+#                 "Keep responses concise (2-3 sentences max). Be supportive and encouraging. "
+#                 "If the student shares data, give specific advice based on their numbers.\n\n"
 #             )
 #             if context: prompt += f"Student data:\n{context}\n"
 #             prompt += f"Student's message: {message}"
 #             response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
-#                 prompt, request_options={"timeout": 5}
+#                 prompt, request_options={"timeout": 8}
 #             )
 #             return jsonify({"response": response.text})
 #         except Exception as e:
