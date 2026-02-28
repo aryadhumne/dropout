@@ -8,7 +8,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 <style>
-  .role-page { min-height:100vh; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; }
+  .role-page { min-height:100vh; background:transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; }
   .role-page-header { text-align:center; margin-bottom:48px; }
   .role-page-header h1 { font-size:2.5rem; font-weight:800; margin-bottom:10px; letter-spacing:-0.03em; }
   .role-page-header p { color:var(--text-muted); font-size:1.05rem; }
@@ -92,9 +92,11 @@
   }
 </style>
 </head>
-<body style="height:100vh;overflow:hidden;display:flex;flex-direction:column;">
+<body style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#fff;">
 
-<div style="display:flex;justify-content:flex-end;padding:16px 24px;flex-shrink:0;">
+{% include 'partials/bg_abstract.html' %}
+
+<div style="display:flex;justify-content:flex-end;padding:16px 24px;flex-shrink:0;position:relative;z-index:1;">
   <div class="lang-switcher notranslate" translate="no">
     <select id="langSelect" onchange="changeLanguage(this.value)" aria-label="Change language">
       <option value="en">English</option>
@@ -123,7 +125,7 @@
   </div>
 </div>
 
-<main class="role-page" role="main" style="padding-top:0;min-height:0;flex:1;">
+<main class="role-page" role="main" style="padding-top:0;min-height:0;flex:1;position:relative;z-index:1;">
   <div class="role-page-header">
     <div class="hero-badge" style="margin-bottom:20px;">GET STARTED</div>
     <h1>Who are you?</h1>

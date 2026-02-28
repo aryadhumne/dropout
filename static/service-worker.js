@@ -35,8 +35,9 @@ self.addEventListener("fetch", e => {
   // Skip non-GET requests
   if (e.request.method !== "GET") return;
 
-  // Skip /api/ routes — go straight to Flask (needed for /api/ping connectivity check)
+  // Skip /api/ routes and /logout — go straight to Flask
   if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname === "/logout") return;
 
   // For HTML pages — network first, fall back to cache, then /offline
   if (e.request.mode === "navigate" ||
