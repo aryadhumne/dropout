@@ -31,7 +31,7 @@
 
     <!-- Subjects & Attendance -->
     <h6 style="font-weight:600;margin:20px 0 12px;color:var(--primary);">Subjects & Attendance</h6>
-    {% for sub in student.subjects %}
+    {% for sub in student.subjects or [] %}
     <div class="row mb-2">
       <div class="col-md-6">
         <input type="text" name="subjects[]" class="form-control" value="{{ sub.subject }}" required>

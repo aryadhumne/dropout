@@ -114,7 +114,12 @@ img { max-width: 100%; height: auto; }
 /* Hide Google Translate bar/banner */
 .goog-te-banner-frame, .goog-te-balloon-frame { display: none !important; }
 body { top: 0 !important; }
-.skiptranslate { display: none !important; }
+.skiptranslate { display: none !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important; }
+.goog-te-gadget { display: none !important; }
+iframe.goog-te-banner-frame { display: none !important; }
+#goog-gt-tt, .goog-te-ftab-link { display: none !important; }
+[id^="goog-gt-"] { display: none !important; }
+#google_translate_element { display: none !important; }
 
 /* ---------- Typography ---------- */
 h1, h2, h3, h4, h5, h6 {
@@ -511,6 +516,12 @@ textarea.form-control {
 
 .table-clean tbody tr:last-child td {
   border-bottom: none;
+}
+
+.td-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table-responsive {

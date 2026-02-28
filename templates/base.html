@@ -142,17 +142,50 @@ setTimeout(function() {
 <div id="google_translate_element" style="display:none;"></div>
 <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateInit"></script>
 <script>
+function hideGoogleTranslateUI() {
+  document.querySelectorAll('.skiptranslate, .goog-te-gadget, #goog-gt-tt, .goog-te-spinner-pos, .goog-te-ftab-link').forEach(function(el) {
+    if (!el.closest('.lang-switcher')) {
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('height', '0', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+    }
+  });
+  document.querySelectorAll('iframe.goog-te-banner-frame').forEach(function(el) { el.style.setProperty('display', 'none', 'important'); });
+  // Remove any stray top-level divs injected by Google Translate (the "Safe" badge)
+  var topbar = document.querySelector('.topbar-right');
+  if (topbar) {
+    topbar.childNodes.forEach(function(node) {
+      if (node.nodeType === 1 && !node.classList.contains('lang-switcher') && !node.id && node.tagName !== 'SELECT') {
+        var text = (node.textContent || '').trim().toLowerCase();
+        if (text === 'safe' || node.classList.contains('goog-te-gadget')) {
+          node.style.setProperty('display', 'none', 'important');
+        }
+      }
+    });
+  }
+  // Also check body direct children
+  Array.from(document.body.children).forEach(function(el) {
+    if (el.classList.contains('skiptranslate') || el.tagName === 'IFRAME') {
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('height', '0', 'important');
+    }
+  });
+  document.body.style.top = '0px';
+}
+// Watch for Google Translate injecting new elements
+var _gtObserver = new MutationObserver(function() { hideGoogleTranslateUI(); });
+_gtObserver.observe(document.documentElement, { childList: true, subtree: true });
+
 function googleTranslateInit() {
   new google.translate.TranslateElement({pageLanguage: 'en', autoDisplay: false}, 'google_translate_element');
-  // Restore saved language after widget loads
   setTimeout(function() {
     var saved = getCookie('edudrop_lang');
     if (saved && saved !== 'en') {
       triggerTranslate(saved);
     }
-    // Sync dropdown
     var sel = document.getElementById('langSelect');
     if (sel && saved) sel.value = saved;
+    hideGoogleTranslateUI();
   }, 1000);
 }
 

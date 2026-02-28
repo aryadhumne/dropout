@@ -1386,16 +1386,39 @@ def delete_student(student_id):
 @app.route('/teacher/edit_student/<student_id>', methods=['GET', 'POST'])
 def edit_student(student_id):
 
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
 
-        name = request.form['name']
-        parent_phone = request.form['parent_phone']
+        # Build subjects JSON
+        subject_names = request.form.getlist("subjects[]")
+        attendances = request.form.getlist("attendance[]")
+        subjects = []
+        for sname, att in zip(subject_names, attendances):
+            if sname.strip():
+                subjects.append({"subject": sname.strip(), "attendance": int(att)})
 
-        supabase.table("student_performance").update({
-            "name": name,
-            "parent_phone": parent_phone
-        }).eq("id", student_id).execute()
+        avg_attendance = sum(s["attendance"] for s in subjects) / len(subjects) if subjects else 0
 
+        update_data = {
+            "name": request.form.get("name"),
+            "roll": int(request.form.get("roll", 0)),
+            "standard": int(request.form.get("standard", 0)),
+            "division": request.form.get("division"),
+            "assignment": request.form.get("assignment_status"),
+            "behaviour": request.form.get("behaviour"),
+            "parent_name": request.form.get("parent_name"),
+            "parent_phone": request.form.get("parent_phone"),
+            "parent_alt_phone": request.form.get("parent_alt_phone") or None,
+            "parent_address": request.form.get("parent_address") or None,
+            "subjects": subjects if subjects else None,
+            "attendance": avg_attendance,
+        }
+
+        supabase.table("student_performance").update(update_data).eq("id", student_id).execute()
+
+        flash("Student updated successfully!", "success")
         return redirect(url_for('student_records'))
 
     student = supabase.table("student_performance").select("*").eq("id", student_id).execute().data[0]
