@@ -5,7 +5,6 @@
 
 {% block sidebar %}
 <a href="#" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
-<a href="/about"><i class="bi bi-info-circle"></i><span>About Us</span></a>
 {% endblock %}
 
 {% block content %}
@@ -32,144 +31,226 @@
   </div>
 </div>
 
-<!-- Risk Filter -->
-<div class="mb-4">
-  <select class="form-control" style="max-width:200px;" onchange="filterRisk(this.value)">
-    <option value="all">All Risk Levels</option>
-    <option value="At Risk">At Risk</option>
-    <option value="Medium">Medium</option>
-  </select>
+<!-- Tabs -->
+<div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid var(--border);">
+  <button class="vol-tab active" onclick="switchTab('students')" id="tab-students" style="padding:10px 24px;font-weight:600;font-size:0.9rem;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;">
+    <i class="bi bi-people-fill"></i> At-Risk Students
+  </button>
+  <button class="vol-tab" onclick="switchTab('history')" id="tab-history" style="padding:10px 24px;font-weight:600;font-size:0.9rem;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;">
+    <i class="bi bi-clock-history"></i> Intervention History
+  </button>
 </div>
 
-<!-- At-Risk Students -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;margin-bottom:16px;color:var(--danger);">At-Risk Students</h6>
-  <div class="table-responsive">
-    <table class="table-clean" id="riskTable">
-      <thead>
-        <tr>
-<th>Name</th>
-<th>Roll</th>
-<th>Division</th>
-<th>Parent Phone</th>
-<th>Parent Address</th>
-<th>Risk</th>
-<th>Insight</th>
-<th>Intervention</th>
-<th>Status</th>
-<th>Notes</th>
-<th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in students %}
-        <tr data-risk="{{ s.risk }}">
-<td>{{ s.name }}</td>
-<td>{{ s.roll }}</td>
-<td>{{ s.division }}</td>
-<td>{{ s.parent_phone or '-' }}</td>
-<td style="max-width:150px;word-break:break-word;">
-    {{ s.parent_address or '-' }}
-</td><td>
+<!-- ============ TAB 1: At-Risk Students ============ -->
+<div id="panel-students" style="margin-top:20px;">
+
+  <!-- Risk Filter -->
+  <div class="mb-4">
+    <select class="form-control" style="max-width:200px;" onchange="filterRisk(this.value)">
+      <option value="all">All Risk Levels</option>
+      <option value="At Risk">At Risk</option>
+      <option value="Medium">Medium</option>
+    </select>
+  </div>
+
+  {% if students %}
+  <div class="row g-3" id="studentCards">
+    {% for s in students %}
+    <div class="col-12" data-risk="{{ s.risk }}">
+      <div class="card" style="padding:0;overflow:hidden;">
+
+        <!-- Card Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--primary);font-size:0.9rem;flex-shrink:0;">
+              {{ s.name[0] if s.name else '?' }}
+            </div>
+            <div>
+              <div style="font-weight:600;font-size:0.95rem;">{{ s.name }}</div>
+              <div style="font-size:0.78rem;color:var(--muted);">Roll: {{ s.roll }} &middot; Div: {{ s.division }}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             {% if s.risk in ['High Risk', 'Medium Risk'] %}
               <span class="badge-danger">URGENT</span>
             {% else %}
               <span class="badge-warning">ATTENTION</span>
             {% endif %}
-          </td>
-          <td>
-            <button class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px;" onclick="toggleReason(this)">View</button>
-            <div class="reason-box" style="display:none;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:0.85rem;">
-              <strong>Reason:</strong><br>{{ s.ai_reason }}<br>
-              <small style="color:var(--muted);">Confidence: {{ s.ai_confidence }}</small>
-            </div>
-          </td>
-          <td>{{ s.current_intervention }}</td>
-          <td>
             {% if s.current_status == "Ongoing" %}<span class="badge-danger">Ongoing</span>
             {% elif s.current_status == "Planned" %}<span class="badge-warning">Planned</span>
-            {% else %}{{ s.current_status }}{% endif %}
-          </td>
-          <td>{{ s.current_notes }}</td>
-          <td>
-            <form method="POST" enctype="multipart/form-data" style="min-width:200px;">
-              <input type="hidden" name="student_id" value="{{ s.id }}">
-              <select name="intervention_type" class="form-control mb-2" style="font-size:0.85rem;">
-                <option value="">Intervention</option>
-                <option>Counselling</option>
-                <option>Parent Meeting</option>
-                <option>Financial Aid</option>
-                <option>Mentorship</option>
-              </select>
-              <select name="status" class="form-control mb-2" style="font-size:0.85rem;" required onchange="toggleUpload(this)">
-                <option value="">Status</option>
-                <option>Planned</option>
-                <option>Ongoing</option>
-                <option>Completed</option>
-              </select>
-              <div class="proof-upload" style="display:none;margin-bottom:8px;">
-                <label class="form-label" style="font-size:0.8rem;">Proof Photo:</label>
-                <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;">
-              </div>
-              <textarea name="notes" class="form-control mb-2" style="font-size:0.85rem;" rows="2" required placeholder="Notes..."></textarea>
-              <button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px;">Save</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+            {% elif s.current_status == "Rejected" %}<span class="badge-danger">Rejected</span>
+            {% elif s.current_status != "-" %}<span class="badge-success">{{ s.current_status }}</span>
+            {% endif %}
+          </div>
+        </div>
 
-<!-- Intervention History -->
-<div class="card">
-  <h6 style="font-weight:600;margin-bottom:16px;">Intervention History</h6>
-  {% if interventions %}
-  <div class="table-responsive">
-    <table class="table-clean">
-      <thead>
-        <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th></tr>
-      </thead>
-      <tbody>
-        {% for a in interventions %}
-        <tr>
-          <td>{{ a.student_performance.name }}</td>
-          <td>{{ a.student_performance.roll }}</td>
-          <td>{{ a.type }}</td>
-          <td>
-            {% if a.status == "Completed" %}<span class="badge-success">Completed</span>
-            {% elif a.status == "Ongoing" %}<span class="badge-danger">Ongoing</span>
-            {% else %}<span class="badge-warning">Planned</span>{% endif %}
-          </td>
-          <td>{{ a.notes }}</td>
-          <td>{{ a.by }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        <!-- Card Body: 3 equal columns -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;min-height:0;" class="vol-card-body">
+
+          <!-- Col 1: Student Details -->
+          <div style="padding:16px 20px;border-right:1px solid var(--border);">
+            <div style="font-weight:600;font-size:0.8rem;color:var(--primary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
+              <i class="bi bi-person-lines-fill"></i> Student Info
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:0.84rem;">
+              <div>
+                <span style="color:var(--muted);font-size:0.78rem;">Parent Phone</span>
+                <div style="font-weight:500;">{{ s.parent_phone or '-' }}</div>
+              </div>
+              <div>
+                <span style="color:var(--muted);font-size:0.78rem;">Parent Address</span>
+                <div style="font-weight:500;word-break:break-word;">{{ s.parent_address or '-' }}</div>
+              </div>
+              <div>
+                <span style="color:var(--muted);font-size:0.78rem;">Current Intervention</span>
+                <div style="font-weight:500;">{{ s.current_intervention }}</div>
+              </div>
+              <div>
+                <span style="color:var(--muted);font-size:0.78rem;">Notes</span>
+                <div style="font-weight:500;">{{ s.current_notes }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Col 2: AI Insight -->
+          <div style="padding:16px 20px;border-right:1px solid var(--border);">
+            <div style="font-weight:600;font-size:0.8rem;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
+              <i class="bi bi-cpu"></i> AI Insight
+            </div>
+            <div style="font-size:0.84rem;line-height:1.6;">
+              <div style="margin-bottom:8px;">{{ s.ai_reason }}</div>
+              <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;">Confidence: {{ s.ai_confidence }}</div>
+              {% if s.ai_suggestions %}
+              <div style="padding:10px;background:rgba(231,33,145,0.05);border-radius:8px;border-left:3px solid var(--accent);">
+                <div style="font-size:0.82rem;line-height:1.5;"><i class="bi bi-lightbulb" style="color:var(--accent);"></i> {{ s.ai_suggestions }}</div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Col 3: Add Intervention -->
+          <div style="padding:16px 20px;">
+            <div style="font-weight:600;font-size:0.8rem;color:var(--primary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
+              <i class="bi bi-plus-circle"></i> Add Intervention
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="student_id" value="{{ s.id }}">
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <select name="intervention_type" class="form-control" style="font-size:0.84rem;">
+                  <option value="">Select Type</option>
+                  <option>Counselling</option>
+                  <option>Parent Meeting</option>
+                  <option>Financial Aid</option>
+                  <option>Mentorship</option>
+                </select>
+                <select name="status" class="form-control" style="font-size:0.84rem;" required onchange="toggleUpload(this)">
+                  <option value="">Select Status</option>
+                  <option>Planned</option>
+                  <option>Ongoing</option>
+                  <option>Completed</option>
+                </select>
+                <div class="proof-upload" style="display:none;">
+                  <label class="form-label" style="font-size:0.78rem;margin-bottom:2px;">Proof Photo:</label>
+                  <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;">
+                </div>
+                <textarea name="notes" class="form-control" style="font-size:0.84rem;" rows="2" required placeholder="Add notes..."></textarea>
+                <button class="btn btn-primary" style="font-size:0.84rem;padding:6px 16px;align-self:flex-start;"><i class="bi bi-check-lg"></i> Save</button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% else %}
-  <p style="color:var(--muted);">No interventions recorded yet.</p>
+  <div class="card">
+    <p style="color:var(--muted);margin:0;">No at-risk students found.</p>
+  </div>
   {% endif %}
 </div>
 
+<!-- ============ TAB 2: Intervention History ============ -->
+<div id="panel-history" style="display:none;margin-top:20px;">
+  <div class="card">
+    <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-clock-history"></i> All Interventions</h6>
+    {% if interventions %}
+    <div class="table-responsive">
+      <table class="table-clean">
+        <thead>
+          <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th></tr>
+        </thead>
+        <tbody>
+          {% for a in interventions %}
+          <tr>
+            <td>{{ a.student_performance.name }}</td>
+            <td>{{ a.student_performance.roll }}</td>
+            <td>{{ a.type }}</td>
+            <td>
+              {% if a.status == "Completed" %}<span class="badge-success">Completed</span>
+              {% elif a.status == "Ongoing" %}<span class="badge-danger">Ongoing</span>
+              {% else %}<span class="badge-warning">Planned</span>{% endif %}
+            </td>
+            <td>{{ a.notes }}</td>
+            <td>{{ a.by }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--muted);">No interventions recorded yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% set chatbot_greeting = "Hi! I'm EduBot, your volunteer assistant. Ask me about intervention strategies, how to approach at-risk students, or tips for effective mentoring!" %}
+{% set chatbot_subtitle = "Volunteer Assistant" %}
+{% set chatbot_role = "volunteer" %}
+{% include 'partials/chatbot.html' %}
+
+<style>
+/* Responsive: stack columns on smaller screens */
+@media (max-width: 992px) {
+  .vol-card-body {
+    grid-template-columns: 1fr !important;
+  }
+  .vol-card-body > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .vol-card-body > div:last-child {
+    border-bottom: none;
+  }
+}
+</style>
+
 <script>
+function switchTab(tab) {
+  document.getElementById('panel-students').style.display = tab === 'students' ? 'block' : 'none';
+  document.getElementById('panel-history').style.display = tab === 'history' ? 'block' : 'none';
+  document.querySelectorAll('.vol-tab').forEach(function(t) {
+    t.classList.remove('active');
+    t.style.color = 'var(--muted)';
+    t.style.borderBottomColor = 'transparent';
+  });
+  var active = document.getElementById('tab-' + tab);
+  active.classList.add('active');
+  active.style.color = 'var(--primary)';
+  active.style.borderBottomColor = 'var(--primary)';
+}
+switchTab('students');
+
 function toggleUpload(select) {
   const box = select.closest("form").querySelector(".proof-upload");
   box.style.display = select.value === "Completed" ? "block" : "none";
 }
 
 function filterRisk(val) {
-  document.querySelectorAll("#riskTable tbody tr").forEach(r => {
-    r.style.display = (val === "all" || (r.dataset.risk || '').trim() === val) ? "" : "none";
+  document.querySelectorAll("#studentCards > .col-12").forEach(function(card) {
+    card.style.display = (val === "all" || (card.dataset.risk || '').trim() === val) ? "" : "none";
   });
-}
-
-function toggleReason(btn) {
-  const box = btn.nextElementSibling;
-  if (box.style.display === "none") { box.style.display = "block"; btn.textContent = "Hide"; }
-  else { box.style.display = "none"; btn.textContent = "View"; }
 }
 </script>
 

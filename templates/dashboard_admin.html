@@ -127,4 +127,9 @@ function toggleRejectForm(id) {
 }
 </script>
 
+{% set chatbot_greeting = "Hi! I'm EduBot, your NGO admin assistant. Ask me about managing volunteers, reviewing interventions, or student welfare strategies!" %}
+{% set chatbot_subtitle = "NGO Admin Assistant" %}
+{% set chatbot_role = "ngo_admin" %}
+{% include 'partials/chatbot.html' %}
+
 {% endblock %}
