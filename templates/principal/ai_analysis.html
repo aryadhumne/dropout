@@ -21,29 +21,26 @@
   <h6 style="font-weight:600;margin-bottom:16px;">Filters</h6>
   <form method="GET">
     <div class="row g-3">
-      <div class="col-md-3">
-        <select name="class_filter" class="form-control">
+      <div class="col-md-4">
+        <select name="class_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Classes</option>
           {% for i in range(1,9) %}<option value="{{i}}" {% if request.args.get('class_filter') == i|string %}selected{% endif %}>Class {{i}}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
-        <select name="risk_filter" class="form-control">
+      <div class="col-md-4">
+        <select name="risk_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Risk</option>
           <option value="High" {% if request.args.get('risk_filter') == 'High' %}selected{% endif %}>High</option>
           <option value="Medium" {% if request.args.get('risk_filter') == 'Medium' %}selected{% endif %}>Medium</option>
           <option value="Low" {% if request.args.get('risk_filter') == 'Low' %}selected{% endif %}>Low</option>
         </select>
       </div>
-      <div class="col-md-3">
-        <select name="gender_filter" class="form-control">
+      <div class="col-md-4">
+        <select name="gender_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Gender</option>
           <option value="male" {% if request.args.get('gender_filter') == 'male' %}selected{% endif %}>Male</option>
           <option value="female" {% if request.args.get('gender_filter') == 'female' %}selected{% endif %}>Female</option>
         </select>
-      </div>
-      <div class="col-md-3">
-        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
       </div>
     </div>
   </form>

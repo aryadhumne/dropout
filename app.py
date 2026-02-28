@@ -10,6 +10,7 @@ import csv
 import sqlite3
 import io
 import pandas as pd
+import httpx
 from reportlab.pdfgen import canvas
 from flask import jsonify
 from supabase import create_client
@@ -117,6 +118,18 @@ app.config.update(
 
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.secret_key)
+
+@app.errorhandler(httpx.ConnectError)
+def handle_connect_error(e):
+    return render_template('offline.html'), 503
+
+@app.errorhandler(httpx.ReadError)
+def handle_read_error(e):
+    return render_template('offline.html'), 503
+
+@app.errorhandler(httpx.TimeoutException)
+def handle_timeout_error(e):
+    return render_template('offline.html'), 503
 
 # ---------------- HOME ----------------
 @app.route('/')
@@ -1796,7 +1809,7 @@ def dashboard_principal():
 
     for r in rows:
 
-        cls = str(r.get("class"))
+        cls = str(r.get("standard"))
         gender = str(r.get("gender")).lower()
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
@@ -1833,7 +1846,7 @@ def dashboard_principal():
 
         roll = r.get("roll")
         name = r.get("name")
-        cls = r.get("class")
+        cls = r.get("standard")
         gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
@@ -2018,7 +2031,7 @@ def principal_ai_analysis():
 
     filtered = []
     for r in rows:
-        cls = str(r.get("class"))
+        cls = str(r.get("standard"))
         gender = str(r.get("gender")).lower()
 
         if selected_class and cls != selected_class:
@@ -2034,7 +2047,7 @@ def principal_ai_analysis():
     for r in filtered:
         roll = r.get("roll")
         name = r.get("name")
-        cls = r.get("class")
+        cls = r.get("standard")
         gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
@@ -2083,7 +2096,7 @@ def export_high_risk_csv():
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
         if att < 75 or marks < 40:
-            writer.writerow([r.get("roll"),r.get("name"),r.get("class"),r.get("gender"),att,marks])
+            writer.writerow([r.get("roll"),r.get("name"),r.get("standard"),r.get("gender"),att,marks])
 
     output.seek(0)
 
@@ -2138,7 +2151,7 @@ def send_ngo():
         if att < 75 or marks < 40:
             supabase.table("ngo_notifications").insert({
                 "student_name": r.get("name"),
-                "class": r.get("class"),
+                "class": r.get("standard"),
                 "attendance": att,
                 "marks": marks
             }).execute()
