@@ -1,336 +1,122 @@
-# EduDrop - Complete Documentation
+# EduDrop — Offline Support Documentation
 
-## What is EduDrop?
+## Overview
 
-EduDrop is a web-based platform that helps schools identify students at risk of dropping out. It provides dashboards for **Students**, **Teachers**, **Principals**, **NGO Admins**, and **Volunteers** — each with role-specific features, analytics, and an AI chatbot.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | Flask (Python 3.12) |
-| Database | Supabase (PostgreSQL) |
-| AI Chatbot | Google Gemini 2.5 Flash (REST API) |
-| ML Model | Random Forest Classifier (scikit-learn) |
-| Explainability | SHAP (TreeExplainer) |
-| Sentiment Analysis | TextBlob |
-| Image Upload | Cloudinary |
-| Frontend | HTML/CSS/JS, Bootstrap 5, Chart.js |
-| Translations | Google Translate (20+ Indian languages) |
-| Offline Support | Service Worker (PWA) |
+EduDrop works offline using a **Progressive Web App (PWA)** setup. Once a user visits any page while online, that page is automatically cached and can be viewed later without an internet connection. This is powered by a **Service Worker** — a background script that intercepts network requests and serves cached content when the network is unavailable.
 
 ---
 
-## Database Tables (Supabase)
+## How It Works
 
-| Table | Purpose |
-|-------|---------|
-| `users` | All user accounts (NGO admins, volunteers, principals) — email, password, role, name, district |
-| `students` | Student login credentials — email, password, linked `student_performance_id` |
-| `student_performance` | Academic data — name, roll, standard, division, attendance, test scores, assignment, quiz, risk_score, risk_status, risk_reason, parent info, subjects |
-| `teachers` | Teacher profiles — name, email, assigned_class |
-| `student_feedback` | Student feedback with sentiment — text, sentiment_score, sentiment_label |
-| `student_leaves` | Leave applications — date, reason, status (Pending/Approved/Rejected) |
-| `ngo_interventions` | NGO volunteer interventions — type, status, proof image, approval_status |
-| `ngo_notifications` | High-risk alerts sent to NGOs |
-| `risk_history` | Historical risk score data for trend charts |
+### 1. Service Worker Registration
 
----
+When any page loads, the browser registers the Service Worker from `/sw.js`:
 
-## Risk Score Calculation
-
-Risk is calculated when a teacher adds or edits a student. The formula assigns points based on 4 factors:
-
-| Factor | Threshold | Points |
-|--------|-----------|--------|
-| Monthly Test Score | < 35 | +40 |
-| Attendance | < 60% | +30 |
-| Assignment Status | Incomplete/Poor | +15 |
-| Quiz Status | Incomplete/Poor | +15 |
-
-**Maximum score: 100**
-
-| Score Range | Category | Status |
-|-------------|----------|--------|
-| 60–100 | High Risk | At Risk |
-| 40–59 | Medium Risk | Medium Risk |
-| 0–39 | Low Risk | Safe |
-
-The score is stored in the `risk_score` field of `student_performance`. For older students that don't have it stored, it's recalculated on-the-fly from their existing data using the `_recalc_risk()` helper function.
-
-### ML Model (for NGO Dashboard)
-
-A **Random Forest Classifier** is also trained for risk prediction:
-- **Features**: attendance, monthly_test_score, assignment, quiz
-- **Classes**: 0=Low, 1=Medium, 2=High
-- **Config**: 100 trees, max_depth=8, min_samples_split=10
-- **Files**: `risk_model.pkl`, `model_features.pkl`
-- **Explainability**: SHAP TreeExplainer shows top 3 contributing factors per student
-
----
-
-## AI Chatbot
-
-### Model
-**Google Gemini 2.5 Flash** via REST API (not the Python library — gRPC had timeout issues).
-
-### Why Gemini 2.5 Flash?
-- Free tier available (no cost)
-- Fast response times (~2-3 seconds)
-- Good at understanding educational context
-- REST API is reliable (unlike the gRPC-based Python library which timed out)
-
-### How It Works
-
-1. User sends a message from any page
-2. Frontend sends `POST /api/chat` with `{message, role}`
-3. Backend validates the role and session
-4. Builds role-specific context from Supabase data
-5. Constructs a prompt: system prompt + context + user message
-6. Calls Gemini 2.5 Flash REST API
-7. Returns AI response (falls back to a generic error if Gemini fails)
-
-### Roles & Context
-
-| Role | System Prompt | Context Data |
-|------|--------------|-------------|
-| **Homepage** | Explain EduDrop features, how to get started | None (public) |
-| **Student** | Friendly academic counselor | Student's name, attendance, test score, assignment, quiz, risk status |
-| **Teacher** | Professional teaching assistant | Summary stats + every student's full details (name, class, attendance, scores, risk) |
-| **Principal** | Strategic analytics assistant | School-wide stats: avg attendance, gender risk breakdown, teacher count |
-
-### Speech Features
-- **Text-to-Speech (TTS)**: Web Speech API `speechSynthesis` — speaker button on each bot message. Prefers high-quality voices (Google UK English Female, Samantha, etc.). Rate: 0.9, Pitch: 1.05.
-- **Speech-to-Text (STT)**: Web Speech API `SpeechRecognition` — mic button in input area. Language: `en-IN`. Auto-sends message after transcription.
-
-### Cooldown
-If Gemini fails (timeout, 429 rate limit, etc.), there's a **5-minute cooldown** before retrying. During cooldown, the chatbot returns a "temporarily unavailable" message.
-
----
-
-## Offline Support (PWA)
-
-### Service Worker (`/sw.js`)
-
-The app uses a Service Worker for offline access:
-
-| Content Type | Strategy | Behavior |
-|-------------|----------|----------|
-| HTML pages | Network-first | Fetches fresh page, caches it. If offline, serves cached version. |
-| Static assets (CSS, JS, fonts, images) | Cache-first | Serves from cache instantly. Falls back to network if not cached. |
-| API calls (`/api/*`) | Network only | Not cached (chatbot, data APIs). |
-
-### Pre-cached Assets
-On install, the SW pre-caches: `main.css`, `manifest.json`, Bootstrap CSS, Bootstrap Icons, Chart.js.
-
-### Offline Fallback
-If a user visits an uncached page while offline, they see a friendly "You're Offline" page with a retry button.
-
-### How to Use
-1. Visit pages while online — they get cached automatically
-2. Go offline — those pages still load with all their data
-3. The app can also be "installed" as a standalone PWA on mobile/desktop
-
----
-
-## Authentication & Roles
-
-### Login Flow
-1. User goes to `/select_role` and picks their role
-2. Redirected to role-specific login page
-3. Credentials checked against Supabase
-4. Session is set: `session['role']`, `session['email']`, `session['student_id']` (if student)
-5. Redirected to role dashboard
-
-### Roles & Access
-
-| Role | Dashboard | Key Features |
-|------|-----------|-------------|
-| **Student** | `/student/dashboard` | View performance, attendance chart, submit feedback (sentiment analyzed), apply for leave |
-| **Teacher** | `/teacher/dashboard` | View risk stats, add/edit/delete students, manage leave requests, risk-by-class charts |
-| **Principal** | `/dashboard/principal` | School-wide analytics, filter by class/risk/gender, manage teachers, export CSV, red flags |
-| **NGO Admin** | `/ngo/admin/dashboard` | Approve/reject volunteer interventions, add volunteers |
-| **Volunteer** | `/volunteer/dashboard` | View at-risk students with ML predictions + SHAP explanations, create interventions with proof images |
-
----
-
-## All Routes
-
-### Public
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/` | GET | Homepage |
-| `/select_role` | GET | Role selection |
-| `/about` | GET | About page |
-| `/forgot-password` | GET/POST | Password reset (email lookup) |
-| `/reset-password` | GET/POST | Set new password |
-| `/offline` | GET | Offline fallback page |
-| `/sw.js` | GET | Service worker JS |
-
-### Student
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/student/register` | GET/POST | Register student account |
-| `/student/login` | GET/POST | Student login |
-| `/student/dashboard` | GET | Dashboard with performance data |
-| `/student/feedback` | POST | Submit feedback (sentiment analysis) |
-| `/student/leave` | POST | Apply for leave |
-| `/student/set_password` | GET/POST | Initial password setup |
-
-### Teacher
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/teacher/dashboard` | GET | Dashboard with risk charts |
-| `/teacher/add_student` | GET/POST | Add new student |
-| `/teacher/student_records` | GET | View all students by class |
-| `/teacher/edit_student/<id>` | GET/POST | Edit student details |
-| `/teacher/delete_student/<id>` | POST | Soft-delete student |
-| `/teacher/leave_requests` | GET | View/manage leave requests |
-| `/teacher/leave/<id>/<action>` | POST | Approve/reject leave |
-
-### Principal
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/dashboard/principal` | GET | School analytics dashboard |
-| `/add_teacher` | POST | Add teacher |
-| `/remove_teacher/<id>` | GET | Remove teacher |
-| `/export_high_risk_csv` | GET | Download high-risk CSV |
-| `/send_ngo` | GET | Send alerts to NGO |
-
-### NGO
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/ngo` | GET | NGO role selection |
-| `/ngo/admin/login` | GET/POST | Admin login |
-| `/ngo/admin/register` | GET/POST | Admin registration |
-| `/ngo/admin/dashboard` | GET | Admin dashboard |
-| `/admin/add-volunteer` | GET/POST | Add volunteer |
-| `/volunteer/login` | GET/POST | Volunteer login |
-| `/volunteer/register` | GET/POST | Volunteer registration |
-| `/volunteer/dashboard` | GET/POST | Volunteer dashboard + interventions |
-| `/approve-intervention/<id>` | POST | Approve intervention |
-| `/reject-intervention/<id>` | POST | Reject intervention |
-
-### API
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/api/chat` | POST | AI chatbot (multi-role) |
-| `/get-ngos/<district>` | GET | List NGOs by district |
-
----
-
-## Multi-Language Support
-
-EduDrop supports **20+ Indian languages** via Google Translate:
-
-Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu, Sanskrit, Nepali, Sindhi, Kashmiri, Dogri, Maithili, Manipuri, Santali, Konkani
-
-The language selector is in the top navbar. Selection is saved as a cookie (`edudrop_lang`) and persists across page loads.
-
----
-
-## External Services
-
-| Service | Purpose | Config |
-|---------|---------|--------|
-| **Supabase** | Database + Auth backend | `SUPABASE_URL`, `SUPABASE_ANON_KEY` in `.env` |
-| **Google Gemini** | AI chatbot responses | `GEMINI_API_KEY` in `.env` |
-| **Cloudinary** | Upload intervention proof images | Hardcoded in `app.py` (cloud: `de20jxqpu`) |
-| **Google Translate** | Multi-language support | Free JS embed |
-| **TextBlob** | Sentiment analysis on student feedback | Python library (no API key) |
-
----
-
-## File Structure
-
+```js
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
 ```
-dropout/
-├── app.py                          # Main Flask app (~1900 lines)
-├── supabase_client.py              # Supabase connection
-├── train_model.py                  # ML model training script
-├── risk_model.pkl                  # Trained Random Forest model
-├── model_features.pkl              # Feature names
-├── .env                            # Environment variables
-├── requirements.txt                # Python dependencies
-│
-├── static/
-│   ├── css/
-│   │   ├── main.css                # Primary stylesheet
-│   │   ├── style.css               # Legacy styles
-│   │   └── teacher.css             # Teacher-specific styles
-│   ├── js/
-│   │   ├── app.js                  # Client-side offline/sync logic
-│   │   └── teacher.js              # Teacher page interactions
-│   ├── service-worker.js           # PWA service worker
-│   ├── manifest.json               # PWA manifest
-│   ├── icons/                      # App icons
-│   └── images/                     # UI images
-│
-├── templates/
-│   ├── base.html                   # Main layout (sidebar, topbar, navbar)
-│   ├── base_auth.html              # Auth page layout
-│   ├── index.html                  # Homepage/landing
-│   ├── select_role.html            # Role selection
-│   ├── about.html                  # About page
-│   ├── offline.html                # Offline fallback
-│   │
-│   ├── student/
-│   │   ├── dashboard.html          # Student dashboard
-│   │   ├── login.html              # Student login
-│   │   └── set_password.html       # Password setup
-│   │
-│   ├── teacher/
-│   │   ├── base.html               # Teacher layout (sidebar links)
-│   │   ├── dashboard.html          # Teacher dashboard + charts
-│   │   ├── add_student.html        # Add student form
-│   │   ├── student_records.html    # Student list by class
-│   │   ├── edit_student.html       # Edit student
-│   │   ├── leave_requests.html     # Leave management
-│   │   └── students.html           # Alternative student list
-│   │
-│   ├── dashboard_principal.html    # Principal dashboard
-│   ├── dashboard_admin.html        # NGO admin dashboard
-│   ├── dashboard_volunteer.html    # Volunteer dashboard
-│   │
-│   ├── partials/
-│   │   └── chatbot.html            # Reusable AI chatbot widget
-│   │
-│   └── (login/register pages for each role)
-│
-└── DOCUMENTATION.md                # This file
+
+This runs in:
+- `templates/base.html` — covers all dashboard pages (student, teacher, principal)
+- `templates/index.html` — covers the public homepage
+
+The Flask route `/sw.js` in `app.py` serves the file from `static/service-worker.js` with the correct `Service-Worker-Allowed: /` header so it has scope over the entire site.
+
+### 2. Caching Strategies
+
+The Service Worker uses different strategies depending on the type of content:
+
+| Content Type | Strategy | How It Works |
+|-------------|----------|-------------|
+| **HTML pages** (dashboards, records, etc.) | Network-first | Tries to fetch from the server first. If successful, caches the response for offline use. If the network fails, serves the cached version. |
+| **Static assets** (CSS, JS, fonts, images) | Cache-first | Checks the cache first for instant loading. If not found in cache, fetches from the network and caches it for next time. |
+| **API calls** (`/api/chat`, etc.) | Network only | Not cached. The chatbot and data APIs require a live connection. |
+| **Non-GET requests** (form submissions, POST) | Pass-through | Not intercepted. These always go to the server. |
+
+### 3. Pre-cached Assets
+
+When the Service Worker is first installed, it pre-caches these critical assets so they're available immediately:
+
+- `/static/css/main.css` — main stylesheet
+- `/static/manifest.json` — PWA manifest
+- Bootstrap CSS (`cdn.jsdelivr.net/npm/bootstrap@5.3.3`)
+- Bootstrap Icons (`cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3`)
+- Chart.js (`cdn.jsdelivr.net/npm/chart.js`)
+
+### 4. Offline Fallback Page
+
+If a user navigates to a page they haven't visited before while offline (so it's not in the cache), they see a friendly offline fallback page at `/offline` instead of the browser's default error. This page:
+
+- Tells the user they're offline
+- Explains that previously visited pages are still available
+- Provides a "Try Again" button to reload when back online
+
+---
+
+## Files Involved
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `service-worker.js` | `static/service-worker.js` | The Service Worker script — handles caching logic |
+| `manifest.json` | `static/manifest.json` | PWA manifest — app name, theme color, icons, display mode |
+| `offline.html` | `templates/offline.html` | Offline fallback page shown for uncached pages |
+| `base.html` | `templates/base.html` | Registers the SW + links the manifest (all dashboard pages) |
+| `index.html` | `templates/index.html` | Registers the SW (homepage) |
+| `app.py` | Root | Flask routes: `/sw.js` serves the SW from root, `/offline` renders the fallback page |
+
+---
+
+## Service Worker Lifecycle
+
+1. **Install** — Downloads and caches the pre-cached assets listed above. Calls `skipWaiting()` to activate immediately.
+2. **Activate** — Cleans up old cache versions (any cache not matching the current `CACHE_NAME`). Calls `clients.claim()` to take control of all pages.
+3. **Fetch** — Intercepts every network request and applies the appropriate caching strategy (network-first for HTML, cache-first for assets).
+
+### Cache Versioning
+
+The cache is named `edudrop-v2`. When the Service Worker is updated (e.g., new assets to cache), the version name is changed. On activation, old caches with different names are automatically deleted.
+
+---
+
+## PWA Manifest
+
+The `manifest.json` allows the app to be installed on mobile/desktop as a standalone app:
+
+```json
+{
+  "name": "EduDrop - Student Dropout Prevention",
+  "short_name": "EduDrop",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0a2c",
+  "theme_color": "#e72191",
+  "icons": [{ "src": "/static/icons/s1.png", "sizes": "192x192", "type": "image/png" }]
+}
 ```
 
 ---
 
-## How to Run
+## What Works Offline
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up .env with Supabase and Gemini keys
-# SUPABASE_URL=...
-# SUPABASE_ANON_KEY=...
-# SECRET_KEY=...
-# GEMINI_API_KEY=...
-
-# Run the server
-python app.py
-# Server starts at http://127.0.0.1:5001
-```
+| Feature | Offline? | Notes |
+|---------|----------|-------|
+| Viewing previously visited dashboards | Yes | All HTML, CSS, JS, charts are cached |
+| Viewing student records | Yes | If the page was visited while online |
+| Viewing leave requests | Yes | Cached page shows last-known data |
+| Homepage | Yes | Pre-cached on first visit |
+| AI Chatbot | No | Requires live API call to Gemini |
+| Submitting forms (add student, leave, etc.) | No | Requires server connection |
+| Login | No | Requires Supabase authentication |
 
 ---
 
-## Key Design Decisions
+## How to Test
 
-1. **Gemini REST API over Python library** — The `google-generativeai` Python library (v0.8.5) uses gRPC which caused `DeadlineExceeded` timeouts. Direct REST API via `requests.post()` works reliably.
-
-2. **Jinja2 partials for chatbot** — Instead of copy-pasting chatbot code in 4 templates, a reusable `partials/chatbot.html` is parameterized with role, greeting, and subtitle.
-
-3. **`_recalc_risk()` helper** — Older students in the DB don't have `risk_score` stored (it was calculated but not saved). This helper recalculates it from existing fields on-the-fly.
-
-4. **Network-first caching for pages** — Ensures users always see fresh data when online, but can still access cached pages offline.
-
-5. **Soft-delete for students** — Students are marked `is_deleted=True` rather than actually removed, preserving data integrity.
+1. Open the app and visit the pages you want available offline (e.g., teacher dashboard, student records)
+2. Open DevTools > **Application** > **Service Workers** — confirm `sw.js` is registered and active
+3. Open DevTools > **Application** > **Cache Storage** — you'll see `edudrop-v2` with cached pages and assets
+4. Toggle **Offline** mode in DevTools > **Network** tab
+5. Refresh the pages you visited — they should load from cache with all data and charts intact
+6. Visit a page you haven't been to — you'll see the "You're Offline" fallback page
