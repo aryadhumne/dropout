@@ -46,63 +46,15 @@
   </div>
 </div>
 
-<!-- Predicted Risk -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;">Predicted Next Risk</h6>
-  <div style="font-size:2rem;font-weight:700;color:var(--accent);">{{ predicted_risk }}%</div>
-</div>
-
-<!-- Export & Risk Score Chart -->
+<!-- Risk by Class -->
 <div class="card mb-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h6 style="font-weight:600;margin:0;">Risk Score Trend (API)</h6>
+    <h6 style="font-weight:600;margin:0;">Risk by Class</h6>
     <button class="btn btn-primary" onclick="exportPDF()" style="font-size:0.85rem;">
       <i class="bi bi-download"></i> Export PDF
     </button>
   </div>
-  <canvas id="riskChart" height="100"></canvas>
-</div>
-
-<!-- Leave Requests -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-calendar-check"></i> Student Leave Requests</h6>
-  {% if leave_requests %}
-  <div class="table-responsive">
-    <table class="table-clean">
-      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>Date</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody>
-        {% for l in leave_requests %}
-        <tr>
-          <td>{{ l.student_name }}</td>
-          <td>{{ l.standard or '-' }}</td>
-          <td>{{ l.division or '-' }}</td>
-          <td>{{ l.leave_date }}</td>
-          <td>{{ l.reason }}</td>
-          <td>
-            {% if l.status == 'Approved' %}<span class="badge-success">Approved</span>
-            {% elif l.status == 'Rejected' %}<span class="badge-danger">Rejected</span>
-            {% else %}<span class="badge-warning">Pending</span>{% endif %}
-          </td>
-          <td>
-            {% if l.status == 'Pending' %}
-            <div class="d-flex gap-2">
-              <form method="POST" action="/teacher/leave/{{ l.id }}/Approved" style="margin:0;">
-                <button type="submit" class="btn btn-primary" style="font-size:0.75rem;padding:3px 10px;">Approve</button>
-              </form>
-              <form method="POST" action="/teacher/leave/{{ l.id }}/Rejected" style="margin:0;">
-                <button type="submit" class="btn btn-danger" style="font-size:0.75rem;padding:3px 10px;">Reject</button>
-              </form>
-            </div>
-            {% else %}-{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p style="color:var(--muted);">No leave requests yet.</p>
-  {% endif %}
+  <canvas id="riskByClassChart" height="120"></canvas>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -130,32 +82,26 @@ const pieChart = new Chart(document.getElementById('riskPieChart'), {
 });
 
 new Chart(document.getElementById('riskTrendChart'), {
-  type: 'line',
+  type: 'bar',
   data: {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-    datasets: [{ label: 'High Risk Trend', data: [{{ high_risk }}, {{ high_risk }}, {{ high_risk }}, {{ high_risk }}], borderColor: COLORS.danger, backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.3 }]
+    labels: {{ standards|tojson }},
+    datasets: [{ label: 'At-Risk Students per Class', data: {{ standard_risk_counts|tojson }}, backgroundColor: COLORS.accent }]
   },
-  options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
 });
 
-fetch("/teacher/risk_trend_data").then(r => r.json()).then(data => {
-  new Chart(document.getElementById('riskChart'), {
-    type: 'line',
-    data: { labels: data.dates, datasets: [{ label: 'Risk Score Trend', data: data.scores, borderColor: COLORS.accent, backgroundColor: 'rgba(231,33,145,0.1)', fill: true, tension: 0.3 }] },
-    options: { responsive: true }
-  });
+new Chart(document.getElementById('riskByClassChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ standards|tojson }},
+    datasets: [
+      { label: 'High Risk', data: {{ std_high|tojson }}, backgroundColor: COLORS.danger },
+      { label: 'Medium Risk', data: {{ std_medium|tojson }}, backgroundColor: COLORS.warning },
+      { label: 'Low Risk', data: {{ std_low|tojson }}, backgroundColor: COLORS.success }
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } } }
 });
-
-setInterval(() => {
-  fetch('/teacher/dashboard_data').then(r => r.json()).then(data => {
-    document.getElementById("card-total").innerText = data.total;
-    document.getElementById("card-high").innerText = data.high;
-    document.getElementById("card-medium").innerText = data.medium;
-    document.getElementById("card-low").innerText = data.low;
-    pieChart.data.datasets[0].data = [data.low, data.medium, data.high];
-    pieChart.update();
-  });
-}, 10000);
 
 async function exportPDF() {
   const { jsPDF } = window.jspdf;

@@ -24,4 +24,7 @@
 <a href="{{ url_for('student_records') }}" class="{% if request.endpoint == 'student_records' %}active{% endif %}">
   <i class="bi bi-folder"></i><span>Student Records</span>
 </a>
+<a href="{{ url_for('teacher_leave_requests') }}" class="{% if request.endpoint == 'teacher_leave_requests' %}active{% endif %}">
+  <i class="bi bi-calendar-check"></i><span>Leave Requests</span>
+</a>
 {% endblock %}

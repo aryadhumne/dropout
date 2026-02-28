@@ -997,10 +997,12 @@ def _get_teacher_context(sess):
     context = ""
     data = {}
     try:
-        students = supabase.table("student_performance").select("*").execute().data or []
+        students = _recalc_risk(
+            supabase.table("student_performance").select("*").eq("is_deleted", False).execute().data or []
+        )
         total = len(students)
-        high = len([s for s in students if (s.get("risk_score") or 0) >= 60])
-        medium = len([s for s in students if 40 <= (s.get("risk_score") or 0) < 60])
+        high = len([s for s in students if s["risk_score"] >= 60])
+        medium = len([s for s in students if 40 <= s["risk_score"] < 60])
         low = total - high - medium
         pending = 0
         try:
@@ -1014,8 +1016,19 @@ def _get_teacher_context(sess):
             f"- High Risk: {high}\n"
             f"- Medium Risk: {medium}\n"
             f"- Low Risk: {low}\n"
-            f"- Pending Leave Requests: {pending}\n"
+            f"- Pending Leave Requests: {pending}\n\n"
+            f"Individual Student Details:\n"
         )
+        for s in students:
+            context += (
+                f"  - {s.get('name', 'N/A')} | Class {s.get('standard', '?')}-{s.get('division', '?')} | "
+                f"Attendance: {s.get('attendance', 'N/A')}% | "
+                f"Test: {s.get('monthly_test_score', 'N/A')} | "
+                f"Assignment: {s.get('assignment', 'N/A')} | "
+                f"Quiz: {s.get('quiz', 'N/A')} | "
+                f"Risk: {s['risk_score']}% ({s.get('risk_status', 'N/A')}) | "
+                f"Reason: {s.get('risk_reason', 'None')}\n"
+            )
         data = {'total': total, 'high': high, 'medium': medium, 'low': low, 'pending_leaves': pending}
     except Exception as e:
         print("CHAT CONTEXT ERROR (teacher):", e)
@@ -1051,6 +1064,32 @@ def _safe_int(val, default=0):
         return int(val)
     except (ValueError, TypeError):
         return default
+
+def _recalc_risk(students):
+    """Recalculate risk_score for students that don't have it stored in DB."""
+    for s in students:
+        if s.get("risk_score") is None:
+            rs = 0
+            mts = _safe_int(s.get("monthly_test_score"), 100)
+            att = _safe_int(s.get("attendance"), 100)
+            assign = str(s.get("assignment", "")).lower()
+            quiz = str(s.get("quiz", "")).lower()
+            if mts < 35:
+                rs += 40
+            if att < 60:
+                rs += 30
+            if assign in ("not completed", "incomplete", "pending", "poor"):
+                rs += 15
+            elif _safe_int(s.get("assignment"), 100) < 50:
+                rs += 15
+            if quiz in ("not completed", "incomplete", "pending", "poor"):
+                rs += 15
+            elif _safe_int(s.get("quiz"), 100) < 50:
+                rs += 15
+            s["risk_score"] = rs
+        if not s.get("risk_status"):
+            s["risk_status"] = "At Risk" if s["risk_score"] >= 60 else "Safe"
+    return students
 
 def _fallback(role, message, extra_data):
     return "Sorry, I'm temporarily unavailable. Please try again in a few minutes."
@@ -1200,35 +1239,30 @@ def teacher_dashboard():
     if session.get('role') != 'teacher':
         return redirect(url_for('index'))
 
-    response = supabase.table("student_performance").select("*").execute()
-    students = response.data
+    response = supabase.table("student_performance").select("*").eq("is_deleted", False).execute()
+    students = _recalc_risk(response.data or [])
 
     total_students = len(students)
+    high_risk = len([s for s in students if s["risk_score"] >= 60])
+    medium_risk = len([s for s in students if 40 <= s["risk_score"] < 60])
+    low_risk = len([s for s in students if s["risk_score"] < 40])
 
-    high_risk = len([
-    s for s in students
-    if (s.get("risk_score") or 0) >= 60
-])
-
-    medium_risk = len([s for s in students if 40 <= s.get("risk_score", 0) < 60])
-    low_risk = len([s for s in students if s.get("risk_score", 0) < 40])
-
-    # Standard-wise risk
+    # Standard-wise risk breakdown
     standards = sorted(set(s["standard"] for s in students))
     standard_risk_counts = []
+    std_high = []
+    std_medium = []
+    std_low = []
 
     for std in standards:
-        count = len([
-            s for s in students 
-            if s["standard"] == std and s.get("risk_score", 0) >= 40
-        ])
-        standard_risk_counts.append(count)
+        cls = [s for s in students if s["standard"] == std]
+        standard_risk_counts.append(len([s for s in cls if s["risk_score"] >= 40]))
+        std_high.append(len([s for s in cls if s["risk_score"] >= 60]))
+        std_medium.append(len([s for s in cls if 40 <= s["risk_score"] < 60]))
+        std_low.append(len([s for s in cls if s["risk_score"] < 40]))
 
-    # -------- STUDENT LEAVE REQUESTS --------
-    try:
-        leave_requests = supabase.table("student_leaves").select("*").order("created_at", desc=True).execute().data or []
-    except:
-        leave_requests = []
+    # Format standard labels
+    std_labels = [f"Class {s}" for s in standards]
 
     return render_template(
         "teacher/dashboard.html",
@@ -1236,9 +1270,11 @@ def teacher_dashboard():
         high_risk=high_risk,
         medium_risk=medium_risk,
         low_risk=low_risk,
-        standards=standards,
+        standards=std_labels,
         standard_risk_counts=standard_risk_counts,
-        leave_requests=leave_requests
+        std_high=std_high,
+        std_medium=std_medium,
+        std_low=std_low
     )
 
 
@@ -1253,7 +1289,19 @@ def teacher_leave_action(leave_id, action):
         }).eq("id", leave_id).execute()
         flash(f"Leave {action.lower()}.", "success")
 
-    return redirect(url_for('teacher_dashboard'))
+    return redirect(url_for('teacher_leave_requests'))
+
+@app.route('/teacher/leave_requests')
+def teacher_leave_requests():
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+    try:
+        leave_requests = supabase.table("student_leaves").select("*").order("created_at", desc=True).execute().data or []
+    except:
+        leave_requests = []
+    pending = len([l for l in leave_requests if l.get("status") == "Pending"])
+    return render_template("teacher/leave_requests.html", leave_requests=leave_requests, pending_count=pending)
+
 @app.route('/teacher/add_student', methods=['GET', 'POST'])
 def add_student():
     if session.get('role') != 'teacher':
@@ -1369,6 +1417,7 @@ def add_student():
             "quiz": quiz_status,
             "behaviour": request.form.get("behaviour", ""),
             "subjects": subjects,
+            "risk_score": risk_score,
             "risk": risk_text,
             "risk_reason": ", ".join(risk_reason),
             "risk_status": risk_status,
@@ -1416,19 +1465,12 @@ def student_records():
         print("FETCH ERROR:", e)
         students = []
 
-    # ---------------- SAFE RISK FIX ----------------
-    for s in students:
-
-        if s.get("risk_score") is None:
-            s["risk_score"] = 0
-
-        if not s.get("risk_status"):
-            s["risk_status"] = "At Risk" if s["risk_score"] >= 60 else "Safe"
+    students = _recalc_risk(students)
 
     # ---------------- RISK COUNTS ----------------
-    high_risk = len([s for s in students if s.get("risk_score", 0) >= 60])
-    medium_risk = len([s for s in students if 40 <= s.get("risk_score", 0) < 60])
-    low_risk = len([s for s in students if s.get("risk_score", 0) < 40])
+    high_risk = len([s for s in students if s["risk_score"] >= 60])
+    medium_risk = len([s for s in students if 40 <= s["risk_score"] < 60])
+    low_risk = len([s for s in students if s["risk_score"] < 40])
 
     # ---------------- GROUP STANDARD WISE (1–8) ----------------
     grouped = {}
