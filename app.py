@@ -22,6 +22,10 @@ import cloudinary
 import cloudinary.uploader
 # -------- NLP & GENERATIVE AI --------
 from textblob import TextBlob
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors, pagesizes
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
 import google.generativeai as genai
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -1534,10 +1538,149 @@ def add_student():
             return redirect('/teacher/student_records')  # Fixed URL
 
     else:
-          flash(f"Insert failed! Error: {response}", "danger")
-          return redirect(url_for('add_student'))
+           flash(f"Insert failed! Error: {response}", "danger")
+           return redirect(url_for('add_student'))
 
-          return render_template("teacher/add_student.html")
+    return render_template("teacher/add_student.html")@app.route('/teacher/add_student', methods=['GET', 'POST'])
+def add_student():
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        # ---------------- BASIC DETAILS ----------------
+        name = request.form.get('name', '').strip()
+        roll = request.form.get('roll', '').strip()
+        standard = request.form.get('standard', '')
+        division = request.form.get('division', '')
+        email = request.form.get('email', '').strip().lower()
+        gender = request.form.get('gender', '')
+
+        # ---------------- SUBJECT ATTENDANCE ----------------
+        subjects = request.form.getlist("subjects[]")
+        attendance_list = request.form.getlist("attendance[]")
+
+        # Calculate average attendance safely
+        attendance_values = []
+        for a in attendance_list:
+            try:
+                val = int(a)
+                if 0 <= val <= 100:
+                    attendance_values.append(val)
+            except (ValueError, TypeError):
+                continue
+        
+        avg_attendance = int(sum(attendance_values) / len(attendance_values)) if attendance_values else 0
+
+        # ---------------- ACADEMIC ----------------
+        monthly_test_score = 0
+        try:
+            monthly_input = request.form.get('monthly_score', '0')
+            monthly_test_score = int(monthly_input)
+        except (ValueError, TypeError):
+            monthly_test_score = 0
+
+        assignment_status = request.form.get("assignment", "").strip()
+        quiz_status = request.form.get("quiz", "").strip()
+
+        # ---------------- PARENT ----------------
+        parent_name = request.form.get('parent_name', '').strip()
+        parent_phone = request.form.get('parent_phone', '').strip()
+        parent_alt_phone = request.form.get('parent_alt_phone', '').strip()
+        parent_address = request.form.get('parent_address', '').strip()
+
+        # ---------------- VALIDATION ----------------
+        if not all([name, roll, standard, email]):
+            flash("Please fill required fields: Name, Roll, Standard, Email", "danger")
+            return redirect(url_for('add_student'))
+
+        # ---------------- DUPLICATE CHECK ----------------
+        existing = supabase.table("student_performance") \
+            .select("id") \
+            .eq("email", email) \
+            .eq("is_deleted", False) \
+            .execute()
+
+        if existing.data:
+            flash("Student with this email already exists!", "danger")
+            return redirect(url_for('add_student'))
+
+        # ---------------- STATUS TO SCORE ----------------
+        assignment_score = 100 if assignment_status == "Completed" else 0
+        
+        if quiz_status == "Good":
+            quiz_score = 100
+        elif quiz_status == "Average":
+            quiz_score = 50
+        else:
+            quiz_score = 0
+
+        # ---------------- RISK CALCULATION ----------------
+        risk_score = 0
+        risk_reason = []
+
+        if monthly_test_score < 35:
+            risk_score += 40
+            risk_reason.append("Low Monthly Score")
+
+        if avg_attendance < 60:
+            risk_score += 30
+            risk_reason.append("Low Attendance")
+
+        if assignment_score < 50:
+            risk_score += 15
+            risk_reason.append("Low Assignment")
+
+        if quiz_score < 50:
+            risk_score += 15
+            risk_reason.append("Low Quiz")
+
+        # Convert numeric score to text for DB
+        if risk_score >= 60:
+            risk_text = "High Risk"
+        elif risk_score >= 40:
+            risk_text = "Medium Risk"
+        else:
+            risk_text = "Low Risk"
+
+        risk_status = "At Risk" if risk_score >= 60 else "Safe"
+        insert_data = {
+            "name": name,
+            "roll": roll,
+            "standard": int(standard),
+            "division": division,
+            "email": email,
+            "gender": gender or None,
+            "monthly_test_score": monthly_test_score,
+            "attendance": avg_attendance,
+            "assignment": assignment_status,
+            "quiz": quiz_status,
+            "behaviour": request.form.get("behaviour", ""),
+            "subjects": subjects,
+            "risk": risk_text,
+            "risk_reason": ", ".join(risk_reason),
+            "risk_status": risk_status,
+            "month": request.form.get("month"),
+            "parent_name": parent_name,
+            "parent_phone": parent_phone,
+            "parent_alt_phone": parent_alt_phone or None,
+            "parent_address": parent_address,
+            "role": "student",
+            "is_deleted": False
+        }
+
+
+        response = supabase.table("student_performance") \
+            .insert(insert_data) \
+            .execute()
+
+        if response.data:
+            flash("Student Added Successfully!", "success")
+            return redirect(url_for('student_records'))
+        else:
+            flash(f"Insert failed! Error: {response}", "danger")
+            return redirect(url_for('add_student'))
+
+    return render_template("teacher/add_student.html")
 
 @app.route('/teacher/student_records')
 def student_records():
