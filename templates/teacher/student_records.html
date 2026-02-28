@@ -38,18 +38,17 @@
   <div class="table-responsive">
     <table class="table-clean" style="table-layout:fixed;width:100%;">
       <colgroup>
-        <col style="width:11%;"><!-- Name -->
-        <col style="width:5%;"><!-- Roll -->
-        <col style="width:4%;"><!-- Std -->
-        <col style="width:4%;"><!-- Div -->
-        <col style="width:7%;"><!-- Gender -->
-        <col style="width:6%;"><!-- Risk -->
-        <col style="width:13%;"><!-- Reason -->
-        <col style="width:9%;"><!-- Assignment -->
-        <col style="width:9%;"><!-- Behaviour -->
-        <col style="width:10%;"><!-- Parent -->
+        <col style="width:14%;"><!-- Name -->
+        <col style="width:6%;"><!-- Roll -->
+        <col style="width:5%;"><!-- Std -->
+        <col style="width:5%;"><!-- Div -->
+        <col style="width:8%;"><!-- Gender -->
+        <col style="width:7%;"><!-- Risk -->
+        <col style="width:16%;"><!-- Reason -->
+        <col style="width:10%;"><!-- Assignment -->
+        <col style="width:10%;"><!-- Behaviour -->
         <col style="width:10%;"><!-- Phone -->
-        <col style="width:12%;"><!-- Address -->
+        <col style="width:9%;"><!-- Address -->
       </colgroup>
       <thead>
         <tr>
@@ -62,7 +61,6 @@
           <th>Reason</th>
           <th>Assignment</th>
           <th>Behaviour</th>
-          <th>Parent</th>
           <th>Phone</th>
           <th>Address</th>
         </tr>
@@ -92,9 +90,8 @@
             {% endif %}
           </td>
           <td class="td-truncate" title="{{ s.get('risk_reason') or '-' }}">{{ s.get("risk_reason") or "-" }}</td>
-          <td class="td-truncate">{{ s.get("assignment_status") or "-" }}</td>
+          <td class="td-truncate">{{ s.get("assignment") or "-" }}</td>
           <td class="td-truncate">{{ s.get("behaviour") or "-" }}</td>
-          <td class="td-truncate">{{ s.get("parent_name") or "-" }}</td>
           <td class="td-truncate">{{ s.get("parent_phone") or "-" }}</td>
           <td class="td-truncate" title="{{ s.get('parent_address') or '-' }}">{{ s.get("parent_address") or "-" }}</td>
         </tr>

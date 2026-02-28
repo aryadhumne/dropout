@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}AI Student Analysis - EduDrop{% endblock %}
+{% block page_title %}School Dropout Monitoring{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block sidebar %}
+<a href="{{ url_for('dashboard_principal') }}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('principal_ai_analysis') }}" class="active"><i class="bi bi-cpu"></i><span>AI Analysis</span></a>
+<a href="{{ url_for('principal_teachers') }}"><i class="bi bi-people"></i><span>Teacher Management</span></a>
+<a href="{{ url_for('principal_feedback') }}"><i class="bi bi-chat-dots"></i><span>Student Feedback</span></a>
+<a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<div class="card mb-4">
+  <h6 style="font-weight:600;margin-bottom:16px;">Filters</h6>
+  <form method="GET">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <select name="class_filter" class="form-control">
+          <option value="">All Classes</option>
+          {% for i in range(1,9) %}<option value="{{i}}" {% if request.args.get('class_filter') == i|string %}selected{% endif %}>Class {{i}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="risk_filter" class="form-control">
+          <option value="">All Risk</option>
+          <option value="High" {% if request.args.get('risk_filter') == 'High' %}selected{% endif %}>High</option>
+          <option value="Medium" {% if request.args.get('risk_filter') == 'Medium' %}selected{% endif %}>Medium</option>
+          <option value="Low" {% if request.args.get('risk_filter') == 'Low' %}selected{% endif %}>Low</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="gender_filter" class="form-control">
+          <option value="">All Gender</option>
+          <option value="male" {% if request.args.get('gender_filter') == 'male' %}selected{% endif %}>Male</option>
+          <option value="female" {% if request.args.get('gender_filter') == 'female' %}selected{% endif %}>Female</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value">{{ total_students }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--danger);"><div class="stat-label" style="color:var(--danger);">High Risk</div><div class="stat-value" style="color:var(--danger);">{{ high_risk }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--warning);"><div class="stat-label" style="color:var(--warning);">Medium Risk</div><div class="stat-value" style="color:var(--warning);">{{ medium_risk }}</div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card" style="border-left-color:var(--success);"><div class="stat-label" style="color:var(--success);">Low Risk</div><div class="stat-value" style="color:var(--success);">{{ total_students - high_risk - medium_risk }}</div></div>
+  </div>
+</div>
+
+<!-- AI Student Analysis Table -->
+<div class="card mb-4">
+  <h5 style="font-weight:600;margin-bottom:20px;">AI Student Analysis</h5>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr><th>Roll</th><th>Name</th><th>Class</th><th>Gender</th><th>Attendance</th><th>Marks</th><th>Risk</th><th>Reason</th><th>Action</th><th>Score</th></tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>{{ s[0] }}</td><td>{{ s[1] }}</td><td>{{ s[2] }}</td><td>{{ s[3] }}</td>
+          <td>{{ s[4] }}%</td><td>{{ s[5] }}</td>
+          <td>
+            {% if s[6] == 'High' %}<span class="badge-danger">{{ s[6] }}</span>
+            {% elif s[6] == 'Medium' %}<span class="badge-warning">{{ s[6] }}</span>
+            {% else %}<span class="badge-success">{{ s[6] }}</span>{% endif %}
+          </td>
+          <td>{{ s[7] }}</td><td>{{ s[8] }}</td><td>{{ s[9] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% set chatbot_greeting = "Hi! I'm EduBot, your school analytics assistant. Ask me about student risk analysis or intervention strategies!" %}
+{% set chatbot_subtitle = "School Analytics Assistant" %}
+{% set chatbot_role = "principal" %}
+{% include 'partials/chatbot.html' %}
+
+{% endblock %}
