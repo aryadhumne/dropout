@@ -1,0 +1,70 @@
+{% extends 'teacher/base.html' %}
+{% block title %}Leave Requests - EduDrop{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h5 style="font-weight:700;margin:0;"><i class="bi bi-calendar-check"></i> Student Leave Requests</h5>
+  {% if pending_count > 0 %}
+  <span class="badge-warning" style="font-size:0.8rem;padding:5px 12px;">{{ pending_count }} Pending</span>
+  {% endif %}
+</div>
+
+{% if leave_requests %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Class</th>
+          <th>Division</th>
+          <th>Date</th>
+          <th>Reason</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in leave_requests %}
+        <tr>
+          <td style="font-weight:600;">{{ l.student_name }}</td>
+          <td>{{ l.standard or '-' }}</td>
+          <td>{{ l.division or '-' }}</td>
+          <td>{{ l.leave_date }}</td>
+          <td>{{ l.reason }}</td>
+          <td>
+            {% if l.status == 'Approved' %}<span class="badge-success">Approved</span>
+            {% elif l.status == 'Rejected' %}<span class="badge-danger">Rejected</span>
+            {% else %}<span class="badge-warning">Pending</span>{% endif %}
+          </td>
+          <td>
+            {% if l.status == 'Pending' %}
+            <div class="d-flex gap-2">
+              <form method="POST" action="/teacher/leave/{{ l.id }}/Approved" style="margin:0;">
+                <button type="submit" class="btn btn-primary" style="font-size:0.75rem;padding:3px 10px;">Approve</button>
+              </form>
+              <form method="POST" action="/teacher/leave/{{ l.id }}/Rejected" style="margin:0;">
+                <button type="submit" class="btn btn-danger" style="font-size:0.75rem;padding:3px 10px;">Reject</button>
+              </form>
+            </div>
+            {% else %}-{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px;">
+  <i class="bi bi-calendar-x" style="font-size:2.5rem;color:var(--muted);"></i>
+  <p style="color:var(--muted);margin-top:10px;">No leave requests yet.</p>
+</div>
+{% endif %}
+
+{% set chatbot_greeting = "Hi! I'm EduBot, your AI teaching assistant. Ask me about student risk levels, intervention strategies, or data insights!" %}
+{% set chatbot_subtitle = "AI Teaching Assistant" %}
+{% set chatbot_role = "teacher" %}
+{% include 'partials/chatbot.html' %}
+
+{% endblock %}

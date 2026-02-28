@@ -305,5 +305,10 @@ function getCookie(n) { var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]
 {% set chatbot_role = "homepage" %}
 {% include 'partials/chatbot.html' %}
 
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+</script>
 </body>
 </html>
