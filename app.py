@@ -1752,7 +1752,6 @@ def check_risks():
 @app.route('/logout')
 def logout():
     session.clear()
-    flash("Logged out successfully", "success")
     return redirect(url_for('select_role'))
 
 # ---------------- RUN ----------------
