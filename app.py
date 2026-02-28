@@ -585,18 +585,15 @@ def reject_intervention(id):
 
     flash("Intervention rejected", "success")
     return redirect(url_for("dashboard_admin"))
-
-
 @app.route('/admin/add-volunteer', methods=['GET', 'POST'])
 def add_volunteer():
-
+    # Only NGO admin can access
     if session.get('role') != 'ngo_admin':
         flash("Unauthorized", "error")
         return redirect(url_for('login'))
 
     # 🔥 Get logged in admin info
     admin_email = session.get("email")
-
     admin_res = supabase.table("users") \
         .select("district, ngo_name") \
         .eq("email", admin_email) \
@@ -612,43 +609,55 @@ def add_volunteer():
     admin_ngo = admin_data["ngo_name"]
 
     if request.method == 'POST':
+        try:
+            # ✅ Get form data
+            name = request.form.get('name', '').strip()
+            age = request.form.get('age', '').strip()
+            gender = request.form.get('gender', '').strip()
+            mobile = request.form.get('mobile', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '').strip()
 
-        name = request.form['name']
-        age = request.form['age']
-        gender = request.form['gender']
-        mobile = request.form['mobile']
-        email = request.form['email'].strip().lower()
-        password = request.form['password']
+            # 🔹 Server-side validation
+            if not (name and age and gender and mobile and email and password):
+                flash("All fields are required!", "error")
+                return redirect(url_for('add_volunteer'))
 
-        hashed_password = generate_password_hash(password)
+            if not age.isdigit() or int(age) <= 0:
+                flash("Please enter a valid age", "error")
+                return redirect(url_for('add_volunteer'))
 
-    try:
-        supabase.table("users").insert({
-            "role": "volunteer",
-            "name": name,
-            "age": age,
-            "gender": gender,
-            "mobile": mobile,
-            "email": email,
-            "password": hashed_password,
-            # 🔥 STORE SAME DISTRICT & NGO
-            "district": admin_district,
-            "ngo_name": admin_ngo
-        }).execute()
+            age = int(age)
+            hashed_password = generate_password_hash(password)
 
-        flash("Volunteer added successfully!", "success")
-        return redirect(url_for('dashboard_admin'))
+            # 🔹 Insert volunteer
+            supabase.table("users").insert({
+                "role": "volunteer",
+                "name": name,
+                "age": age,
+                "gender": gender,
+                "mobile": mobile,
+                "email": email,
+                "password": hashed_password,
+                "district": admin_district,
+                "ngo_name": admin_ngo
+            }).execute()
 
-    except Exception as e:
-        print("INSERT ERROR:", e)
+            flash("Volunteer added successfully!", "success")
+            return redirect(url_for('dashboard_admin'))
 
-        if "duplicate key value" in str(e):
-            flash("Email already exists!", "error")
-        else:
-            flash("Database error occurred", "error")
+        except Exception as e:
+            print("INSERT ERROR:", e)
 
+            if "duplicate key value" in str(e).lower():
+                flash("Email already exists!", "error")
+            else:
+                flash("Database error occurred", "error")
+
+            return redirect(url_for('add_volunteer'))
+
+    # GET request
     return render_template("add_volunteer.html")
-
 
 @app.route("/get-ngos/<district>")
 def get_ngos(district):
@@ -753,8 +762,7 @@ def role_login(role):
                         "role": "principal",
                         "name": request.form.get("principal_name", ""),
                         "school_name": request.form.get("school_name", ""),
-                        "school_code": request.form.get("school_code", ""),
-                        "school_address": request.form.get("school_address", ""),
+                       
                         "district": request.form.get("district", "")
                     }).execute()
 
@@ -1161,43 +1169,57 @@ def teacher_leave_action(leave_id, action):
         flash(f"Leave {action.lower()}.", "success")
 
     return redirect(url_for('teacher_dashboard'))
-
-
 @app.route('/teacher/add_student', methods=['GET', 'POST'])
 def add_student():
-
     if session.get('role') != 'teacher':
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-
         # ---------------- BASIC DETAILS ----------------
-        name = request.form.get('name')
-        roll = request.form.get('roll')
-        standard = request.form.get('standard')
-        division = request.form.get('division')
-        email = request.form.get('email')
-        gender = request.form.get('gender')
+        name = request.form.get('name', '').strip()
+        roll = request.form.get('roll', '').strip()
+        standard = request.form.get('standard', '')
+        division = request.form.get('division', '')
+        email = request.form.get('email', '').strip().lower()
+        gender = request.form.get('gender', '')
 
         # ---------------- SUBJECT ATTENDANCE ----------------
         subjects = request.form.getlist("subjects[]")
         attendance_list = request.form.getlist("attendance[]")
 
-        # Calculate average attendance
-        attendance_values = [int(a) for a in attendance_list if a.isdigit()]
+        # Calculate average attendance safely
+        attendance_values = []
+        for a in attendance_list:
+            try:
+                val = int(a)
+                if 0 <= val <= 100:
+                    attendance_values.append(val)
+            except (ValueError, TypeError):
+                continue
+        
         avg_attendance = int(sum(attendance_values) / len(attendance_values)) if attendance_values else 0
 
         # ---------------- ACADEMIC ----------------
-        monthly_test_score = int(request.form.get('monthly_score') or 0)
-        assignment= request.form.get("assignment")
-        quiz = request.form.get("quiz")
-    
+        monthly_test_score = 0
+        try:
+            monthly_input = request.form.get('monthly_score', '0')
+            monthly_test_score = int(monthly_input)
+        except (ValueError, TypeError):
+            monthly_test_score = 0
+
+        assignment_status = request.form.get("assignment", "").strip()
+        quiz_status = request.form.get("quiz", "").strip()
 
         # ---------------- PARENT ----------------
-        parent_name = request.form.get('parent_name')
-        parent_phone = request.form.get('parent_phone')
-        parent_alt_phone = request.form.get('parent_alt_phone')
-        parent_address = request.form.get('parent_address')
+        parent_name = request.form.get('parent_name', '').strip()
+        parent_phone = request.form.get('parent_phone', '').strip()
+        parent_alt_phone = request.form.get('parent_alt_phone', '').strip()
+        parent_address = request.form.get('parent_address', '').strip()
+
+        # ---------------- VALIDATION ----------------
+        if not all([name, roll, standard, email]):
+            flash("Please fill required fields: Name, Roll, Standard, Email", "danger")
+            return redirect(url_for('add_student'))
 
         # ---------------- DUPLICATE CHECK ----------------
         existing = supabase.table("student_performance") \
@@ -1207,15 +1229,15 @@ def add_student():
             .execute()
 
         if existing.data:
-            flash("Student already exists!", "danger")
+            flash("Student with this email already exists!", "danger")
             return redirect(url_for('add_student'))
 
         # ---------------- STATUS TO SCORE ----------------
-        assignment = 100 if assignment == "Completed" else 0
-
-        if quiz == "Good":
+        assignment_score = 100 if assignment_status == "Completed" else 0
+        
+        if quiz_status == "Good":
             quiz_score = 100
-        elif quiz == "Average":
+        elif quiz_status == "Average":
             quiz_score = 50
         else:
             quiz_score = 0
@@ -1232,7 +1254,7 @@ def add_student():
             risk_score += 30
             risk_reason.append("Low Attendance")
 
-        if assignment < 50:
+        if assignment_score < 50:
             risk_score += 15
             risk_reason.append("Low Assignment")
 
@@ -1240,35 +1262,41 @@ def add_student():
             risk_score += 15
             risk_reason.append("Low Quiz")
 
+        # Convert numeric score to text for DB
+        if risk_score >= 60:
+            risk_text = "High Risk"
+        elif risk_score >= 40:
+            risk_text = "Medium Risk"
+        else:
+            risk_text = "Low Risk"
+
         risk_status = "At Risk" if risk_score >= 60 else "Safe"
-
-        # ---------------- INSERT ----------------
         insert_data = {
-    "name": name,
-    "roll": roll,
-    "standard": int(standard),
-    "division": division,
-    "email": email,
-    "gender": gender,
-    "monthly_test_score": monthly_test_score,
-    "attendance": avg_attendance,
+            "name": name,
+            "roll": roll,
+            "standard": int(standard),
+            "division": division,
+            "email": email,
+            "gender": gender or None,
+            "monthly_test_score": monthly_test_score,
+            "attendance": avg_attendance,
+            "assignment": assignment_status,
+            "quiz": quiz_status,
+            "behaviour": request.form.get("behaviour", ""),
+            "subjects": subjects,
+            "risk": risk_text,
+            "risk_reason": ", ".join(risk_reason),
+            "risk_status": risk_status,
+            "month": request.form.get("month"),
+            "parent_name": parent_name,
+            "parent_phone": parent_phone,
+            "parent_alt_phone": parent_alt_phone or None,
+            "parent_address": parent_address,
+            "role": "student",
+            "is_deleted": False
+        }
 
-    # ✅ Only status (no score columns)
-    "assignment": assignment,
-    "quiz": quiz,
 
-
-    "risk_score": risk_score,
-    "risk_reason": ", ".join(risk_reason),
-    "risk_status": risk_status,
-
-    "parent_name": parent_name,
-    "parent_phone": parent_phone,
-    "parent_alt_phone": parent_alt_phone,
-    "parent_address": parent_address,
-
-    "is_deleted": False
-}
         response = supabase.table("student_performance") \
             .insert(insert_data) \
             .execute()
@@ -1277,7 +1305,8 @@ def add_student():
             flash("Student Added Successfully!", "success")
             return redirect(url_for('student_records'))
         else:
-            flash("Insert failed! Check RLS Policy.", "danger")
+            flash(f"Insert failed! Error: {response}", "danger")
+            return redirect(url_for('add_student'))
 
     return render_template("teacher/add_student.html")
 @app.route('/teacher/student_records')

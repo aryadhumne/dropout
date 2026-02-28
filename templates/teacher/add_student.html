@@ -56,28 +56,34 @@
           <option>Male</option><option>Female</option><option>Other</option>
         </select>
       </div>
-      <div class="col-md-3 mb-3">
-        <label class="form-label">Assignment Status</label>
-        <select name="assignment_status" class="form-control" required>
-          <option value="">Select</option>
-          <option>Completed</option><option>Not Completed</option>
-        </select>
-      </div>
-      <div class="col-md-3 mb-3">
-        <label class="form-label">Quiz Performance</label>
-        <select name="quiz_performance" class="form-control" required>
-          <option value="">Select</option>
-          <option>Good</option><option>Average</option><option>Poor</option>
-        </select>
-      </div>
-      <div class="col-md-3 mb-3">
-        <label class="form-label">Behaviour</label>
-        <select name="behaviour" class="form-control" required>
-          <option value="">Select</option>
-          <option>Excellent</option><option>Good</option><option>Average</option><option>Poor</option>
-        </select>
-      </div>
-    </div>
+     <!-- FIND AND REPLACE THE FOLLOWING IN YOUR add_student.html -->
+
+<!-- 1. Fix Assignment Field Name -->
+<div class="col-md-3 mb-3">
+  <label class="form-label">Assignment Status</label>
+  <!-- Changed name="assignment_status" to name="assignment" -->
+  <select name="assignment" class="form-control" required>
+    <option value="">Select</option>
+    <option>Completed</option><option>Not Completed</option>
+  </select>
+</div>
+
+<!-- 2. Fix Quiz Field Name -->
+<div class="col-md-3 mb-3">
+  <label class="form-label">Quiz Performance</label>
+  <!-- Changed name="quiz_performance" to name="quiz" -->
+  <select name="quiz" class="form-control" required>
+    <option value="">Select</option>
+    <option>Good</option><option>Average</option><option>Poor</option>
+  </select>
+</div>
+
+<!-- 3. Change Behaviour to Text Input -->
+<div class="col-md-3 mb-3">
+  <label class="form-label">Behaviour</label>
+  <!-- Changed from select to input type="text", added maxlength (approx 150 chars for 25 words) -->
+  <input type="text" name="behaviour" class="form-control" maxlength="150" placeholder="Max 25 words" required>
+</div>
 
     <h6 style="font-weight:600;margin:20px 0 12px;color:var(--primary);">Monthly Test</h6>
     <div class="mb-3">
