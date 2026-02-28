@@ -1099,11 +1099,6 @@ textarea.form-control {
   color: #ffffff;
   text-align: center;
   padding: 80px 24px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 .cta-section h2 {
