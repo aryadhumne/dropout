@@ -8,7 +8,10 @@
 {% block page_title %}School Dropout Monitoring{% endblock %}
 
 {% block sidebar %}
-<a href="#" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('dashboard_principal') }}" class="active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('principal_ai_analysis') }}"><i class="bi bi-cpu"></i><span>AI Analysis</span></a>
+<a href="{{ url_for('principal_teachers') }}"><i class="bi bi-people"></i><span>Teacher Management</span></a>
+<a href="{{ url_for('principal_feedback') }}"><i class="bi bi-chat-dots"></i><span>Student Feedback</span></a>
 <a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
 {% endblock %}
 
@@ -17,45 +20,44 @@
 <!-- Filters -->
 <div class="card mb-4">
   <h6 style="font-weight:600;margin-bottom:16px;">Filters</h6>
-  <form method="GET">
+  <form method="GET" id="filterForm">
     <div class="row g-3">
       <div class="col-md-2">
-        <select name="class_filter" class="form-control">
+        <select name="class_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Classes</option>
-          {% for i in range(1,9) %}<option value="{{i}}">Class {{i}}</option>{% endfor %}
+          {% for i in range(1,9) %}<option value="{{i}}" {% if request.args.get('class_filter') == i|string %}selected{% endif %}>Class {{i}}</option>{% endfor %}
         </select>
       </div>
       <div class="col-md-2">
-        <select name="risk_filter" class="form-control">
+        <select name="risk_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Risk</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
+          <option value="High" {% if request.args.get('risk_filter') == 'High' %}selected{% endif %}>High</option>
+          <option value="Medium" {% if request.args.get('risk_filter') == 'Medium' %}selected{% endif %}>Medium</option>
+          <option value="Low" {% if request.args.get('risk_filter') == 'Low' %}selected{% endif %}>Low</option>
         </select>
       </div>
       <div class="col-md-2">
-        <select name="gender_filter" class="form-control">
+        <select name="gender_filter" class="form-control" onchange="this.form.submit()">
           <option value="">All Gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
+          <option value="male" {% if request.args.get('gender_filter') == 'male' %}selected{% endif %}>Male</option>
+          <option value="female" {% if request.args.get('gender_filter') == 'female' %}selected{% endif %}>Female</option>
         </select>
       </div>
       <div class="col-md-2">
-        <input type="number" name="min_att" class="form-control" placeholder="Min Attendance %">
+        <input type="number" name="min_att" class="form-control" placeholder="Min Attendance %" value="{{ request.args.get('min_att', '') }}" onchange="this.form.submit()">
       </div>
       <div class="col-md-2">
-        <input type="number" name="min_marks" class="form-control" placeholder="Min Marks">
+        <input type="number" name="min_marks" class="form-control" placeholder="Min Marks" value="{{ request.args.get('min_marks', '') }}" onchange="this.form.submit()">
       </div>
       <div class="col-md-2">
-        <select name="date_range" class="form-control">
+        <select name="date_range" class="form-control" onchange="this.form.submit()">
           <option value="">All Dates</option>
-          <option value="7">Last 7 Days</option>
-          <option value="30">Last 30 Days</option>
-          <option value="90">Last 90 Days</option>
+          <option value="7" {% if request.args.get('date_range') == '7' %}selected{% endif %}>Last 7 Days</option>
+          <option value="30" {% if request.args.get('date_range') == '30' %}selected{% endif %}>Last 30 Days</option>
+          <option value="90" {% if request.args.get('date_range') == '90' %}selected{% endif %}>Last 90 Days</option>
         </select>
       </div>
     </div>
-    <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
   </form>
 </div>
 
@@ -120,104 +122,22 @@
       <thead><tr><th>Name</th><th>Attendance</th></tr></thead>
       <tbody>
         {% for r in red_flags %}
-        <tr><td>{{ r[0] }}</td><td><span class="badge-danger">{{ r[1] }}%</span></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Student Analysis Table -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;margin-bottom:16px;">AI Student Analysis</h6>
-  <div class="table-responsive">
-    <table class="table-clean">
-      <thead>
-        <tr><th>Roll</th><th>Name</th><th>Class</th><th>Gender</th><th>Attendance</th><th>Marks</th><th>Risk</th><th>Reason</th><th>Action</th><th>Score</th></tr>
-      </thead>
-      <tbody>
-        {% for s in students %}
         <tr>
-          <td>{{ s[0] }}</td><td>{{ s[1] }}</td><td>{{ s[2] }}</td><td>{{ s[3] }}</td>
-          <td>{{ s[4] }}%</td><td>{{ s[5] }}</td>
+          <td>{{ r[0] }}</td>
           <td>
-            {% if s[6] == 'High' %}<span class="badge-danger">{{ s[6] }}</span>
-            {% elif s[6] == 'Medium' %}<span class="badge-warning">{{ s[6] }}</span>
-            {% else %}<span class="badge-success">{{ s[6] }}</span>{% endif %}
-          </td>
-          <td>{{ s[7] }}</td><td>{{ s[8] }}</td><td>{{ s[9] }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Teacher Management -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;margin-bottom:16px;">Teacher Management</h6>
-  <form method="POST" action="{{ url_for('add_teacher') }}" class="mb-4">
-    <div class="row g-3">
-      <div class="col-md-3"><input type="text" name="name" class="form-control" placeholder="Teacher Name" required></div>
-      <div class="col-md-3"><input type="email" name="email" class="form-control" placeholder="Email" required></div>
-      <div class="col-md-3">
-        <select name="assigned_class" class="form-control" required>
-          {% for i in range(1,9) %}<option value="{{i}}">Class {{i}}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3"><button type="submit" class="btn btn-primary w-100">Add Teacher</button></div>
-    </div>
-  </form>
-  <div class="table-responsive">
-    <table class="table-clean">
-      <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Class</th><th>Action</th></tr></thead>
-      <tbody>
-        {% for t in teachers %}
-        <tr>
-          <td>{{ t.id }}</td><td>{{ t.name }}</td><td>{{ t.email }}</td><td>{{ t.assigned_class }}</td>
-          <td><a href="{{ url_for('remove_teacher', teacher_id=t.id) }}" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Delete this teacher?')">Delete</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Student Feedback -->
-<div class="card mb-4">
-  <h6 style="font-weight:600;margin-bottom:16px;">Student Feedback</h6>
-  {% if feedbacks %}
-  <div class="table-responsive">
-    <table class="table-clean">
-      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>About Teacher</th><th>Feedback</th><th>Sentiment</th><th>Date</th></tr></thead>
-      <tbody>
-        {% for f in feedbacks %}
-        <tr>
-          <td>{{ f.student_name }}</td>
-          <td>{{ f.standard or '-' }}</td>
-          <td>{{ f.division or '-' }}</td>
-          <td>{{ f.teacher_name or '-' }}</td>
-          <td>{{ f.feedback_text }}</td>
-          <td>
-            {% if f.sentiment_label == 'Positive' %}
-              <span class="badge-success" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
-            {% elif f.sentiment_label == 'Negative' %}
-              <span class="badge-danger" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
-            {% elif f.sentiment_label %}
-              <span class="badge-warning" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% if r[1] < 30 %}
+            <span class="badge-danger">{{ r[1] }}%</span>
+            {% elif r[1] < 60 %}
+            <span class="badge-warning">{{ r[1] }}%</span>
             {% else %}
-              <span style="color:var(--muted);">-</span>
+            <span class="badge-success">{{ r[1] }}%</span>
             {% endif %}
           </td>
-          <td>{{ f.created_at[:10] if f.created_at else '-' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-  <p style="color:var(--text-muted);">No feedback received yet.</p>
-  {% endif %}
 </div>
 
 <script>

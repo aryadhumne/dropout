@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Student Feedback - EduDrop{% endblock %}
+{% block page_title %}School Dropout Monitoring{% endblock %}
+
+{% block sidebar %}
+<a href="{{ url_for('dashboard_principal') }}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('principal_ai_analysis') }}"><i class="bi bi-cpu"></i><span>AI Analysis</span></a>
+<a href="{{ url_for('principal_teachers') }}"><i class="bi bi-people"></i><span>Teacher Management</span></a>
+<a href="{{ url_for('principal_feedback') }}" class="active"><i class="bi bi-chat-dots"></i><span>Student Feedback</span></a>
+<a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Feedback Window Control -->
+<div class="card mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 style="font-weight:600;margin:0;">Feedback Window</h5>
+    {% if window and window_active %}
+    <span class="badge-success" style="font-size:0.8rem;padding:6px 14px;">Active</span>
+    {% elif window %}
+    <span class="badge-warning" style="font-size:0.8rem;padding:6px 14px;">Closed</span>
+    {% else %}
+    <span style="color:var(--text-muted);font-size:0.85rem;">No window created yet</span>
+    {% endif %}
+  </div>
+
+  {% if window %}
+  <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">
+    Latest window: <strong>{{ window.start_date }}</strong> to <strong>{{ window.end_date }}</strong>
+    {% if window_active %}
+    — Students can submit feedback now.
+    {% else %}
+    — This window has ended.
+    {% endif %}
+  </p>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('create_feedback_window') }}">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="start_date" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">End Date</label>
+        <input type="date" name="end_date" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <button type="submit" class="btn btn-primary w-100">Open New Feedback Window</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <form method="GET">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label" style="font-weight:600;">Teacher</label>
+        <select name="teacher_filter" class="form-control" onchange="this.form.submit()">
+          <option value="">All Teachers</option>
+          {% for t in teacher_names %}
+          <option value="{{ t }}" {% if filter_teacher == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" style="font-weight:600;">Sentiment</label>
+        <select name="sentiment_filter" class="form-control" onchange="this.form.submit()">
+          <option value="">All Sentiments</option>
+          <option value="Positive" {% if filter_sentiment == 'Positive' %}selected{% endif %}>Positive</option>
+          <option value="Neutral" {% if filter_sentiment == 'Neutral' %}selected{% endif %}>Neutral</option>
+          <option value="Negative" {% if filter_sentiment == 'Negative' %}selected{% endif %}>Negative</option>
+        </select>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Feedback Table -->
+<div class="card mb-4">
+  <h5 style="font-weight:600;margin-bottom:20px;">
+    Student Feedback
+    {% if window %}
+    <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted);margin-left:8px;">({{ window.start_date }} to {{ window.end_date }})</span>
+    {% endif %}
+  </h5>
+  {% if feedbacks %}
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead><tr><th>Student</th><th>Class</th><th>Division</th><th>About Teacher</th><th>Feedback</th><th>Sentiment</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for f in feedbacks %}
+        <tr>
+          <td>{{ f.student_name }}</td>
+          <td>{{ f.standard or '-' }}</td>
+          <td>{{ f.division or '-' }}</td>
+          <td>{{ f.teacher_name or '-' }}</td>
+          <td>{{ f.feedback_text }}</td>
+          <td>
+            {% if f.sentiment_label == 'Positive' %}
+              <span class="badge-success" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% elif f.sentiment_label == 'Negative' %}
+              <span class="badge-danger" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% elif f.sentiment_label %}
+              <span class="badge-warning" style="font-size:0.75rem;">{{ f.sentiment_label }}</span>
+            {% else %}
+              <span style="color:var(--muted);">-</span>
+            {% endif %}
+          </td>
+          <td>{{ f.created_at[:10] if f.created_at else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted);">No feedback received {% if window %}for this window {% endif %}yet.</p>
+  {% endif %}
+</div>
+
+{% set chatbot_greeting = "Hi! I'm EduBot, your school analytics assistant. Ask me about student feedback or sentiment trends!" %}
+{% set chatbot_subtitle = "School Analytics Assistant" %}
+{% set chatbot_role = "principal" %}
+{% include 'partials/chatbot.html' %}
+
+{% endblock %}

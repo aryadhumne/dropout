@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Teacher Management - EduDrop{% endblock %}
+{% block page_title %}School Dropout Monitoring{% endblock %}
+
+{% block sidebar %}
+<a href="{{ url_for('dashboard_principal') }}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+<a href="{{ url_for('principal_ai_analysis') }}"><i class="bi bi-cpu"></i><span>AI Analysis</span></a>
+<a href="{{ url_for('principal_teachers') }}" class="active"><i class="bi bi-people"></i><span>Teacher Management</span></a>
+<a href="{{ url_for('principal_feedback') }}"><i class="bi bi-chat-dots"></i><span>Student Feedback</span></a>
+<a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Teacher Management -->
+<div class="card mb-4">
+  <h5 style="font-weight:600;margin-bottom:20px;">Teacher Management</h5>
+  <form method="POST" action="{{ url_for('add_teacher') }}" class="mb-4">
+    <div class="row g-3">
+      <div class="col-md-3"><input type="text" name="name" class="form-control" placeholder="Teacher Name" required></div>
+      <div class="col-md-3"><input type="email" name="email" class="form-control" placeholder="Email" required></div>
+      <div class="col-md-3">
+        <select name="assigned_class" class="form-control" required>
+          {% for i in range(1,9) %}<option value="{{i}}">Class {{i}}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><button type="submit" class="btn btn-primary w-100">Add Teacher</button></div>
+    </div>
+  </form>
+  <div class="table-responsive">
+    <table class="table-clean">
+      <thead><tr><th>Name</th><th>Email</th><th>Class</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for t in teachers %}
+        <tr>
+          <td>{{ t.name }}</td><td>{{ t.email }}</td><td>{{ t.assigned_class }}</td>
+          <td><a href="{{ url_for('remove_teacher', teacher_id=t.id) }}" class="btn btn-danger" style="font-size:0.8rem;padding:4px 12px;" onclick="return confirm('Delete this teacher?')">Delete</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% set chatbot_greeting = "Hi! I'm EduBot, your school analytics assistant. Ask me about teachers or intervention strategies!" %}
+{% set chatbot_subtitle = "School Analytics Assistant" %}
+{% set chatbot_role = "principal" %}
+{% include 'partials/chatbot.html' %}
+
+{% endblock %}

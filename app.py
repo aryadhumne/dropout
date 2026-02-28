@@ -819,14 +819,44 @@ def dashboard_student():
         flash("Performance data not found", "danger")
         return redirect(url_for('student_login'))
 
+    # Recalculate risk score from actual data
+    performance_data = _recalc_risk(performance.data)
+
     # Fetch teachers for feedback dropdown
     teachers = supabase.table("teachers").select("id,name").execute().data or []
 
+    # Check for active feedback window
+    feedback_active = False
+    feedback_window = None
+    already_reviewed = []
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        windows = supabase.table("feedback_windows").select("*").lte("start_date", today).gte("end_date", today).order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            feedback_window = windows[0]
+            feedback_active = True
+            # Find which teachers this student already reviewed in this window
+            existing = supabase.table("student_feedback").select("teacher_name").eq("student_id", str(student_id)).eq("window_id", feedback_window["id"]).execute().data or []
+            already_reviewed = [e["teacher_name"] for e in existing]
+    except:
+        pass
+
+    # Fetch student's leave history
+    leave_history = []
+    try:
+        leave_history = supabase.table("student_leaves").select("*").eq("student_id", str(student_id)).order("created_at", desc=True).execute().data or []
+    except:
+        pass
+
     return render_template(
         "student/dashboard.html",
-        performance=performance.data,
+        performance=performance_data,
         teachers=teachers,
-        no_data=False
+        no_data=False,
+        feedback_active=feedback_active,
+        feedback_window=feedback_window,
+        already_reviewed=already_reviewed,
+        leave_history=leave_history
     )
 
 
@@ -843,6 +873,31 @@ def student_feedback():
         flash("Please enter your feedback.", "danger")
         return redirect(url_for('dashboard_student'))
 
+    # Check for active feedback window
+    active_window = None
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        windows = supabase.table("feedback_windows").select("*").lte("start_date", today).gte("end_date", today).order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            active_window = windows[0]
+    except:
+        pass
+
+    if not active_window:
+        flash("Feedback submission is currently closed.", "danger")
+        return redirect(url_for('dashboard_student'))
+
+    teacher_name = request.form.get('teacher_name', '')
+
+    # Check duplicate: 1 feedback per teacher per student per window
+    try:
+        existing = supabase.table("student_feedback").select("id").eq("student_id", str(student_id)).eq("teacher_name", teacher_name).eq("window_id", active_window["id"]).execute().data
+        if existing:
+            flash(f"You have already submitted feedback for {teacher_name} in this period.", "warning")
+            return redirect(url_for('dashboard_student'))
+    except:
+        pass
+
     # Get student info for display on principal dashboard
     student_account = supabase.table("students").select("*").eq("id", student_id).execute()
     student_name = "Unknown"
@@ -857,8 +912,6 @@ def student_feedback():
                 student_name = perf.data[0].get("name", "Unknown")
                 standard = perf.data[0].get("standard")
                 division = perf.data[0].get("division")
-
-    teacher_name = request.form.get('teacher_name', '')
 
     # -------- SENTIMENT ANALYSIS (TextBlob) --------
     try:
@@ -882,7 +935,8 @@ def student_feedback():
         "feedback_text": feedback_text,
         "teacher_name": teacher_name,
         "sentiment_score": sentiment_score,
-        "sentiment_label": sentiment_label
+        "sentiment_label": sentiment_label,
+        "window_id": active_window["id"]
     }).execute()
 
     flash("Feedback submitted successfully!", "success")
@@ -1100,14 +1154,30 @@ def api_chat():
     data = request.get_json()
     message = data.get('message', '') if data else ''
     role = data.get('role', '') if data else ''
+    lang = data.get('lang', 'en') if data else 'en'
     if not message:
         return jsonify({"error": "No message provided"}), 400
 
     allowed_roles = ['homepage', 'student', 'teacher', 'principal']
-    if role not in allowed_roles:
-        return jsonify({"error": "Unauthorized"}), 401
-    if role != 'homepage' and session.get('role') != role:
-        return jsonify({"error": "Unauthorized"}), 401
+    # Use session role if available, fall back to requested role for homepage
+    session_role = session.get('role')
+    if role == 'homepage':
+        pass  # No auth needed for homepage
+    elif session_role in allowed_roles:
+        role = session_role  # Trust the session, not the frontend
+    else:
+        return jsonify({"error": "Please log in to use the chatbot."}), 401
+
+    # Language name map
+    _lang_names = {
+        'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'te': 'Telugu',
+        'mr': 'Marathi', 'ta': 'Tamil', 'gu': 'Gujarati', 'kn': 'Kannada',
+        'ml': 'Malayalam', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese',
+        'ur': 'Urdu', 'sa': 'Sanskrit', 'ne': 'Nepali', 'sd': 'Sindhi',
+        'ks': 'Kashmiri', 'doi': 'Dogri', 'mai': 'Maithili',
+        'mni-Mtei': 'Manipuri', 'sat': 'Santali', 'gom': 'Konkani'
+    }
+    lang_name = _lang_names.get(lang, 'English')
 
     context = ""
     extra_data = None
@@ -1126,6 +1196,8 @@ def api_chat():
     if _time.time() > _gemini_cooldown:
         try:
             prompt = system_prompt + "\n\n"
+            if lang != 'en':
+                prompt += f"IMPORTANT: You MUST respond entirely in {lang_name}. The user's preferred language is {lang_name}. Do not use English.\n\n"
             if context:
                 prompt += f"Available data:\n{context}\n\n"
             prompt += f"User's message: {message}"
@@ -1417,7 +1489,6 @@ def add_student():
             "quiz": quiz_status,
             "behaviour": request.form.get("behaviour", ""),
             "subjects": subjects,
-            "risk_score": risk_score,
             "risk": risk_text,
             "risk_reason": ", ".join(risk_reason),
             "risk_status": risk_status,
@@ -1443,6 +1514,156 @@ def add_student():
             return redirect(url_for('add_student'))
 
     return render_template("teacher/add_student.html")
+
+@app.route('/teacher/csv_template')
+def csv_template():
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'name', 'roll', 'standard', 'division', 'email', 'gender',
+        'monthly_test_score', 'attendance', 'assignment', 'quiz',
+        'behaviour', 'parent_name', 'parent_phone', 'parent_alt_phone',
+        'parent_address'
+    ])
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=student_upload_template.csv'}
+    )
+
+@app.route('/teacher/bulk_upload', methods=['POST'])
+def bulk_upload():
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        flash("Please upload a valid CSV file.", "danger")
+        return redirect(url_for('add_student'))
+
+    try:
+        stream = io.StringIO(file.stream.read().decode('utf-8'))
+        reader = csv.DictReader(stream)
+
+        required = ['name', 'roll', 'standard', 'email']
+        if not all(col in (reader.fieldnames or []) for col in required):
+            flash(f"CSV must have columns: {', '.join(required)}", "danger")
+            return redirect(url_for('add_student'))
+
+        success = 0
+        errors = []
+
+        for i, row in enumerate(reader, start=2):
+            name = (row.get('name') or '').strip()
+            roll = (row.get('roll') or '').strip()
+            standard = (row.get('standard') or '').strip()
+            email = (row.get('email') or '').strip().lower()
+
+            if not all([name, roll, standard, email]):
+                errors.append(f"Row {i}: Missing required field (name/roll/standard/email)")
+                continue
+
+            try:
+                standard_int = int(standard)
+            except ValueError:
+                errors.append(f"Row {i}: Invalid standard '{standard}'")
+                continue
+
+            division = (row.get('division') or '').strip()
+            gender = (row.get('gender') or '').strip() or None
+
+            # Monthly test score
+            try:
+                monthly_test_score = int(row.get('monthly_test_score') or 0)
+            except (ValueError, TypeError):
+                monthly_test_score = 0
+
+            # Attendance
+            try:
+                attendance = int(float(row.get('attendance') or 0))
+            except (ValueError, TypeError):
+                attendance = 0
+
+            assignment_status = (row.get('assignment') or '').strip()
+            quiz_status = (row.get('quiz') or '').strip()
+            behaviour = (row.get('behaviour') or '').strip()
+
+            # Risk calculation (same logic as add_student)
+            assignment_score = 100 if assignment_status == "Completed" else 0
+            if quiz_status == "Good":
+                quiz_score = 100
+            elif quiz_status == "Average":
+                quiz_score = 50
+            else:
+                quiz_score = 0
+
+            risk_score = 0
+            risk_reason = []
+
+            if monthly_test_score < 35:
+                risk_score += 40
+                risk_reason.append("Low Monthly Score")
+            if attendance < 60:
+                risk_score += 30
+                risk_reason.append("Low Attendance")
+            if assignment_score < 50:
+                risk_score += 15
+                risk_reason.append("Low Assignment")
+            if quiz_score < 50:
+                risk_score += 15
+                risk_reason.append("Low Quiz")
+
+            if risk_score >= 60:
+                risk_text = "High Risk"
+            elif risk_score >= 40:
+                risk_text = "Medium Risk"
+            else:
+                risk_text = "Low Risk"
+
+            risk_status = "At Risk" if risk_score >= 60 else "Safe"
+
+            insert_data = {
+                "name": name,
+                "roll": roll,
+                "standard": standard_int,
+                "division": division,
+                "email": email,
+                "gender": gender,
+                "monthly_test_score": monthly_test_score,
+                "attendance": attendance,
+                "assignment": assignment_status,
+                "quiz": quiz_status,
+                "behaviour": behaviour,
+                "subjects": [],
+                "risk": risk_text,
+                "risk_reason": ", ".join(risk_reason),
+                "risk_status": risk_status,
+                "parent_name": (row.get('parent_name') or '').strip(),
+                "parent_phone": (row.get('parent_phone') or '').strip(),
+                "parent_alt_phone": (row.get('parent_alt_phone') or '').strip() or None,
+                "parent_address": (row.get('parent_address') or '').strip(),
+                "role": "student",
+                "is_deleted": False
+            }
+
+            try:
+                supabase.table("student_performance").insert(insert_data).execute()
+                success += 1
+            except Exception as e:
+                errors.append(f"Row {i} ({name}): {str(e)}")
+
+        if success:
+            flash(f"Successfully added {success} student(s)!", "success")
+        if errors:
+            flash(f"Failed rows: {'; '.join(errors[:5])}" + (f" and {len(errors)-5} more..." if len(errors) > 5 else ""), "danger")
+
+    except Exception as e:
+        flash(f"Error processing CSV: {str(e)}", "danger")
+
+    return redirect(url_for('add_student'))
+
 @app.route('/teacher/student_records')
 def student_records():
 
@@ -1672,15 +1893,8 @@ def dashboard_principal():
     improved_students = high_to_medium
     declined_students = total_students - improved_students
 
-    # -------- STUDENT FEEDBACK --------
-    try:
-        feedbacks = supabase.table("student_feedback").select("*").order("created_at", desc=True).execute().data or []
-    except:
-        feedbacks = []
-
     return render_template(
         "dashboard_principal.html",
-        students=students,
         total_students=total_students,
         high_risk=high_risk,
         medium_risk=medium_risk,
@@ -1698,8 +1912,160 @@ def dashboard_principal():
         parent_meetings=parent_meetings,
         high_to_medium=high_to_medium,
         medium_to_low=medium_to_low,
-        success_rate=success_rate,
-        feedbacks=feedbacks
+        success_rate=success_rate
+    )
+
+
+@app.route("/principal/teachers")
+def principal_teachers():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    teachers = supabase.table("teachers").select("*").execute().data or []
+    return render_template("principal/teachers.html", teachers=teachers)
+
+
+@app.route("/principal/feedback")
+def principal_feedback():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    # Fetch latest feedback window
+    window = None
+    window_active = False
+    try:
+        windows = supabase.table("feedback_windows").select("*").order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            window = windows[0]
+            today = datetime.now().strftime("%Y-%m-%d")
+            window_active = window["start_date"] <= today <= window["end_date"]
+    except:
+        pass
+
+    # Fetch feedbacks for latest window only
+    feedbacks = []
+    try:
+        query = supabase.table("student_feedback").select("*")
+        if window:
+            query = query.eq("window_id", window["id"])
+        feedbacks = query.order("created_at", desc=True).execute().data or []
+    except:
+        feedbacks = []
+
+    # Get unique teacher names for filter dropdown
+    teacher_names = sorted(set(f["teacher_name"] for f in feedbacks if f.get("teacher_name")))
+
+    # Apply filters
+    filter_teacher = request.args.get("teacher_filter", "")
+    filter_sentiment = request.args.get("sentiment_filter", "")
+
+    if filter_teacher:
+        feedbacks = [f for f in feedbacks if f.get("teacher_name") == filter_teacher]
+    if filter_sentiment:
+        feedbacks = [f for f in feedbacks if f.get("sentiment_label") == filter_sentiment]
+
+    return render_template(
+        "principal/feedback.html",
+        feedbacks=feedbacks,
+        window=window,
+        window_active=window_active,
+        teacher_names=teacher_names,
+        filter_teacher=filter_teacher,
+        filter_sentiment=filter_sentiment
+    )
+
+
+@app.route("/principal/create_feedback_window", methods=["POST"])
+def create_feedback_window():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    start_date = request.form.get("start_date")
+    end_date = request.form.get("end_date")
+
+    if not start_date or not end_date:
+        flash("Please provide both start and end dates.", "danger")
+        return redirect(url_for("principal_feedback"))
+
+    if end_date < start_date:
+        flash("End date must be after start date.", "danger")
+        return redirect(url_for("principal_feedback"))
+
+    try:
+        supabase.table("feedback_windows").insert({
+            "start_date": start_date,
+            "end_date": end_date,
+            "created_by": session.get("user_id", "principal")
+        }).execute()
+        flash("Feedback window created successfully!", "success")
+    except Exception as e:
+        flash(f"Error creating feedback window: {str(e)}", "danger")
+
+    return redirect(url_for("principal_feedback"))
+
+
+@app.route("/principal/ai_analysis")
+def principal_ai_analysis():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    selected_class = request.args.get("class_filter")
+    selected_risk = request.args.get("risk_filter")
+    selected_gender = request.args.get("gender_filter")
+
+    response = supabase.table("student_performance").select("*").execute()
+    rows = response.data or []
+
+    filtered = []
+    for r in rows:
+        cls = str(r.get("class"))
+        gender = str(r.get("gender")).lower()
+
+        if selected_class and cls != selected_class:
+            continue
+        if selected_gender and gender != selected_gender.lower():
+            continue
+        filtered.append(r)
+
+    total_students = len(filtered)
+    high_risk = medium_risk = 0
+    students = []
+
+    for r in filtered:
+        roll = r.get("roll")
+        name = r.get("name")
+        cls = r.get("class")
+        gender = str(r.get("gender"))
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
+
+        risk_score = max(0, 100 - ((att + marks) / 2))
+
+        if att < 75 or marks < 40:
+            risk = "High"
+            high_risk += 1
+            action = "Home Visit"
+        elif att < 85 or marks < 55:
+            risk = "Medium"
+            medium_risk += 1
+            action = "Extra Classes"
+        else:
+            risk = "Low"
+            action = "Regular Monitoring"
+
+        reason = f"Attendance: {att}%, Marks: {marks}"
+
+        if selected_risk and risk != selected_risk:
+            continue
+
+        students.append((roll, name, cls, gender, att, marks, risk, reason, action, int(risk_score)))
+
+    return render_template(
+        "principal/ai_analysis.html",
+        students=students,
+        total_students=total_students,
+        high_risk=high_risk,
+        medium_risk=medium_risk
     )
 
 
@@ -1880,6 +2246,27 @@ def check_risks():
 def logout():
     session.clear()
     return redirect(url_for('select_role'))
+
+# ---------------- TTS PROXY (Google Translate TTS) ----------------
+@app.route('/api/tts')
+def api_tts():
+    text = request.args.get('q', '')
+    lang = request.args.get('tl', 'en')
+    if not text or len(text) > 300:
+        return "Bad request", 400
+    import requests as _req
+    try:
+        resp = _req.get(
+            'https://translate.google.com/translate_tts',
+            params={'ie': 'UTF-8', 'client': 'tw-ob', 'tl': lang, 'q': text},
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=5
+        )
+        if resp.status_code == 200:
+            return Response(resp.content, mimetype='audio/mpeg')
+    except:
+        pass
+    return "TTS unavailable", 503
 
 # ---------------- SERVICE WORKER (must be served from root) ----------------
 @app.route('/sw.js')

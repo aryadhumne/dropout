@@ -17,10 +17,11 @@
 
 {% block topbar_right %}
 {% if performance %}
-{% set p = performance[0] %}
-{% if p.risk_score|default(0)|int >= 60 or p.risk_status == 'At Risk' %}
+{% set tp = performance[0] %}
+{% set tp_risk = tp.risk_score|default(0)|int %}
+{% if tp_risk >= 60 %}
 <span class="badge-danger" style="font-size:0.75rem;padding:4px 10px;">At Risk</span>
-{% elif p.risk_score|default(0)|int >= 30 %}
+{% elif tp_risk >= 40 %}
 <span class="badge-warning" style="font-size:0.75rem;padding:4px 10px;">Medium Risk</span>
 {% else %}
 <span class="badge-success" style="font-size:0.75rem;padding:4px 10px;">Safe</span>
@@ -32,91 +33,124 @@
 
 {% if performance %}
 {% set p = performance[0] %}
+{% set att = p.attendance|default(p.avg|default(0))|int %}
+{% set test = p.monthly_test_score|default(0)|int %}
+{% set assign_text = p.assignment|default('N/A') %}
+{% set quiz_text = p.quiz|default('N/A') %}
+{% set risk_score_val = p.risk_score|default(0)|int %}
 
 <!-- Student Info Section -->
 <div id="studentInfo" class="dashboard-section">
-  <h4 style="font-weight:600;margin-bottom:20px;">Welcome, {{ p.name }}</h4>
+
+  <!-- Welcome Banner -->
+  <div class="card mb-4">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(231,33,145,0.1);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--accent);">
+        <i class="bi bi-person-circle"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <h4 style="font-weight:700;margin:0 0 4px 0;font-size:1.3rem;">{{ p.name }}</h4>
+        <span style="color:var(--text-muted);font-size:0.85rem;">Class {{ p.standard }}-{{ p.division }} | Roll #{{ p.roll_no or p.roll }} | {{ p.gender or 'N/A' }}</span>
+      </div>
+      <div>
+        {% if risk_score_val >= 60 %}
+        <span class="badge-danger" style="padding:8px 18px;font-size:0.85rem;">High Risk</span>
+        {% elif risk_score_val >= 40 %}
+        <span class="badge-warning" style="padding:8px 18px;font-size:0.85rem;">Medium Risk</span>
+        {% else %}
+        <span class="badge-success" style="padding:8px 18px;font-size:0.85rem;">Low Risk</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Cards Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="border-left-color:{% if att < 60 %}var(--danger){% elif att < 75 %}var(--warning){% else %}var(--success){% endif %};">
+        <div class="stat-label">Attendance</div>
+        <div class="stat-value" style="color:{% if att < 60 %}var(--danger){% elif att < 75 %}var(--warning){% else %}var(--success){% endif %};">{{ att }}%</div>
+        <div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:{{ att }}%;background:{% if att < 60 %}var(--danger){% elif att < 75 %}var(--warning){% else %}var(--success){% endif %};border-radius:2px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="border-left-color:{% if test < 35 %}var(--danger){% elif test < 60 %}var(--warning){% else %}var(--accent){% endif %};">
+        <div class="stat-label">Monthly Test</div>
+        <div class="stat-value">{{ test }}/100</div>
+        <div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:{{ test }}%;background:{% if test < 35 %}var(--danger){% elif test < 60 %}var(--warning){% else %}var(--accent){% endif %};border-radius:2px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="border-left-color:{% if assign_text == 'Completed' %}var(--success){% else %}var(--danger){% endif %};">
+        <div class="stat-label">Assignment</div>
+        <div class="stat-value" style="font-size:1.1rem;color:{% if assign_text == 'Completed' %}var(--success){% else %}var(--danger){% endif %};">{{ assign_text }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card" style="border-left-color:{% if quiz_text == 'Good' %}var(--success){% elif quiz_text == 'Average' %}var(--warning){% else %}var(--danger){% endif %};">
+        <div class="stat-label">Quiz</div>
+        <div class="stat-value" style="font-size:1.1rem;color:{% if quiz_text == 'Good' %}var(--success){% elif quiz_text == 'Average' %}var(--warning){% else %}var(--danger){% endif %};">{{ quiz_text }}</div>
+      </div>
+    </div>
+  </div>
 
   <div class="row g-4 mb-4">
-    <!-- Left: Academic & Personal Details -->
+    <!-- Academic Details -->
     <div class="col-lg-7">
       <div class="card" style="height:100%;">
         <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-mortarboard" style="margin-right:6px;color:var(--accent);"></i>Academic Details</h6>
-        <table style="width:100%;font-size:0.9rem;border-collapse:separate;border-spacing:0 8px;">
-          <tr>
-            <td style="color:var(--muted);width:130px;padding:4px 0;">Standard</td>
-            <td style="font-weight:600;padding:4px 0;">{{ p.standard }}</td>
-            <td style="color:var(--muted);width:130px;padding:4px 0;">Division</td>
-            <td style="font-weight:600;padding:4px 0;">{{ p.division }}</td>
-          </tr>
-          <tr>
-            <td style="color:var(--muted);padding:4px 0;">Roll No</td>
-            <td style="font-weight:600;padding:4px 0;">{{ p.roll_no or p.roll }}</td>
-            <td style="color:var(--muted);padding:4px 0;">Gender</td>
-            <td style="font-weight:600;padding:4px 0;">{{ p.gender or 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td style="color:var(--muted);padding:4px 0;">Email</td>
-            <td colspan="3" style="font-weight:600;padding:4px 0;">{{ p.email or 'N/A' }}</td>
-          </tr>
-          <tr>
-            <td style="color:var(--muted);padding:4px 0;">Month</td>
-            <td style="font-weight:600;padding:4px 0;">{{ p.month or 'N/A' }}</td>
-            <td style="color:var(--muted);padding:4px 0;">Risk Status</td>
-            <td style="font-weight:600;padding:4px 0;">
-              {% if p.risk_status == 'At Risk' or p.risk == 'High' %}
-                <span class="badge-danger">{{ p.risk_status or p.risk }}</span>
-              {% elif p.risk == 'Medium' %}
-                <span class="badge-warning">{{ p.risk_status or p.risk }}</span>
-              {% else %}
-                <span class="badge-success">{{ p.risk_status or p.risk or 'N/A' }}</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% if p.risk_reason %}
-          <tr>
-            <td style="color:var(--muted);padding:4px 0;">Risk Reason</td>
-            <td colspan="3" style="font-weight:500;padding:4px 0;color:var(--danger);font-size:0.85rem;">{{ p.risk_reason }}</td>
-          </tr>
-          {% endif %}
-        </table>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;font-size:0.9rem;">
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--muted);">Email</span>
+            <div style="font-weight:600;margin-top:2px;">{{ p.email or 'N/A' }}</div>
+          </div>
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--muted);">Month</span>
+            <div style="font-weight:600;margin-top:2px;">{{ p.month or 'N/A' }}</div>
+          </div>
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--muted);">Behaviour</span>
+            <div style="font-weight:600;margin-top:2px;">{{ p.behaviour or 'N/A' }}</div>
+          </div>
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--muted);">Risk Reason</span>
+            <div style="font-weight:600;margin-top:2px;color:{% if p.risk_reason %}var(--danger){% else %}var(--success){% endif %};font-size:0.85rem;">{{ p.risk_reason or 'None' }}</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Right: Performance Overview -->
+    <!-- Risk Overview -->
     <div class="col-lg-5">
       <div class="card" style="height:100%;">
-        <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-graph-up" style="margin-right:6px;color:var(--accent);"></i>Performance Overview</h6>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Attendance</div>
-            <div style="font-size:1.5rem;font-weight:700;color:{% if p.attendance|default(p.avg|default(0))|int < 75 %}var(--danger){% else %}var(--text){% endif %};">{{ p.attendance|default(p.avg|default(0))|int }}%</div>
+        <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-shield-check" style="margin-right:6px;color:var(--accent);"></i>Risk Overview</h6>
+        <div style="text-align:center;margin-bottom:16px;">
+          <div style="position:relative;width:120px;height:120px;margin:0 auto;">
+            <svg viewBox="0 0 36 36" style="width:120px;height:120px;transform:rotate(-90deg);">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none" stroke="var(--border)" stroke-width="3"/>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none" stroke="{% if risk_score_val >= 60 %}var(--danger){% elif risk_score_val >= 40 %}var(--warning){% else %}var(--success){% endif %}"
+                stroke-width="3" stroke-dasharray="{{ risk_score_val }}, 100" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.4rem;font-weight:700;color:{% if risk_score_val >= 60 %}var(--danger){% elif risk_score_val >= 40 %}var(--warning){% else %}var(--success){% endif %};">
+              {{ risk_score_val }}%
+            </div>
           </div>
-          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Monthly Test</div>
-            <div style="font-size:1.5rem;font-weight:700;">{{ p.monthly_test_score|default(0)|int }}</div>
-          </div>
-          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Assignment</div>
-            <div style="font-size:1.5rem;font-weight:700;">{{ p.assignment|default(0)|int }}</div>
-          </div>
-          <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Quiz</div>
-            <div style="font-size:1.5rem;font-weight:700;">{{ p.quiz|default(0)|int }}</div>
-          </div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-top:6px;">Risk Score</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
-          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Risk Score</div>
-            <div style="font-size:1.2rem;font-weight:700;color:{% if p.risk_score|default(0)|int >= 60 %}var(--danger){% elif p.risk_score|default(0)|int >= 30 %}var(--warning){% else %}var(--success){% endif %};">{{ p.risk_score|default(0)|int }}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:0.75rem;color:var(--muted);">Status</div>
+            <div style="font-weight:700;font-size:0.9rem;color:{% if risk_score_val >= 60 %}var(--danger){% else %}var(--success){% endif %};">{% if risk_score_val >= 60 %}At Risk{% else %}Safe{% endif %}</div>
           </div>
-          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Performance</div>
-            <div style="font-size:1.2rem;font-weight:700;">{{ ((p.attendance|default(p.avg|default(0))|int + p.assignment|default(0)|int + p.quiz|default(0)|int)//3) }}%</div>
-          </div>
-          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;">Risk Level</div>
-            <div style="font-size:1.2rem;font-weight:700;color:{% if p.risk_status == 'At Risk' or p.risk == 'High' %}var(--danger){% elif p.risk == 'Medium' %}var(--warning){% else %}var(--success){% endif %};">{{ p.risk_status or p.risk or 'Safe' }}</div>
+          <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:0.75rem;color:var(--muted);">Level</div>
+            <div style="font-weight:700;font-size:0.9rem;color:{% if risk_score_val >= 60 %}var(--danger){% elif risk_score_val >= 40 %}var(--warning){% else %}var(--success){% endif %};">{% if risk_score_val >= 60 %}High Risk{% elif risk_score_val >= 40 %}Medium Risk{% else %}Low Risk{% endif %}</div>
           </div>
         </div>
       </div>
@@ -126,74 +160,108 @@
   {% if p.parent_name %}
   <div class="card mb-4">
     <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-people" style="margin-right:6px;color:var(--accent);"></i>Parent / Guardian Details</h6>
-    <table style="width:100%;font-size:0.9rem;border-collapse:separate;border-spacing:0 8px;">
-      <tr>
-        <td style="color:var(--muted);width:130px;padding:4px 0;">Name</td>
-        <td style="font-weight:600;padding:4px 0;">{{ p.parent_name }}</td>
-        <td style="color:var(--muted);width:130px;padding:4px 0;">Phone</td>
-        <td style="font-weight:600;padding:4px 0;">{{ p.parent_phone or 'N/A' }}</td>
-      </tr>
-      <tr>
-        <td style="color:var(--muted);padding:4px 0;">Alt. Phone</td>
-        <td style="font-weight:600;padding:4px 0;">{{ p.parent_alt_phone or 'N/A' }}</td>
-        {% if p.parent_address %}
-        <td style="color:var(--muted);padding:4px 0;">Address</td>
-        <td style="font-weight:600;padding:4px 0;">{{ p.parent_address }}</td>
-        {% else %}
-        <td></td><td></td>
-        {% endif %}
-      </tr>
-    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;font-size:0.9rem;">
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted);">Name</span>
+        <div style="font-weight:600;margin-top:2px;">{{ p.parent_name }}</div>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted);">Phone</span>
+        <div style="font-weight:600;margin-top:2px;">{{ p.parent_phone or 'N/A' }}</div>
+      </div>
+      {% if p.parent_alt_phone %}
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted);">Alt. Phone</span>
+        <div style="font-weight:600;margin-top:2px;">{{ p.parent_alt_phone }}</div>
+      </div>
+      {% endif %}
+      {% if p.parent_address %}
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted);">Address</span>
+        <div style="font-weight:600;margin-top:2px;">{{ p.parent_address }}</div>
+      </div>
+      {% endif %}
+    </div>
   </div>
   {% endif %}
 </div>
 
 <!-- Attendance Section -->
 <div id="attendance" class="dashboard-section" style="display:none;">
-  <div class="card mb-4 text-center">
-    <h6 style="font-weight:600;margin-bottom:16px;">Attendance Progress</h6>
-    <div style="width:170px;height:170px;border-radius:50%;background:conic-gradient(var(--accent) {{ p.attendance|default(p.avg|default(0))|int }}%, var(--border) 0);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;margin:0 auto;color:var(--text);">
-      {{ p.attendance|default(p.avg|default(0))|int }}%
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card" style="text-align:center;height:100%;">
+        <h6 style="font-weight:600;margin-bottom:20px;">Attendance Progress</h6>
+        <div style="position:relative;width:160px;height:160px;margin:0 auto;">
+          <svg viewBox="0 0 36 36" style="width:160px;height:160px;transform:rotate(-90deg);">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none" stroke="var(--border)" stroke-width="2.5"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none" stroke="{% if att < 60 %}var(--danger){% elif att < 75 %}var(--warning){% else %}var(--accent){% endif %}"
+              stroke-width="2.5" stroke-dasharray="{{ att }}, 100" stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+            <div style="font-size:2rem;font-weight:700;color:{% if att < 60 %}var(--danger){% elif att < 75 %}var(--warning){% else %}var(--text){% endif %};">{{ att }}%</div>
+          </div>
+        </div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;">
+          {% if att >= 75 %}On track{% elif att >= 60 %}Needs improvement{% else %}Critical - improve immediately{% endif %}
+        </p>
+      </div>
     </div>
-  </div>
-  <div class="card">
-    <h6 style="font-weight:600;margin-bottom:16px;">Attendance Chart</h6>
-    <canvas id="attendanceChart"></canvas>
+    <div class="col-md-8">
+      <div class="card" style="height:100%;">
+        <h6 style="font-weight:600;margin-bottom:16px;">Subject-wise Attendance</h6>
+        <canvas id="attendanceChart" style="max-height:220px;"></canvas>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Alerts Section -->
 <div id="alerts" class="dashboard-section" style="display:none;">
   <div class="card">
-    <h6 style="font-weight:600;margin-bottom:16px;">Alerts</h6>
+    <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-bell" style="margin-right:6px;color:var(--accent);"></i>Alerts & Recommendations</h6>
+    {% set has_alerts = false %}
     {% if p.risk_reason %}
-    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
-      <strong>AI Risk Flags:</strong> {{ p.risk_reason }}
+    {% set has_alerts = true %}
+    <div style="padding:14px 16px;background:rgba(239,68,68,0.08);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;display:flex;align-items:start;gap:10px;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);margin-top:2px;"></i>
+      <div><strong style="color:var(--danger);">AI Risk Flags</strong><br><span style="color:var(--danger);font-size:0.9rem;">{{ p.risk_reason }}</span></div>
     </div>
     {% endif %}
-    {% if (p.attendance|default(p.avg|default(0))|int) < 75 %}
-    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
-      Attendance below 75% - Please improve your attendance.
+    {% if att < 75 %}
+    {% set has_alerts = true %}
+    <div style="padding:14px 16px;background:rgba(239,68,68,0.08);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;display:flex;align-items:start;gap:10px;">
+      <i class="bi bi-calendar-x-fill" style="color:var(--danger);margin-top:2px;"></i>
+      <div><strong style="color:var(--danger);">Low Attendance ({{ att }}%)</strong><br><span style="font-size:0.9rem;color:var(--text-muted);">Your attendance is below the required 75%. Attend classes regularly to avoid academic penalties.</span></div>
     </div>
     {% endif %}
-    {% if p.assignment|default(0)|int < 50 %}
-    <div style="padding:12px;background:rgba(245,158,11,0.1);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;color:var(--warning);">
-      Low assignment submission - Submit your pending assignments.
+    {% if assign_text != 'Completed' %}
+    {% set has_alerts = true %}
+    <div style="padding:14px 16px;background:rgba(245,158,11,0.08);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;display:flex;align-items:start;gap:10px;">
+      <i class="bi bi-journal-x" style="color:var(--warning);margin-top:2px;"></i>
+      <div><strong style="color:var(--warning);">Assignments Incomplete</strong><br><span style="font-size:0.9rem;color:var(--text-muted);">You have pending assignments. Complete and submit them to improve your grades.</span></div>
     </div>
     {% endif %}
-    {% if p.quiz|default(0)|int < 50 %}
-    <div style="padding:12px;background:rgba(245,158,11,0.1);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;color:var(--warning);">
-      Low quiz performance - Focus on improving quiz scores.
+    {% if quiz_text == 'Poor' %}
+    {% set has_alerts = true %}
+    <div style="padding:14px 16px;background:rgba(245,158,11,0.08);border-left:4px solid var(--warning);border-radius:8px;margin-bottom:12px;display:flex;align-items:start;gap:10px;">
+      <i class="bi bi-patch-question-fill" style="color:var(--warning);margin-top:2px;"></i>
+      <div><strong style="color:var(--warning);">Low Quiz Performance</strong><br><span style="font-size:0.9rem;color:var(--text-muted);">Your quiz scores need improvement. Practice regularly and review previous quiz topics.</span></div>
     </div>
     {% endif %}
-    {% if p.monthly_test_score|default(0)|int < 35 %}
-    <div style="padding:12px;background:rgba(239,68,68,0.1);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;color:var(--danger);">
-      Monthly test score below 35 - Needs immediate improvement.
+    {% if test < 35 %}
+    {% set has_alerts = true %}
+    <div style="padding:14px 16px;background:rgba(239,68,68,0.08);border-left:4px solid var(--danger);border-radius:8px;margin-bottom:12px;display:flex;align-items:start;gap:10px;">
+      <i class="bi bi-clipboard2-x-fill" style="color:var(--danger);margin-top:2px;"></i>
+      <div><strong style="color:var(--danger);">Monthly Test Score Below 35</strong><br><span style="font-size:0.9rem;color:var(--text-muted);">Your test score needs immediate attention. Consider asking your teacher for extra support.</span></div>
     </div>
     {% endif %}
-    {% if (p.attendance|default(p.avg|default(0))|int) >= 75 and p.assignment|default(0)|int >= 50 and p.quiz|default(0)|int >= 50 and p.monthly_test_score|default(100)|int >= 35 %}
-    <div style="padding:12px;background:rgba(34,197,94,0.1);border-left:4px solid var(--success);border-radius:8px;color:var(--success);">
-      Great job! No alerts at the moment.
+    {% if not has_alerts %}
+    <div style="padding:20px;background:rgba(34,197,94,0.08);border-left:4px solid var(--success);border-radius:8px;display:flex;align-items:center;gap:10px;">
+      <i class="bi bi-check-circle-fill" style="color:var(--success);font-size:1.2rem;"></i>
+      <div><strong style="color:var(--success);">All Good!</strong><span style="font-size:0.9rem;color:var(--text-muted);margin-left:8px;">No alerts at the moment. Keep up the great work!</span></div>
     </div>
     {% endif %}
   </div>
@@ -203,16 +271,26 @@
 <div id="feedback" class="dashboard-section" style="display:none;">
   <div class="card">
     <h6 style="font-weight:600;margin-bottom:16px;">Submit Feedback</h6>
+    {% if feedback_active %}
+    <p style="color:var(--success);font-size:0.85rem;margin-bottom:16px;">
+      <i class="bi bi-check-circle-fill"></i> Feedback is open until {{ feedback_window.end_date }}
+    </p>
+    {% set available_teachers = [] %}
+    {% for t in teachers %}
+      {% if t.name not in already_reviewed %}
+        {% if available_teachers.append(t) %}{% endif %}
+      {% endif %}
+    {% endfor %}
+    {% if available_teachers %}
     <form method="POST" action="/student/feedback">
       <div class="mb-3">
         <label class="form-label">Teacher Name</label>
-        <!-- Text input with datalist -->
-        <input list="teacherList" name="teacher_name" class="form-control" placeholder="Type or select a teacher..." required>
-        <datalist id="teacherList">
-          {% for t in teachers %}
-          <option value="{{ t.name }}">
+        <select name="teacher_name" class="form-control" required>
+          <option value="">Select a teacher...</option>
+          {% for t in available_teachers %}
+          <option value="{{ t.name }}">{{ t.name }}</option>
           {% endfor %}
-        </datalist>
+        </select>
       </div>
       <div class="mb-3">
         <label class="form-label">Your Feedback</label>
@@ -220,26 +298,118 @@
       </div>
       <button type="submit" class="btn btn-primary">Submit Feedback</button>
     </form>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:0.9rem;">You have already submitted feedback for all teachers in this period.</p>
+    {% endif %}
+    {% else %}
+    <div style="text-align:center;padding:30px 0;">
+      <i class="bi bi-lock-fill" style="font-size:2rem;color:var(--text-muted);"></i>
+      <p style="color:var(--text-muted);margin-top:10px;font-size:0.9rem;">Feedback submission is currently closed. Your principal will open it when it's time to collect feedback.</p>
+    </div>
+    {% endif %}
   </div>
-</div>
 </div>
 
 <!-- Apply for Leave Section -->
 <div id="applyforleave" class="dashboard-section" style="display:none;">
-  <div class="card">
-    <h6 style="font-weight:600;margin-bottom:16px;">Apply for Leave</h6>
-    <form method="POST" action="/student/leave">
-      <div class="mb-3">
-        <label class="form-label">Leave Date</label>
-        <input type="date" name="leave_date" class="form-control" required>
+
+  <!-- Header -->
+  <div class="card mb-4">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(231,33,145,0.1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--accent);">
+        <i class="bi bi-calendar-check"></i>
       </div>
-      <div class="mb-3">
-        <label class="form-label">Reason</label>
-        <textarea name="reason" class="form-control" rows="3" placeholder="Reason for leave..." required></textarea>
+      <div>
+        <h5 style="font-weight:700;margin:0 0 2px 0;">Apply for Leave</h5>
+        <span style="color:var(--text-muted);font-size:0.85rem;">Submit your leave request and track its status</span>
       </div>
-      <button type="submit" class="btn btn-primary">Apply</button>
-    </form>
+    </div>
   </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Leave Application Form -->
+    <div class="col-lg-5">
+      <div class="card" style="height:100%;">
+        <h6 style="font-weight:600;margin-bottom:20px;"><i class="bi bi-pencil-square" style="margin-right:6px;color:var(--accent);"></i>New Leave Request</h6>
+        <form method="POST" action="/student/leave">
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:500;">Leave Date</label>
+            <input type="date" name="leave_date" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-weight:500;">Reason</label>
+            <textarea name="reason" class="form-control" rows="4" placeholder="Briefly explain why you need leave..." required style="resize:vertical;"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100" style="padding:10px;">
+            <i class="bi bi-send" style="margin-right:6px;"></i>Submit Request
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Leave Stats -->
+    <div class="col-lg-7">
+      <div class="row g-3 mb-3">
+        {% set total_leaves = leave_history|length %}
+        {% set approved = leave_history|selectattr('status','equalto','Approved')|list|length %}
+        {% set pending = leave_history|selectattr('status','equalto','Pending')|list|length %}
+        {% set rejected = leave_history|selectattr('status','equalto','Rejected')|list|length %}
+        <div class="col-4">
+          <div class="stat-card" style="border-left-color:var(--accent);">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">{{ total_leaves }}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card" style="border-left-color:var(--success);">
+            <div class="stat-label" style="color:var(--success);">Approved</div>
+            <div class="stat-value" style="color:var(--success);">{{ approved }}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card" style="border-left-color:var(--warning);">
+            <div class="stat-label" style="color:var(--warning);">Pending</div>
+            <div class="stat-value" style="color:var(--warning);">{{ pending }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leave History -->
+      <div class="card">
+        <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-clock-history" style="margin-right:6px;color:var(--accent);"></i>Leave History</h6>
+        {% if leave_history %}
+        <div class="table-responsive">
+          <table class="table-clean">
+            <thead><tr><th>Date</th><th>Reason</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for l in leave_history %}
+              <tr>
+                <td style="white-space:nowrap;">{{ l.leave_date }}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ l.reason }}</td>
+                <td>
+                  {% if l.status == 'Approved' %}
+                  <span class="badge-success" style="font-size:0.75rem;">Approved</span>
+                  {% elif l.status == 'Rejected' %}
+                  <span class="badge-danger" style="font-size:0.75rem;">Rejected</span>
+                  {% else %}
+                  <span class="badge-warning" style="font-size:0.75rem;">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:30px 0;">
+          <i class="bi bi-inbox" style="font-size:2rem;color:var(--text-muted);"></i>
+          <p style="color:var(--text-muted);margin-top:10px;font-size:0.9rem;">No leave requests yet. Use the form to submit your first request.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
 </div>
 
 {% endif %}
@@ -258,12 +428,31 @@ function showSection(id, el) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  const ctx = document.getElementById("attendanceChart");
+  var ctx = document.getElementById("attendanceChart");
   if (ctx) {
+    {% if p.subjects and p.subjects|length > 0 %}
+    var labels = {{ p.subjects|tojson }};
+    {% else %}
+    var labels = ["Overall"];
+    {% endif %}
+    var data = labels.length > 1 ? labels.map(function() { return {{ att }}; }) : [{{ att }}];
     new Chart(ctx, {
       type: "bar",
-      data: { labels: ["Attendance"], datasets: [{ label: "Attendance %", data: [{{ p.attendance|default(p.avg|default(0))|int }}], backgroundColor: "#e72191" }] },
-      options: { scales: { y: { beginAtZero: true, max: 100 } }, responsive: true }
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Attendance %",
+          data: data,
+          backgroundColor: "#e72191",
+          borderRadius: 6,
+          barThickness: 40
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true, max: 100, ticks: { stepSize: 25 } } },
+        responsive: true,
+        plugins: { legend: { display: false } }
+      }
     });
   }
 });

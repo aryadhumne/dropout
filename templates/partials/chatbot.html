@@ -2,7 +2,7 @@
 <div id="chatbot-toggle" class="chatbot-toggle" onclick="toggleChat()">
   <i class="bi bi-robot"></i>
 </div>
-<div id="chatbot-panel" class="chatbot-panel" data-role="{{ chatbot_role }}">
+<div id="chatbot-panel" class="chatbot-panel">
   <div class="chatbot-header">
     <div style="display:flex;align-items:center;gap:10px;">
       <i class="bi bi-robot" style="font-size:1.2rem;"></i>
@@ -26,6 +26,45 @@
 </div>
 
 <script>
+// Fixed role value — never affected by Google Translate
+var _chatbotRole = "{{ chatbot_role }}";
+
+// Language map: code → {name, sttCode, ttsLang}
+var _langMap = {
+  'en': {name:'English', stt:'en-IN', tts:'en'},
+  'hi': {name:'Hindi', stt:'hi-IN', tts:'hi'},
+  'bn': {name:'Bengali', stt:'bn-IN', tts:'bn'},
+  'te': {name:'Telugu', stt:'te-IN', tts:'te'},
+  'mr': {name:'Marathi', stt:'mr-IN', tts:'mr'},
+  'ta': {name:'Tamil', stt:'ta-IN', tts:'ta'},
+  'gu': {name:'Gujarati', stt:'gu-IN', tts:'gu'},
+  'kn': {name:'Kannada', stt:'kn-IN', tts:'kn'},
+  'ml': {name:'Malayalam', stt:'ml-IN', tts:'ml'},
+  'pa': {name:'Punjabi', stt:'pa-IN', tts:'pa'},
+  'or': {name:'Odia', stt:'or-IN', tts:'or'},
+  'as': {name:'Assamese', stt:'as-IN', tts:'as'},
+  'ur': {name:'Urdu', stt:'ur-IN', tts:'ur'},
+  'sa': {name:'Sanskrit', stt:'sa-IN', tts:'sa'},
+  'ne': {name:'Nepali', stt:'ne-NP', tts:'ne'},
+  'sd': {name:'Sindhi', stt:'sd-IN', tts:'sd'},
+  'ks': {name:'Kashmiri', stt:'ks-IN', tts:'ks'},
+  'doi':{name:'Dogri', stt:'doi-IN', tts:'hi'},
+  'mai':{name:'Maithili', stt:'mai-IN', tts:'hi'},
+  'mni-Mtei':{name:'Manipuri', stt:'mni-IN', tts:'bn'},
+  'sat':{name:'Santali', stt:'sat-IN', tts:'hi'},
+  'gom':{name:'Konkani', stt:'kok-IN', tts:'hi'}
+};
+
+function _getSelectedLang() {
+  var match = document.cookie.match(/(^| )edudrop_lang=([^;]+)/);
+  return match ? match[2] : 'en';
+}
+
+function _getLangName() {
+  var code = _getSelectedLang();
+  return (_langMap[code] || _langMap['en']).name;
+}
+
 function toggleChat() {
   var p = document.getElementById('chatbot-panel');
   var t = document.getElementById('chatbot-toggle');
@@ -44,7 +83,7 @@ function sendChat() {
   var msg = input.value.trim();
   if (!msg) return;
   var msgs = document.getElementById('chat-messages');
-  var role = document.getElementById('chatbot-panel').dataset.role || '';
+  var lang = _getSelectedLang();
 
   var u = document.createElement('div');
   u.className = 'chat-msg chat-msg-user';
@@ -64,7 +103,8 @@ function sendChat() {
   fetch('/api/chat', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({message: msg, role: role})
+    credentials: 'same-origin',
+    body: JSON.stringify({message: msg, role: _chatbotRole, lang: lang})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
@@ -91,34 +131,64 @@ function sendChat() {
 }
 
 // --- Text-to-Speech ---
-function _getBestVoice() {
-  var voices = window.speechSynthesis.getVoices();
-  // Prefer high-quality English voices
-  var preferred = ['Google UK English Female', 'Google US English', 'Samantha', 'Karen', 'Daniel', 'Rishi', 'Microsoft Zira', 'Microsoft David'];
-  for (var i = 0; i < preferred.length; i++) {
-    for (var j = 0; j < voices.length; j++) {
-      if (voices[j].name.indexOf(preferred[i]) !== -1) return voices[j];
-    }
-  }
-  // Fallback: first English voice
-  for (var k = 0; k < voices.length; k++) {
-    if (voices[k].lang.startsWith('en')) return voices[k];
-  }
-  return null;
-}
-// Preload voices
-if (window.speechSynthesis) window.speechSynthesis.getVoices();
+var _ttsAudio = null;
 
-function speakText(btn) {
-  var text = btn.parentElement.querySelector('.bot-text').textContent;
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
-    return;
+// Google Translate TTS language codes (some differ from our lang codes)
+var _gttsLangMap = {
+  'en':'en', 'hi':'hi', 'bn':'bn', 'te':'te', 'mr':'mr', 'ta':'ta',
+  'gu':'gu', 'kn':'kn', 'ml':'ml', 'pa':'pa', 'or':'or', 'as':'as',
+  'ur':'ur', 'sa':'sa', 'ne':'ne', 'sd':'sd', 'ks':'hi', 'doi':'hi',
+  'mai':'hi', 'mni-Mtei':'bn', 'sat':'hi', 'gom':'hi'
+};
+
+function _speakWithGoogleTTS(text, lang, btn) {
+  // Google Translate TTS supports ~200 chars per request; split if longer
+  var chunks = [];
+  while (text.length > 0) {
+    if (text.length <= 200) {
+      chunks.push(text);
+      break;
+    }
+    // Find a good split point (sentence end or space)
+    var cut = text.lastIndexOf('.', 200);
+    if (cut < 50) cut = text.lastIndexOf(' ', 200);
+    if (cut < 50) cut = 200;
+    chunks.push(text.substring(0, cut + 1));
+    text = text.substring(cut + 1).trim();
   }
+
+  var ttsLang = _gttsLangMap[lang] || 'en';
+  var idx = 0;
+
+  function playNext() {
+    if (idx >= chunks.length) {
+      btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+      _ttsAudio = null;
+      return;
+    }
+    var url = '/api/tts?tl=' + ttsLang + '&q=' + encodeURIComponent(chunks[idx]);
+    _ttsAudio = new Audio(url);
+    _ttsAudio.onended = function() { idx++; playNext(); };
+    _ttsAudio.onerror = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; _ttsAudio = null; };
+    _ttsAudio.play();
+  }
+
+  btn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+  playNext();
+}
+
+function _speakWithWebAPI(text, btn) {
   var utter = new SpeechSynthesisUtterance(text);
-  var voice = _getBestVoice();
-  if (voice) utter.voice = voice;
+  utter.lang = 'en-IN';
+  // Prefer high-quality English voices
+  var voices = window.speechSynthesis.getVoices();
+  var preferred = ['Google UK English Female', 'Google US English', 'Samantha', 'Karen', 'Daniel'];
+  for (var j = 0; j < preferred.length; j++) {
+    for (var k = 0; k < voices.length; k++) {
+      if (voices[k].name.indexOf(preferred[j]) !== -1) { utter.voice = voices[k]; break; }
+    }
+    if (utter.voice) break;
+  }
   utter.rate = 0.9;
   utter.pitch = 1.05;
   utter.volume = 1;
@@ -126,6 +196,33 @@ function speakText(btn) {
   utter.onend = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
   utter.onerror = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
   window.speechSynthesis.speak(utter);
+}
+
+// Preload voices
+if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
+function speakText(btn) {
+  var text = btn.parentElement.querySelector('.bot-text').textContent;
+
+  // Stop if already playing
+  if (_ttsAudio) {
+    _ttsAudio.pause();
+    _ttsAudio = null;
+    btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+    return;
+  }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+    return;
+  }
+
+  var lang = _getSelectedLang();
+  if (lang === 'en') {
+    _speakWithWebAPI(text, btn);
+  } else {
+    _speakWithGoogleTTS(text, lang, btn);
+  }
 }
 
 // --- Speech-to-Text ---
@@ -144,7 +241,9 @@ function toggleVoiceInput() {
     return;
   }
   _recognition = new SpeechRecognition();
-  _recognition.lang = 'en-IN';
+  // Use the selected language for speech recognition
+  var lang = _getSelectedLang();
+  _recognition.lang = (_langMap[lang] || _langMap['en']).stt;
   _recognition.interimResults = false;
   _recognition.maxAlternatives = 1;
 

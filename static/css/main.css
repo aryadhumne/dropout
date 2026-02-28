@@ -821,6 +821,9 @@ textarea.form-control {
   padding: 18px 48px;
   background: var(--primary);
   border-bottom: none;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .landing-nav .logo {
@@ -893,8 +896,7 @@ textarea.form-control {
   gap: 28px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 32px 80px;
-  min-height: 100vh;
+  padding: 80px 32px;
   align-content: center;
 }
 
