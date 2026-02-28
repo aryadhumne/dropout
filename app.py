@@ -965,10 +965,46 @@ def dashboard_student():
     # Fetch teachers for feedback dropdown
     teachers = supabase.table("teachers").select("id,name").execute().data or []
 
+    # Fetch leave history for this student
+    leave_history = []
+    try:
+        leave_history = supabase.table("student_leaves") \
+            .select("*") \
+            .eq("student_id", str(student_id)) \
+            .order("created_at", desc=True) \
+            .execute().data or []
+    except:
+        pass
+
+    # Check for active feedback window
+    feedback_active = False
+    feedback_window = None
+    already_reviewed = []
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        windows = supabase.table("feedback_windows").select("*") \
+            .lte("start_date", today).gte("end_date", today) \
+            .order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            feedback_window = windows[0]
+            feedback_active = True
+            # Find which teachers this student already reviewed in this window
+            existing = supabase.table("student_feedback").select("teacher_name") \
+                .eq("student_id", str(student_id)) \
+                .eq("window_id", feedback_window["id"]) \
+                .execute().data or []
+            already_reviewed = [e["teacher_name"] for e in existing]
+    except:
+        pass
+
     return render_template(
         "student/dashboard.html",
         performance=performance.data,
         teachers=teachers,
+        leave_history=leave_history,
+        feedback_active=feedback_active,
+        feedback_window=feedback_window,
+        already_reviewed=already_reviewed,
         no_data=False
     )
 
@@ -1001,7 +1037,30 @@ def student_feedback():
                 standard = perf.data[0].get("standard")
                 division = perf.data[0].get("division")
 
+    # Check for active feedback window
+    active_window = None
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        windows = supabase.table("feedback_windows").select("*").lte("start_date", today).gte("end_date", today).order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            active_window = windows[0]
+    except:
+        pass
+
+    if not active_window:
+        flash("Feedback submission is currently closed.", "danger")
+        return redirect(url_for('dashboard_student'))
+
     teacher_name = request.form.get('teacher_name', '')
+
+    # Check duplicate: 1 feedback per teacher per student per window
+    try:
+        existing = supabase.table("student_feedback").select("id").eq("student_id", str(student_id)).eq("teacher_name", teacher_name).eq("window_id", active_window["id"]).execute().data
+        if existing:
+            flash(f"You have already submitted feedback for {teacher_name} in this period.", "warning")
+            return redirect(url_for('dashboard_student'))
+    except:
+        pass
 
     # -------- SENTIMENT ANALYSIS (TextBlob) --------
     try:
@@ -1025,7 +1084,8 @@ def student_feedback():
         "feedback_text": feedback_text,
         "teacher_name": teacher_name,
         "sentiment_score": sentiment_score,
-        "sentiment_label": sentiment_label
+        "sentiment_label": sentiment_label,
+        "window_id": active_window["id"]
     }).execute()
 
     flash("Feedback submitted successfully!", "success")
