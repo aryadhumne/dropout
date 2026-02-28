@@ -11,7 +11,9 @@ import sqlite3
 import io
 import pandas as pd
 import httpx
-from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import pagesizes, colors
 from flask import jsonify
 from supabase import create_client
 # -------- AI MODEL --------

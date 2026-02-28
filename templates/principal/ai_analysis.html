@@ -12,6 +12,8 @@
 <a href="{{ url_for('principal_teachers') }}"><i class="bi bi-people"></i><span>Teacher Management</span></a>
 <a href="{{ url_for('principal_feedback') }}"><i class="bi bi-chat-dots"></i><span>Student Feedback</span></a>
 <a href="{{ url_for('export_high_risk_csv') }}"><i class="bi bi-file-earmark-arrow-down"></i><span>Download CSV</span></a>
+<a href="{{ url_for('export_excel') }}"><i class="bi bi-file-earmark-excel"></i><span>Download Excel</span></a>
+<a href="{{ url_for('export_pdf') }}"><i class="bi bi-file-earmark-pdf"></i><span>Download PDF</span></a>
 {% endblock %}
 
 {% block content %}
