@@ -332,6 +332,7 @@ def ngo_admin_register():
     return render_template("ngo_admin_register.html")
 
 # ---------------- VOLUNTEER DASHBOARD ----------------
+# ---------------- VOLUNTEER DASHBOARD ----------------
 @app.route('/volunteer/dashboard', methods=['GET', 'POST'])
 def dashboard_volunteer():
     if session.get('role') != 'volunteer':
@@ -342,10 +343,19 @@ def dashboard_volunteer():
 
     # -------- AI PREDICTION FUNCTION (nested helper) --------
     def predict_student_risk(student):
-        attendance_val = float(student.get("attendance", student.get("avg", 0)))
-        monthly_test_val = float(student.get("monthly_test_score", 0))
-        assignment_val = float(student.get("assignment", 0))
-        quiz_val = float(student.get("quiz", 0))
+        attendance_val = float(student.get("attendance", student.get("avg", 0) or 0))
+        monthly_test_val = float(student.get("monthly_test_score", 0) or 0)
+        # assignment and quiz fields may be stored as status strings; convert defensively
+        try:
+            assignment_val = float(student.get("assignment", 0))
+        except Exception:
+            # if it's "Completed" or "Not Completed"
+            assignment_val = 100.0 if str(student.get("assignment", "")).lower().startswith("comp") else 0.0
+        try:
+            quiz_val = float(student.get("quiz", 0))
+        except Exception:
+            q = str(student.get("quiz", "")).lower()
+            quiz_val = 100.0 if q == "good" else (50.0 if q == "average" else (0.0 if q in ("poor","", "not recorded") else 0.0))
 
         # MUST match training order: ["attendance", "monthly_test", "assignment", "quiz"]
         input_data = np.array([[attendance_val, monthly_test_val, assignment_val, quiz_val]])
@@ -354,12 +364,15 @@ def dashboard_volunteer():
         probability = model.predict_proba(input_data)[0]
         confidence = round(max(probability) * 100, 2)
 
-        # SHAP explainability
-        shap_values = explainer.shap_values(input_data)
-        # shap_values is a list of arrays (one per class). Use the predicted class.
-        feature_names = ["Attendance", "Monthly Test", "Assignment", "Quiz"]
-        shap_for_pred = shap_values[int(prediction)][0] if isinstance(shap_values, list) else shap_values[0]
-        shap_dict = {feature_names[i]: round(float(shap_for_pred[i]), 4) for i in range(len(feature_names))}
+        # SHAP explainability (defensive)
+        try:
+            shap_values = explainer.shap_values(input_data)
+            feature_names = ["Attendance", "Monthly Test", "Assignment", "Quiz"]
+            shap_for_pred = shap_values[int(prediction)][0] if isinstance(shap_values, list) else shap_values[0]
+            shap_dict = {feature_names[i]: round(float(shap_for_pred[i]), 4) for i in range(len(feature_names))}
+        except Exception as e:
+            print("SHAP ERROR:", e)
+            shap_dict = {}
 
         return prediction, confidence, attendance_val, monthly_test_val, assignment_val, quiz_val, shap_dict
 
@@ -372,65 +385,112 @@ def dashboard_volunteer():
 
     volunteer = volunteer_res.data[0] if volunteer_res.data else None
 
-    # ---------------- Handle form submit for adding an intervention ----------------
+    # ---------------- Handle form submit for adding/updating an intervention ----------------
     if request.method == 'POST':
         try:
             student_id = request.form.get('student_id')
-            intervention_type = request.form.get('intervention_type')
-            status = request.form.get('status')
-            notes = request.form.get('notes')
+            intervention_type = request.form.get('intervention_type') or None
+            status = request.form.get('status') or None
+            notes = request.form.get('notes') or ""
             proof_file = request.files.get("proof_image")
 
-            proof_url = None
-            approval_status = "Approved"
+            # Defensive: require student_id
+            if not student_id:
+                flash("Student ID missing", "error")
+                return redirect(url_for("dashboard_volunteer"))
 
-            # Financial Aid always requires admin approval regardless of status
-            if intervention_type == "Financial Aid":
-                approval_status = "Pending"
-                if status == "Completed":
-                    if not proof_file:
-                        flash("Photo proof required for completed Financial Aid cases", "error")
-                        return redirect(url_for("dashboard_volunteer"))
-                    upload_result = cloudinary.uploader.upload(proof_file)
-                    proof_url = upload_result["secure_url"]
-                # For Financial Aid, keep status as-is but always require admin approval
+            # Determine proof upload if required
+            proof_url = None
+
+            # Find latest intervention for this student (if any)
+            latest_res = supabase.table("ngo_interventions") \
+                .select("*") \
+                .eq("student_id", student_id) \
+                .order("created_at", desc=True) \
+                .limit(1) \
+                .execute()
+
+            latest = latest_res.data[0] if latest_res.data else None
+
+            # Normalize logic for Financial Aid completion
+            if intervention_type == "Financial Aid" and status == "Completed":
+                # Financial Aid completed -> requires admin approval; keep status as 'Awaiting Approval'
+                upload_required = True
+                final_status = "Awaiting Approval"
+                final_approval = "Pending"
             elif status == "Completed":
+                # Non-Financial Aid completed -> auto-approve and mark Completed (moves to history)
+                upload_required = True
+                final_status = "Completed"
+                final_approval = "Approved"
+            else:
+                # Planned / Ongoing etc.
+                upload_required = False
+                final_status = status
+                final_approval = "Approved" if status is None else "Approved" if status == "Completed" else "Approved" if False else "Approved"  # placeholder (we'll adjust below)
+                # For non-completed statuses we want approval_status to remain "Approved" (so the record is not considered "Pending approval") 
+                # but we will set approval_status explicitly below for active interventions.
+                final_approval = "Approved"
+
+            # If proof required (Completed or Financial Aid Completed), ensure proof_file provided
+            if (intervention_type == "Financial Aid" and status == "Completed") or (status == "Completed"):
                 if not proof_file:
                     flash("Photo proof required for completed cases", "error")
                     return redirect(url_for("dashboard_volunteer"))
-
                 upload_result = cloudinary.uploader.upload(proof_file)
-                proof_url = upload_result["secure_url"]
+                proof_url = upload_result.get("secure_url")
 
-                approval_status = "Pending"
+            # Decide whether to UPDATE existing active intervention or INSERT new
+            # Active intervention = latest exists AND latest.status != "Completed" AND latest.approval_status != "Approved"
+            should_update = False
+            if latest and (str(latest.get("status")).lower() != "completed") and (str(latest.get("approval_status")).lower() != "approved"):
+                should_update = True
 
-            supabase.table("ngo_interventions").insert({
-                "student_id": student_id,
-                "type": intervention_type,
-                "status": status if intervention_type != "Financial Aid" or status != "Completed" else "Awaiting Approval",
-                "notes": notes,
-                "by": email,
-                "proof_image": proof_url,
-                "approval_status": approval_status
-            }).execute()
+            if should_update:
+                update_data = {
+                    "type": intervention_type,
+                    "status": final_status,
+                    "notes": notes,
+                    "by": email,
+                    "approval_status": final_approval
+                }
+                if proof_url:
+                    update_data["proof_image"] = proof_url
 
-            flash("Intervention submitted", "success")
+                supabase.table("ngo_interventions").update(update_data).eq("id", latest["id"]).execute()
+            else:
+                # Insert new intervention
+                insert_status = final_status
+                insert_approval = final_approval
+
+                supabase.table("ngo_interventions").insert({
+                    "student_id": student_id,
+                    "type": intervention_type,
+                    "status": insert_status,
+                    "notes": notes,
+                    "by": email,
+                    "proof_image": proof_url,
+                    "approval_status": insert_approval
+                }).execute()
+
+            flash("Intervention saved", "success")
             return redirect(url_for("dashboard_volunteer"))
 
         except Exception as e:
-            print("UPLOAD ERROR:", e)
+            print("UPLOAD/DB ERROR:", e)
             flash("Error saving intervention", "error")
             return redirect(url_for("dashboard_volunteer"))
 
-    # ---------------- GET: fetch only students with risk = "At Risk" OR "Medium" ----------------
+    # ---------------- GET: fetch only students with risk = "High Risk" OR "Medium Risk" ----------------
     try:
         students_res = supabase.table("student_performance") \
             .select("*") \
-            .in_("risk", ["At Risk", "Medium"]) \
+            .in_("risk", ["High Risk", "Medium Risk"]) \
             .execute()
 
         students = students_res.data or []
 
+        # get all interventions (latest per student will be picked)
         interventions_res = supabase.table("ngo_interventions") \
             .select("*") \
             .order("created_at", desc=True) \
@@ -443,25 +503,43 @@ def dashboard_volunteer():
             if sid not in latest_map:
                 latest_map[sid] = i
 
+        # active intervention count = # of students whose latest intervention status != "Completed"
         active_interventions_count = sum(
             1 for v in latest_map.values()
-            if v.get("status") != "Completed"
+            if str(v.get("status")).lower() != "completed"
         )
 
         filtered_students = []
         for s in students:
             sid = str(s["id"])
             latest = latest_map.get(sid)
+
             if latest:
+                # If fully completed AND approved -> do not show in At-Risk table
+                if str(latest.get("status")).lower() == "completed" and str(latest.get("approval_status")).lower() == "approved":
+                    continue
+
                 s["current_intervention"] = latest.get("type", "-")
                 s["current_status"] = latest.get("status", "-")
                 s["current_notes"] = latest.get("notes", "-")
-                if latest and latest.get("approval_status") == "Approved":
-                    continue
+                s["current_intervention_id"] = latest.get("id")
+                s["current_approval_status"] = latest.get("approval_status", "-")
+                s["current_approval_notes"] = latest.get("approval_notes", "")
+
+                # ✅ If admin rejected
+                if str(latest.get("approval_status")).lower() == "rejected":
+                    s["current_status"] = "Rejected"
+
+                    # Show admin rejection note
+                    if latest.get("approval_notes"):
+                        s["current_notes"] = latest.get("approval_notes")
             else:
                 s["current_intervention"] = "-"
                 s["current_status"] = "-"
                 s["current_notes"] = "-"
+                s["current_intervention_id"] = None
+                s["current_approval_status"] = None
+
             filtered_students.append(s)
 
         students = filtered_students
@@ -480,7 +558,7 @@ def dashboard_volunteer():
 
                 factors_str = ", ".join(top_factors)
                 ai_reason = (
-                    f"AI predicts {risk_label}. "
+                    f"it predicts {risk_label}. "
                     f"Key factors: {factors_str}. "
                     f"Attendance: {attendance_val:.0f}%, Monthly Test: {monthly_test_val:.0f}, "
                     f"Assignment: {assignment_val:.0f}, Quiz: {quiz_val:.0f}."
@@ -500,17 +578,18 @@ def dashboard_volunteer():
         print("Supabase .in_() may not be supported; falling back. Error:", e)
         all_res = supabase.table("student_performance").select("*").execute()
         all_students = all_res.data if all_res.data else []
-        students = [s for s in all_students if s.get("risk") in ("At Risk", "Medium")]
+        students = [s for s in all_students if s.get("risk") in ("High Risk", "Medium Risk")]
+        active_interventions_count = 0
 
+    # Intervention history: show only fully completed & approved interventions
     interventions_res = supabase.table("ngo_interventions") \
         .select("*, student_performance(name, roll, division)") \
+        .eq("status", "Completed") \
+        .eq("approval_status", "Approved") \
         .order("created_at", desc=True) \
         .execute()
 
-    interventions = [
-        i for i in (interventions_res.data or [])
-        if i.get("approval_status") == "Approved"
-    ]
+    interventions = interventions_res.data or []
 
     return render_template(
         "dashboard_volunteer.html",
@@ -519,8 +598,6 @@ def dashboard_volunteer():
         interventions=interventions,
         active_interventions=active_interventions_count
     )
-
-
 @app.route('/ngo/admin/dashboard')
 def dashboard_admin():
 
@@ -571,19 +648,23 @@ def approve_intervention(id):
     flash("Intervention approved", "success")
     return redirect(url_for("dashboard_admin"))
 
-
 @app.route("/reject-intervention/<id>", methods=["POST"])
 def reject_intervention(id):
-    if session.get("role") != "ngo_admin":
+    if session.get('role') != 'ngo_admin':
         return redirect(url_for("login"))
+
+    # read admin rejection note (may be empty)
+    approval_note = request.form.get("approval_notes", "").strip()
 
     supabase.table("ngo_interventions").update({
         "approval_status": "Rejected",
-        "approved_by": session.get("email")
+        "approved_by": session.get("email"),
+        "approval_notes": approval_note
     }).eq("id", id).execute()
 
     flash("Intervention rejected", "success")
     return redirect(url_for("dashboard_admin"))
+    
 @app.route('/admin/add-volunteer', methods=['GET', 'POST'])
 def add_volunteer():
     # Only NGO admin can access
@@ -819,44 +900,14 @@ def dashboard_student():
         flash("Performance data not found", "danger")
         return redirect(url_for('student_login'))
 
-    # Recalculate risk score from actual data
-    performance_data = _recalc_risk(performance.data)
-
     # Fetch teachers for feedback dropdown
     teachers = supabase.table("teachers").select("id,name").execute().data or []
 
-    # Check for active feedback window
-    feedback_active = False
-    feedback_window = None
-    already_reviewed = []
-    try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        windows = supabase.table("feedback_windows").select("*").lte("start_date", today).gte("end_date", today).order("created_at", desc=True).limit(1).execute().data or []
-        if windows:
-            feedback_window = windows[0]
-            feedback_active = True
-            # Find which teachers this student already reviewed in this window
-            existing = supabase.table("student_feedback").select("teacher_name").eq("student_id", str(student_id)).eq("window_id", feedback_window["id"]).execute().data or []
-            already_reviewed = [e["teacher_name"] for e in existing]
-    except:
-        pass
-
-    # Fetch student's leave history
-    leave_history = []
-    try:
-        leave_history = supabase.table("student_leaves").select("*").eq("student_id", str(student_id)).order("created_at", desc=True).execute().data or []
-    except:
-        pass
-
     return render_template(
         "student/dashboard.html",
-        performance=performance_data,
+        performance=performance.data,
         teachers=teachers,
-        no_data=False,
-        feedback_active=feedback_active,
-        feedback_window=feedback_window,
-        already_reviewed=already_reviewed,
-        leave_history=leave_history
+        no_data=False
     )
 
 
@@ -873,31 +924,6 @@ def student_feedback():
         flash("Please enter your feedback.", "danger")
         return redirect(url_for('dashboard_student'))
 
-    # Check for active feedback window
-    active_window = None
-    try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        windows = supabase.table("feedback_windows").select("*").lte("start_date", today).gte("end_date", today).order("created_at", desc=True).limit(1).execute().data or []
-        if windows:
-            active_window = windows[0]
-    except:
-        pass
-
-    if not active_window:
-        flash("Feedback submission is currently closed.", "danger")
-        return redirect(url_for('dashboard_student'))
-
-    teacher_name = request.form.get('teacher_name', '')
-
-    # Check duplicate: 1 feedback per teacher per student per window
-    try:
-        existing = supabase.table("student_feedback").select("id").eq("student_id", str(student_id)).eq("teacher_name", teacher_name).eq("window_id", active_window["id"]).execute().data
-        if existing:
-            flash(f"You have already submitted feedback for {teacher_name} in this period.", "warning")
-            return redirect(url_for('dashboard_student'))
-    except:
-        pass
-
     # Get student info for display on principal dashboard
     student_account = supabase.table("students").select("*").eq("id", student_id).execute()
     student_name = "Unknown"
@@ -912,6 +938,8 @@ def student_feedback():
                 student_name = perf.data[0].get("name", "Unknown")
                 standard = perf.data[0].get("standard")
                 division = perf.data[0].get("division")
+
+    teacher_name = request.form.get('teacher_name', '')
 
     # -------- SENTIMENT ANALYSIS (TextBlob) --------
     try:
@@ -935,8 +963,7 @@ def student_feedback():
         "feedback_text": feedback_text,
         "teacher_name": teacher_name,
         "sentiment_score": sentiment_score,
-        "sentiment_label": sentiment_label,
-        "window_id": active_window["id"]
+        "sentiment_label": sentiment_label
     }).execute()
 
     flash("Feedback submitted successfully!", "success")
@@ -1154,30 +1181,14 @@ def api_chat():
     data = request.get_json()
     message = data.get('message', '') if data else ''
     role = data.get('role', '') if data else ''
-    lang = data.get('lang', 'en') if data else 'en'
     if not message:
         return jsonify({"error": "No message provided"}), 400
 
     allowed_roles = ['homepage', 'student', 'teacher', 'principal']
-    # Use session role if available, fall back to requested role for homepage
-    session_role = session.get('role')
-    if role == 'homepage':
-        pass  # No auth needed for homepage
-    elif session_role in allowed_roles:
-        role = session_role  # Trust the session, not the frontend
-    else:
-        return jsonify({"error": "Please log in to use the chatbot."}), 401
-
-    # Language name map
-    _lang_names = {
-        'en': 'English', 'hi': 'Hindi', 'bn': 'Bengali', 'te': 'Telugu',
-        'mr': 'Marathi', 'ta': 'Tamil', 'gu': 'Gujarati', 'kn': 'Kannada',
-        'ml': 'Malayalam', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese',
-        'ur': 'Urdu', 'sa': 'Sanskrit', 'ne': 'Nepali', 'sd': 'Sindhi',
-        'ks': 'Kashmiri', 'doi': 'Dogri', 'mai': 'Maithili',
-        'mni-Mtei': 'Manipuri', 'sat': 'Santali', 'gom': 'Konkani'
-    }
-    lang_name = _lang_names.get(lang, 'English')
+    if role not in allowed_roles:
+        return jsonify({"error": "Unauthorized"}), 401
+    if role != 'homepage' and session.get('role') != role:
+        return jsonify({"error": "Unauthorized"}), 401
 
     context = ""
     extra_data = None
@@ -1196,8 +1207,6 @@ def api_chat():
     if _time.time() > _gemini_cooldown:
         try:
             prompt = system_prompt + "\n\n"
-            if lang != 'en':
-                prompt += f"IMPORTANT: You MUST respond entirely in {lang_name}. The user's preferred language is {lang_name}. Do not use English.\n\n"
             if context:
                 prompt += f"Available data:\n{context}\n\n"
             prompt += f"User's message: {message}"
@@ -1489,6 +1498,7 @@ def add_student():
             "quiz": quiz_status,
             "behaviour": request.form.get("behaviour", ""),
             "subjects": subjects,
+            "risk_score": risk_score,
             "risk": risk_text,
             "risk_reason": ", ".join(risk_reason),
             "risk_status": risk_status,
@@ -1506,163 +1516,15 @@ def add_student():
             .insert(insert_data) \
             .execute()
 
-        if response.data:
+    if response.data:
             flash("Student Added Successfully!", "success")
-            return redirect(url_for('student_records'))
-        else:
-            flash(f"Insert failed! Error: {response}", "danger")
-            return redirect(url_for('add_student'))
+            return redirect('/teacher/student_records')  # Fixed URL
 
-    return render_template("teacher/add_student.html")
+    else:
+          flash(f"Insert failed! Error: {response}", "danger")
+          return redirect(url_for('add_student'))
 
-@app.route('/teacher/csv_template')
-def csv_template():
-    if session.get('role') != 'teacher':
-        return redirect(url_for('index'))
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        'name', 'roll', 'standard', 'division', 'email', 'gender',
-        'monthly_test_score', 'attendance', 'assignment', 'quiz',
-        'behaviour', 'parent_name', 'parent_phone', 'parent_alt_phone',
-        'parent_address'
-    ])
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=student_upload_template.csv'}
-    )
-
-@app.route('/teacher/bulk_upload', methods=['POST'])
-def bulk_upload():
-    if session.get('role') != 'teacher':
-        return redirect(url_for('index'))
-
-    file = request.files.get('csv_file')
-    if not file or not file.filename.endswith('.csv'):
-        flash("Please upload a valid CSV file.", "danger")
-        return redirect(url_for('add_student'))
-
-    try:
-        stream = io.StringIO(file.stream.read().decode('utf-8'))
-        reader = csv.DictReader(stream)
-
-        required = ['name', 'roll', 'standard', 'email']
-        if not all(col in (reader.fieldnames or []) for col in required):
-            flash(f"CSV must have columns: {', '.join(required)}", "danger")
-            return redirect(url_for('add_student'))
-
-        success = 0
-        errors = []
-
-        for i, row in enumerate(reader, start=2):
-            name = (row.get('name') or '').strip()
-            roll = (row.get('roll') or '').strip()
-            standard = (row.get('standard') or '').strip()
-            email = (row.get('email') or '').strip().lower()
-
-            if not all([name, roll, standard, email]):
-                errors.append(f"Row {i}: Missing required field (name/roll/standard/email)")
-                continue
-
-            try:
-                standard_int = int(standard)
-            except ValueError:
-                errors.append(f"Row {i}: Invalid standard '{standard}'")
-                continue
-
-            division = (row.get('division') or '').strip()
-            gender = (row.get('gender') or '').strip() or None
-
-            # Monthly test score
-            try:
-                monthly_test_score = int(row.get('monthly_test_score') or 0)
-            except (ValueError, TypeError):
-                monthly_test_score = 0
-
-            # Attendance
-            try:
-                attendance = int(float(row.get('attendance') or 0))
-            except (ValueError, TypeError):
-                attendance = 0
-
-            assignment_status = (row.get('assignment') or '').strip()
-            quiz_status = (row.get('quiz') or '').strip()
-            behaviour = (row.get('behaviour') or '').strip()
-
-            # Risk calculation (same logic as add_student)
-            assignment_score = 100 if assignment_status == "Completed" else 0
-            if quiz_status == "Good":
-                quiz_score = 100
-            elif quiz_status == "Average":
-                quiz_score = 50
-            else:
-                quiz_score = 0
-
-            risk_score = 0
-            risk_reason = []
-
-            if monthly_test_score < 35:
-                risk_score += 40
-                risk_reason.append("Low Monthly Score")
-            if attendance < 60:
-                risk_score += 30
-                risk_reason.append("Low Attendance")
-            if assignment_score < 50:
-                risk_score += 15
-                risk_reason.append("Low Assignment")
-            if quiz_score < 50:
-                risk_score += 15
-                risk_reason.append("Low Quiz")
-
-            if risk_score >= 60:
-                risk_text = "High Risk"
-            elif risk_score >= 40:
-                risk_text = "Medium Risk"
-            else:
-                risk_text = "Low Risk"
-
-            risk_status = "At Risk" if risk_score >= 60 else "Safe"
-
-            insert_data = {
-                "name": name,
-                "roll": roll,
-                "standard": standard_int,
-                "division": division,
-                "email": email,
-                "gender": gender,
-                "monthly_test_score": monthly_test_score,
-                "attendance": attendance,
-                "assignment": assignment_status,
-                "quiz": quiz_status,
-                "behaviour": behaviour,
-                "subjects": [],
-                "risk": risk_text,
-                "risk_reason": ", ".join(risk_reason),
-                "risk_status": risk_status,
-                "parent_name": (row.get('parent_name') or '').strip(),
-                "parent_phone": (row.get('parent_phone') or '').strip(),
-                "parent_alt_phone": (row.get('parent_alt_phone') or '').strip() or None,
-                "parent_address": (row.get('parent_address') or '').strip(),
-                "role": "student",
-                "is_deleted": False
-            }
-
-            try:
-                supabase.table("student_performance").insert(insert_data).execute()
-                success += 1
-            except Exception as e:
-                errors.append(f"Row {i} ({name}): {str(e)}")
-
-        if success:
-            flash(f"Successfully added {success} student(s)!", "success")
-        if errors:
-            flash(f"Failed rows: {'; '.join(errors[:5])}" + (f" and {len(errors)-5} more..." if len(errors) > 5 else ""), "danger")
-
-    except Exception as e:
-        flash(f"Error processing CSV: {str(e)}", "danger")
-
-    return redirect(url_for('add_student'))
+          return render_template("teacher/add_student.html")
 
 @app.route('/teacher/student_records')
 def student_records():
@@ -1893,8 +1755,15 @@ def dashboard_principal():
     improved_students = high_to_medium
     declined_students = total_students - improved_students
 
+    # -------- STUDENT FEEDBACK --------
+    try:
+        feedbacks = supabase.table("student_feedback").select("*").order("created_at", desc=True).execute().data or []
+    except:
+        feedbacks = []
+
     return render_template(
         "dashboard_principal.html",
+        students=students,
         total_students=total_students,
         high_risk=high_risk,
         medium_risk=medium_risk,
@@ -1912,160 +1781,8 @@ def dashboard_principal():
         parent_meetings=parent_meetings,
         high_to_medium=high_to_medium,
         medium_to_low=medium_to_low,
-        success_rate=success_rate
-    )
-
-
-@app.route("/principal/teachers")
-def principal_teachers():
-    if session.get("role") != "principal":
-        return redirect(url_for("login"))
-
-    teachers = supabase.table("teachers").select("*").execute().data or []
-    return render_template("principal/teachers.html", teachers=teachers)
-
-
-@app.route("/principal/feedback")
-def principal_feedback():
-    if session.get("role") != "principal":
-        return redirect(url_for("login"))
-
-    # Fetch latest feedback window
-    window = None
-    window_active = False
-    try:
-        windows = supabase.table("feedback_windows").select("*").order("created_at", desc=True).limit(1).execute().data or []
-        if windows:
-            window = windows[0]
-            today = datetime.now().strftime("%Y-%m-%d")
-            window_active = window["start_date"] <= today <= window["end_date"]
-    except:
-        pass
-
-    # Fetch feedbacks for latest window only
-    feedbacks = []
-    try:
-        query = supabase.table("student_feedback").select("*")
-        if window:
-            query = query.eq("window_id", window["id"])
-        feedbacks = query.order("created_at", desc=True).execute().data or []
-    except:
-        feedbacks = []
-
-    # Get unique teacher names for filter dropdown
-    teacher_names = sorted(set(f["teacher_name"] for f in feedbacks if f.get("teacher_name")))
-
-    # Apply filters
-    filter_teacher = request.args.get("teacher_filter", "")
-    filter_sentiment = request.args.get("sentiment_filter", "")
-
-    if filter_teacher:
-        feedbacks = [f for f in feedbacks if f.get("teacher_name") == filter_teacher]
-    if filter_sentiment:
-        feedbacks = [f for f in feedbacks if f.get("sentiment_label") == filter_sentiment]
-
-    return render_template(
-        "principal/feedback.html",
-        feedbacks=feedbacks,
-        window=window,
-        window_active=window_active,
-        teacher_names=teacher_names,
-        filter_teacher=filter_teacher,
-        filter_sentiment=filter_sentiment
-    )
-
-
-@app.route("/principal/create_feedback_window", methods=["POST"])
-def create_feedback_window():
-    if session.get("role") != "principal":
-        return redirect(url_for("login"))
-
-    start_date = request.form.get("start_date")
-    end_date = request.form.get("end_date")
-
-    if not start_date or not end_date:
-        flash("Please provide both start and end dates.", "danger")
-        return redirect(url_for("principal_feedback"))
-
-    if end_date < start_date:
-        flash("End date must be after start date.", "danger")
-        return redirect(url_for("principal_feedback"))
-
-    try:
-        supabase.table("feedback_windows").insert({
-            "start_date": start_date,
-            "end_date": end_date,
-            "created_by": session.get("user_id", "principal")
-        }).execute()
-        flash("Feedback window created successfully!", "success")
-    except Exception as e:
-        flash(f"Error creating feedback window: {str(e)}", "danger")
-
-    return redirect(url_for("principal_feedback"))
-
-
-@app.route("/principal/ai_analysis")
-def principal_ai_analysis():
-    if session.get("role") != "principal":
-        return redirect(url_for("login"))
-
-    selected_class = request.args.get("class_filter")
-    selected_risk = request.args.get("risk_filter")
-    selected_gender = request.args.get("gender_filter")
-
-    response = supabase.table("student_performance").select("*").execute()
-    rows = response.data or []
-
-    filtered = []
-    for r in rows:
-        cls = str(r.get("class"))
-        gender = str(r.get("gender")).lower()
-
-        if selected_class and cls != selected_class:
-            continue
-        if selected_gender and gender != selected_gender.lower():
-            continue
-        filtered.append(r)
-
-    total_students = len(filtered)
-    high_risk = medium_risk = 0
-    students = []
-
-    for r in filtered:
-        roll = r.get("roll")
-        name = r.get("name")
-        cls = r.get("class")
-        gender = str(r.get("gender"))
-        att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
-
-        risk_score = max(0, 100 - ((att + marks) / 2))
-
-        if att < 75 or marks < 40:
-            risk = "High"
-            high_risk += 1
-            action = "Home Visit"
-        elif att < 85 or marks < 55:
-            risk = "Medium"
-            medium_risk += 1
-            action = "Extra Classes"
-        else:
-            risk = "Low"
-            action = "Regular Monitoring"
-
-        reason = f"Attendance: {att}%, Marks: {marks}"
-
-        if selected_risk and risk != selected_risk:
-            continue
-
-        students.append((roll, name, cls, gender, att, marks, risk, reason, action, int(risk_score)))
-
-    return render_template(
-        "principal/ai_analysis.html",
-        students=students,
-        total_students=total_students,
-        high_risk=high_risk,
-        medium_risk=medium_risk
+        success_rate=success_rate,
+        feedbacks=feedbacks
     )
 
 
@@ -2246,27 +1963,67 @@ def check_risks():
 def logout():
     session.clear()
     return redirect(url_for('select_role'))
+# ================= EXPORT EXCEL =================
+@app.route("/export_excel")
+def export_excel():
 
-# ---------------- TTS PROXY (Google Translate TTS) ----------------
-@app.route('/api/tts')
-def api_tts():
-    text = request.args.get('q', '')
-    lang = request.args.get('tl', 'en')
-    if not text or len(text) > 300:
-        return "Bad request", 400
-    import requests as _req
-    try:
-        resp = _req.get(
-            'https://translate.google.com/translate_tts',
-            params={'ie': 'UTF-8', 'client': 'tw-ob', 'tl': lang, 'q': text},
-            headers={'User-Agent': 'Mozilla/5.0'},
-            timeout=5
-        )
-        if resp.status_code == 200:
-            return Response(resp.content, mimetype='audio/mpeg')
-    except:
-        pass
-    return "TTS unavailable", 503
+    rows = supabase.table("student_performance").select("*").execute().data or []
+
+    output = io.BytesIO()
+
+    df = pd.DataFrame(rows)
+
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="Students")
+
+    output.seek(0)
+
+    return Response(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=student_report.xlsx"}
+    )
+    # ================= EXPORT PDF =================
+@app.route("/export_pdf")
+def export_pdf():
+
+    rows = supabase.table("student_performance").select("*").execute().data or []
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=pagesizes.A4)
+    elements = []
+
+    styles = getSampleStyleSheet()
+    elements.append(Paragraph("Student Performance Report", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    data = [["Roll","Name","Standard","Attendance","Marks"]]
+
+    for r in rows:
+        data.append([
+            r.get("roll"),
+            r.get("name"),
+           r.get("standard"),
+            r.get("attendance"),
+            r.get("marks")
+        ])
+
+    table = Table(data)
+    table.setStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.grey),
+        ('GRID',(0,0),(-1,-1),1,colors.black)
+    ])
+
+    elements.append(table)
+    doc.build(elements)
+
+    buffer.seek(0)
+
+    return Response(
+        buffer,
+        mimetype='application/pdf',
+        headers={'Content-Disposition':'attachment;filename=student_report.pdf'}
+    )
 
 # ---------------- SERVICE WORKER (must be served from root) ----------------
 @app.route('/sw.js')
