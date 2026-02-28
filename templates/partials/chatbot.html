@@ -1,0 +1,176 @@
+<!-- AI Chatbot Widget -->
+<div id="chatbot-toggle" class="chatbot-toggle" onclick="toggleChat()">
+  <i class="bi bi-robot"></i>
+</div>
+<div id="chatbot-panel" class="chatbot-panel" data-role="{{ chatbot_role }}">
+  <div class="chatbot-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="bi bi-robot" style="font-size:1.2rem;"></i>
+      <div>
+        <div style="font-weight:700;font-size:0.95rem;">EduBot</div>
+        <div style="font-size:0.7rem;opacity:0.85;">{{ chatbot_subtitle }}</div>
+      </div>
+    </div>
+    <button onclick="toggleChat()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:0;"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div id="chat-messages" class="chatbot-messages">
+    <div class="chat-msg chat-msg-bot">
+      {{ chatbot_greeting }}
+    </div>
+  </div>
+  <div class="chatbot-input-row">
+    <button id="mic-btn" onclick="toggleVoiceInput()" title="Voice input"><i class="bi bi-mic-fill"></i></button>
+    <input type="text" id="chat-input" placeholder="Type or speak..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()"><i class="bi bi-send-fill"></i></button>
+  </div>
+</div>
+
+<script>
+function toggleChat() {
+  var p = document.getElementById('chatbot-panel');
+  var t = document.getElementById('chatbot-toggle');
+  if (p.classList.contains('open')) {
+    p.classList.remove('open');
+    t.classList.remove('active');
+  } else {
+    p.classList.add('open');
+    t.classList.add('active');
+    document.getElementById('chat-input').focus();
+  }
+}
+
+function sendChat() {
+  var input = document.getElementById('chat-input');
+  var msg = input.value.trim();
+  if (!msg) return;
+  var msgs = document.getElementById('chat-messages');
+  var role = document.getElementById('chatbot-panel').dataset.role || '';
+
+  var u = document.createElement('div');
+  u.className = 'chat-msg chat-msg-user';
+  u.textContent = msg;
+  msgs.appendChild(u);
+  input.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  var t = document.createElement('div');
+  t.id = 'typing-indicator';
+  t.className = 'chat-msg chat-msg-bot';
+  t.style.color = '#94a3b8';
+  t.innerHTML = '<i class="bi bi-three-dots" style="animation:pulse 1.2s infinite;"></i> Thinking...';
+  msgs.appendChild(t);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({message: msg, role: role})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    var tp = document.getElementById('typing-indicator');
+    if (tp) tp.remove();
+    var b = document.createElement('div');
+    b.className = 'chat-msg chat-msg-bot';
+    var txt = d.response || d.error || 'Sorry, I could not respond.';
+    b.innerHTML = '<span class="bot-text">' + txt.replace(/</g,'&lt;') + '</span> <button class="tts-btn" onclick="speakText(this)" title="Listen"><i class="bi bi-volume-up-fill"></i></button>';
+    msgs.appendChild(b);
+    msgs.scrollTop = msgs.scrollHeight;
+  })
+  .catch(function() {
+    var tp = document.getElementById('typing-indicator');
+    if (tp) tp.remove();
+    var e = document.createElement('div');
+    e.className = 'chat-msg chat-msg-bot';
+    e.style.background = '#fef2f2';
+    e.style.color = '#ef4444';
+    e.textContent = 'Network error. Please try again.';
+    msgs.appendChild(e);
+    msgs.scrollTop = msgs.scrollHeight;
+  });
+}
+
+// --- Text-to-Speech ---
+function _getBestVoice() {
+  var voices = window.speechSynthesis.getVoices();
+  // Prefer high-quality English voices
+  var preferred = ['Google UK English Female', 'Google US English', 'Samantha', 'Karen', 'Daniel', 'Rishi', 'Microsoft Zira', 'Microsoft David'];
+  for (var i = 0; i < preferred.length; i++) {
+    for (var j = 0; j < voices.length; j++) {
+      if (voices[j].name.indexOf(preferred[i]) !== -1) return voices[j];
+    }
+  }
+  // Fallback: first English voice
+  for (var k = 0; k < voices.length; k++) {
+    if (voices[k].lang.startsWith('en')) return voices[k];
+  }
+  return null;
+}
+// Preload voices
+if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
+function speakText(btn) {
+  var text = btn.parentElement.querySelector('.bot-text').textContent;
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+    return;
+  }
+  var utter = new SpeechSynthesisUtterance(text);
+  var voice = _getBestVoice();
+  if (voice) utter.voice = voice;
+  utter.rate = 0.9;
+  utter.pitch = 1.05;
+  utter.volume = 1;
+  btn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+  utter.onend = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
+  utter.onerror = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
+  window.speechSynthesis.speak(utter);
+}
+
+// --- Speech-to-Text ---
+var _recognition = null;
+var _isListening = false;
+
+function toggleVoiceInput() {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('Speech recognition is not supported in your browser. Please use Chrome.');
+    return;
+  }
+  var micBtn = document.getElementById('mic-btn');
+  if (_isListening && _recognition) {
+    _recognition.stop();
+    return;
+  }
+  _recognition = new SpeechRecognition();
+  _recognition.lang = 'en-IN';
+  _recognition.interimResults = false;
+  _recognition.maxAlternatives = 1;
+
+  _recognition.onstart = function() {
+    _isListening = true;
+    micBtn.classList.add('listening');
+    micBtn.innerHTML = '<i class="bi bi-mic-mute-fill"></i>';
+  };
+  _recognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    document.getElementById('chat-input').value = transcript;
+    sendChat();
+  };
+  _recognition.onend = function() {
+    _isListening = false;
+    micBtn.classList.remove('listening');
+    micBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    _recognition = null;
+  };
+  _recognition.onerror = function(e) {
+    _isListening = false;
+    micBtn.classList.remove('listening');
+    micBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    if (e.error !== 'aborted') alert('Voice error: ' + e.error);
+    _recognition = null;
+  };
+  _recognition.start();
+}
+</script>

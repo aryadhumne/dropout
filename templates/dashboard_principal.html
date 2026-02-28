@@ -242,4 +242,9 @@ new Chart(document.getElementById("genderChart"), {
 });
 </script>
 
+{% set chatbot_greeting = "Hi! I'm EduBot, your school analytics assistant. Ask me about school-wide trends, intervention strategies, or student data!" %}
+{% set chatbot_subtitle = "School Analytics Assistant" %}
+{% set chatbot_role = "principal" %}
+{% include 'partials/chatbot.html' %}
+
 {% endblock %}

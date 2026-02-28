@@ -167,4 +167,9 @@ async function exportPDF() {
 }
 </script>
 
+{% set chatbot_greeting = "Hi! I'm EduBot, your AI teaching assistant. Ask me about student risk levels, intervention strategies, or data insights!" %}
+{% set chatbot_subtitle = "AI Teaching Assistant" %}
+{% set chatbot_role = "teacher" %}
+{% include 'partials/chatbot.html' %}
+
 {% endblock %}

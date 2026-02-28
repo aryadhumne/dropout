@@ -300,5 +300,10 @@ function setCookie(n,v,d) { var e=new Date(); e.setTime(e.getTime()+(d*864e5)); 
 function getCookie(n) { var m=document.cookie.match(new RegExp('(^| )'+n+'=([^;]+)')); return m?m[2]:null; }
 </script>
 
+{% set chatbot_greeting = "Hi! I'm EduBot. Ask me anything about EduDrop — features, how it works, or how to get started!" %}
+{% set chatbot_subtitle = "EduDrop Assistant" %}
+{% set chatbot_role = "homepage" %}
+{% include 'partials/chatbot.html' %}
+
 </body>
 </html>
