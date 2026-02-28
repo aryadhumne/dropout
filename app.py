@@ -1881,6 +1881,15 @@ def logout():
     session.clear()
     return redirect(url_for('select_role'))
 
+# ---------------- SERVICE WORKER (must be served from root) ----------------
+@app.route('/sw.js')
+def service_worker():
+    return app.send_static_file('service-worker.js'), 200, {'Content-Type': 'application/javascript', 'Service-Worker-Allowed': '/'}
+
+@app.route('/offline')
+def offline_page():
+    return render_template('offline.html')
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

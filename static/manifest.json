@@ -1,16 +1,15 @@
 {
-  "name": "Dropout App",
-  "short_name": "Dropout",
+  "name": "EduDrop - Student Dropout Prevention",
+  "short_name": "EduDrop",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4f6f9",
-  "theme_color": "#0d6efd",
+  "background_color": "#0f0a2c",
+  "theme_color": "#e72191",
   "icons": [
     {
       "src": "/static/icons/s1.png",
       "sizes": "192x192",
       "type": "image/png"
     }
-  
   ]
 }
