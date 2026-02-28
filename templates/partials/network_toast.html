@@ -1,0 +1,69 @@
+<!-- Network status toast -->
+<div id="networkToast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);z-index:9999;padding:12px 28px;border-radius:12px;font-size:0.9rem;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;color:#fff;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1),opacity 0.4s;opacity:0;pointer-events:none;">
+  <i class="bi" id="networkToastIcon"></i>
+  <span id="networkToastText"></span>
+</div>
+<script>
+(function() {
+  var toast = document.getElementById('networkToast');
+  var icon = document.getElementById('networkToastIcon');
+  var text = document.getElementById('networkToastText');
+  var hideTimer = null;
+  var wasOffline = false;
+
+  function showToast(msg, iconClass, bg, autoHide) {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    text.textContent = msg;
+    icon.className = 'bi ' + iconClass;
+    toast.style.background = bg;
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toast.style.opacity = '1';
+    toast.style.pointerEvents = 'auto';
+    if (autoHide) {
+      hideTimer = setTimeout(function() {
+        toast.style.transform = 'translateX(-50%) translateY(100px)';
+        toast.style.opacity = '0';
+        toast.style.pointerEvents = 'none';
+      }, 3000);
+    }
+  }
+
+  function goOffline() {
+    if (!wasOffline) {
+      wasOffline = true;
+      showToast('You are offline', 'bi-wifi-off', '#6b7280', false);
+    }
+  }
+
+  function goOnline() {
+    if (wasOffline) {
+      wasOffline = false;
+      showToast('You are back online', 'bi-wifi', '#22c55e', true);
+      setTimeout(function() { location.reload(); }, 2000);
+    }
+  }
+
+  function checkNet() {
+    var img = new Image();
+    var done = false;
+    var timer = setTimeout(function() {
+      if (!done) { done = true; goOffline(); }
+    }, 4000);
+    img.onload = function() {
+      if (!done) { done = true; clearTimeout(timer); goOnline(); }
+    };
+    img.onerror = function() {
+      if (!done) { done = true; clearTimeout(timer); goOffline(); }
+    };
+    img.src = 'https://www.google.com/favicon.ico?_=' + Date.now();
+  }
+
+  // Browser events
+  window.addEventListener('offline', function() { goOffline(); });
+  window.addEventListener('online', function() { checkNet(); });
+
+  // Check on load and every 15 seconds
+  checkNet();
+  setInterval(checkNet, 15000);
+})();
+</script>

@@ -255,6 +255,8 @@ function getCookie(name) {
 }
 </script>
 
+{% include 'partials/network_toast.html' %}
+
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(function(reg) {

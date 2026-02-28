@@ -2,6 +2,7 @@ const CACHE_NAME = "edudrop-v2";
 
 // Static assets to pre-cache on install
 const PRECACHE = [
+  "/offline",
   "/static/css/main.css",
   "/static/manifest.json",
   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
@@ -31,35 +32,53 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET requests (POST to /api/chat, form submissions, etc.)
+  // Skip non-GET requests
   if (e.request.method !== "GET") return;
 
-  // For API routes — network only, don't cache
+  // Skip /api/ routes — go straight to Flask (needed for /api/ping connectivity check)
   if (url.pathname.startsWith("/api/")) return;
 
-  // For HTML pages — network first, fall back to cache
-  if (e.request.headers.get("accept") && e.request.headers.get("accept").includes("text/html")) {
+  // For HTML pages — network first, fall back to cache, then /offline
+  if (e.request.mode === "navigate" ||
+      (e.request.headers.get("accept") && e.request.headers.get("accept").includes("text/html"))) {
     e.respondWith(
       fetch(e.request)
         .then(resp => {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          if (resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          if (!resp.ok) {
+            // Server error (503 from Supabase down) — serve cached page
+            return caches.match(e.request, { ignoreSearch: true }).then(cached => {
+              if (cached) return cached;
+              return caches.match("/offline").then(offlinePage => offlinePage || resp);
+            });
+          }
           return resp;
         })
-        .catch(() => caches.match(e.request).then(r => r || caches.match("/offline")))
+        .catch(() => {
+          // Network completely failed — serve from cache
+          return caches.match(e.request, { ignoreSearch: true }).then(cached => {
+            if (cached) return cached;
+            return caches.match("/offline");
+          });
+        })
     );
     return;
   }
 
-  // For static assets (CSS, JS, fonts, images) — cache first, then network
+  // For static assets — cache first, then network
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(resp => {
-        const clone = resp.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
         return resp;
-      });
+      }).catch(() => new Response("", { status: 408 }));
     })
   );
 });

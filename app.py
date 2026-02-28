@@ -10,6 +10,7 @@ import csv
 import sqlite3
 import io
 import pandas as pd
+import httpx
 from reportlab.pdfgen import canvas
 from flask import jsonify
 from supabase import create_client
@@ -117,6 +118,18 @@ app.config.update(
 
 mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.secret_key)
+
+@app.errorhandler(httpx.ConnectError)
+def handle_connect_error(e):
+    return render_template('offline.html'), 503
+
+@app.errorhandler(httpx.ReadError)
+def handle_read_error(e):
+    return render_template('offline.html'), 503
+
+@app.errorhandler(httpx.TimeoutException)
+def handle_timeout_error(e):
+    return render_template('offline.html'), 503
 
 # ---------------- HOME ----------------
 @app.route('/')
@@ -1658,7 +1671,7 @@ def dashboard_principal():
 
     for r in rows:
 
-        cls = str(r.get("class"))
+        cls = str(r.get("standard"))
         gender = str(r.get("gender")).lower()
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
@@ -1695,7 +1708,7 @@ def dashboard_principal():
 
         roll = r.get("roll")
         name = r.get("name")
-        cls = r.get("class")
+        cls = r.get("standard")
         gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
@@ -1781,8 +1794,160 @@ def dashboard_principal():
         parent_meetings=parent_meetings,
         high_to_medium=high_to_medium,
         medium_to_low=medium_to_low,
-        success_rate=success_rate,
-        feedbacks=feedbacks
+        success_rate=success_rate
+    )
+
+
+@app.route("/principal/teachers")
+def principal_teachers():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    teachers = supabase.table("teachers").select("*").execute().data or []
+    return render_template("principal/teachers.html", teachers=teachers)
+
+
+@app.route("/principal/feedback")
+def principal_feedback():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    # Fetch latest feedback window
+    window = None
+    window_active = False
+    try:
+        windows = supabase.table("feedback_windows").select("*").order("created_at", desc=True).limit(1).execute().data or []
+        if windows:
+            window = windows[0]
+            today = datetime.now().strftime("%Y-%m-%d")
+            window_active = window["start_date"] <= today <= window["end_date"]
+    except:
+        pass
+
+    # Fetch feedbacks for latest window only
+    feedbacks = []
+    try:
+        query = supabase.table("student_feedback").select("*")
+        if window:
+            query = query.eq("window_id", window["id"])
+        feedbacks = query.order("created_at", desc=True).execute().data or []
+    except:
+        feedbacks = []
+
+    # Get unique teacher names for filter dropdown
+    teacher_names = sorted(set(f["teacher_name"] for f in feedbacks if f.get("teacher_name")))
+
+    # Apply filters
+    filter_teacher = request.args.get("teacher_filter", "")
+    filter_sentiment = request.args.get("sentiment_filter", "")
+
+    if filter_teacher:
+        feedbacks = [f for f in feedbacks if f.get("teacher_name") == filter_teacher]
+    if filter_sentiment:
+        feedbacks = [f for f in feedbacks if f.get("sentiment_label") == filter_sentiment]
+
+    return render_template(
+        "principal/feedback.html",
+        feedbacks=feedbacks,
+        window=window,
+        window_active=window_active,
+        teacher_names=teacher_names,
+        filter_teacher=filter_teacher,
+        filter_sentiment=filter_sentiment
+    )
+
+
+@app.route("/principal/create_feedback_window", methods=["POST"])
+def create_feedback_window():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    start_date = request.form.get("start_date")
+    end_date = request.form.get("end_date")
+
+    if not start_date or not end_date:
+        flash("Please provide both start and end dates.", "danger")
+        return redirect(url_for("principal_feedback"))
+
+    if end_date < start_date:
+        flash("End date must be after start date.", "danger")
+        return redirect(url_for("principal_feedback"))
+
+    try:
+        supabase.table("feedback_windows").insert({
+            "start_date": start_date,
+            "end_date": end_date,
+            "created_by": session.get("user_id", "principal")
+        }).execute()
+        flash("Feedback window created successfully!", "success")
+    except Exception as e:
+        flash(f"Error creating feedback window: {str(e)}", "danger")
+
+    return redirect(url_for("principal_feedback"))
+
+
+@app.route("/principal/ai_analysis")
+def principal_ai_analysis():
+    if session.get("role") != "principal":
+        return redirect(url_for("login"))
+
+    selected_class = request.args.get("class_filter")
+    selected_risk = request.args.get("risk_filter")
+    selected_gender = request.args.get("gender_filter")
+
+    response = supabase.table("student_performance").select("*").execute()
+    rows = response.data or []
+
+    filtered = []
+    for r in rows:
+        cls = str(r.get("standard"))
+        gender = str(r.get("gender")).lower()
+
+        if selected_class and cls != selected_class:
+            continue
+        if selected_gender and gender != selected_gender.lower():
+            continue
+        filtered.append(r)
+
+    total_students = len(filtered)
+    high_risk = medium_risk = 0
+    students = []
+
+    for r in filtered:
+        roll = r.get("roll")
+        name = r.get("name")
+        cls = r.get("standard")
+        gender = str(r.get("gender"))
+        att = int(r.get("attendance") or 0)
+        marks = int(r.get("marks") or 0)
+
+        risk_score = max(0, 100 - ((att + marks) / 2))
+
+        if att < 75 or marks < 40:
+            risk = "High"
+            high_risk += 1
+            action = "Home Visit"
+        elif att < 85 or marks < 55:
+            risk = "Medium"
+            medium_risk += 1
+            action = "Extra Classes"
+        else:
+            risk = "Low"
+            action = "Regular Monitoring"
+
+        reason = f"Attendance: {att}%, Marks: {marks}"
+
+        if selected_risk and risk != selected_risk:
+            continue
+
+        students.append((roll, name, cls, gender, att, marks, risk, reason, action, int(risk_score)))
+
+    return render_template(
+        "principal/ai_analysis.html",
+        students=students,
+        total_students=total_students,
+        high_risk=high_risk,
+        medium_risk=medium_risk
     )
 
 
@@ -1800,7 +1965,7 @@ def export_high_risk_csv():
         att = int(r.get("attendance") or 0)
         marks = int(r.get("marks") or 0)
         if att < 75 or marks < 40:
-            writer.writerow([r.get("roll"),r.get("name"),r.get("class"),r.get("gender"),att,marks])
+            writer.writerow([r.get("roll"),r.get("name"),r.get("standard"),r.get("gender"),att,marks])
 
     output.seek(0)
 
@@ -1855,7 +2020,7 @@ def send_ngo():
         if att < 75 or marks < 40:
             supabase.table("ngo_notifications").insert({
                 "student_name": r.get("name"),
-                "class": r.get("class"),
+                "class": r.get("standard"),
                 "attendance": att,
                 "marks": marks
             }).execute()
