@@ -21,8 +21,8 @@ import cloudinary
 import cloudinary.uploader
 # -------- NLP & GENERATIVE AI --------
 from textblob import TextBlob
-# import google.generativeai as genai
-# genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 cloudinary.config(
     cloud_name="de20jxqpu",
@@ -932,90 +932,183 @@ def student_leave():
     return redirect(url_for('dashboard_student'))
 
 
-# # ---------------- AI CHATBOT (Gemini + Smart Fallback) ----------------
-# import time as _time
-# _gemini_cooldown = 0
-#
-# def _smart_fallback(message, student_data):
-#     msg = message.lower()
-#     p = student_data or {}
-#     name = p.get("name", "there")
-#     att = int(p.get("attendance", 0))
-#     monthly = int(p.get("monthly_test_score", 0))
-#     assign = int(p.get("assignment", 0))
-#     quiz_score = int(p.get("quiz", 0))
-#     risk = p.get("risk_status", p.get("risk", "Unknown"))
-#     scores = {"attendance": att, "monthly test": monthly, "assignments": assign, "quizzes": quiz_score}
-#     weakest = min(scores, key=scores.get)
-#     strongest = max(scores, key=scores.get)
-#     if any(w in msg for w in ["how am i", "my performance", "how do i", "my score", "my marks", "my result"]):
-#         tips = []
-#         if att < 75: tips.append(f"Your attendance is {att}% — aim for 75%+ by attending regularly.")
-#         if monthly < 40: tips.append(f"Monthly test score is {monthly} — try solving previous year papers.")
-#         if assign < 50: tips.append(f"Assignment score is {assign} — submit all pending work to boost this.")
-#         if quiz_score < 50: tips.append(f"Quiz score is {quiz_score} — daily 15-min revision can help.")
-#         if not tips: return f"Great job {name}! Your scores look good. Keep it up!"
-#         return f"Hi {name}! Here's what needs attention: " + " ".join(tips)
-#     elif any(w in msg for w in ["improve", "better", "help", "tip", "study", "advice"]):
-#         return f"Focus on your weakest area ({weakest}) and practice daily. You're strong in {strongest} — keep that up!"
-#     elif any(w in msg for w in ["stress", "worried", "scared", "anxious", "sad", "depressed", "motivation"]):
-#         return f"It's completely normal to feel this way, {name}. Take it one step at a time. Talk to your teacher if you need support."
-#     elif any(w in msg for w in ["hello", "hi", "hey", "good morning", "good evening"]):
-#         return f"Hello {name}! I'm EduBot. Ask me about your performance, study tips, or how to improve."
-#     elif any(w in msg for w in ["risk", "danger", "dropout", "at risk"]):
-#         return f"Your status is {risk}. Focus on {weakest} (score: {scores[weakest]}). Small daily improvements help!"
-#     else:
-#         return f"Hi {name}! Attendance: {att}%, Test: {monthly}, Assignment: {assign}, Quiz: {quiz_score}. Strongest: {strongest}."
-#
-# @app.route('/api/chat', methods=['POST'])
-# def api_chat():
-#     if session.get('role') != 'student':
-#         return jsonify({"error": "Unauthorized"}), 401
-#     data = request.get_json()
-#     message = data.get('message', '') if data else ''
-#     if not message:
-#         return jsonify({"error": "No message provided"}), 400
-#     student_id = session.get('student_id')
-#     student_data = None
-#     context = ""
-#     try:
-#         student_account = supabase.table("students").select("*").eq("id", student_id).execute()
-#         if student_account.data:
-#             perf_id = student_account.data[0].get("student_performance_id")
-#             if perf_id:
-#                 perf = supabase.table("student_performance").select("*").eq("id", perf_id).execute()
-#                 if perf.data:
-#                     student_data = perf.data[0]
-#                     p = student_data
-#                     context = (
-#                         f"Student Profile:\n"
-#                         f"- Name: {p.get('name', 'N/A')}\n"
-#                         f"- Attendance: {p.get('attendance', 'N/A')}%\n"
-#                         f"- Monthly Test Score: {p.get('monthly_test_score', 'N/A')}\n"
-#                         f"- Assignment Score: {p.get('assignment', 'N/A')}\n"
-#                         f"- Quiz Score: {p.get('quiz', 'N/A')}\n"
-#                         f"- Risk Status: {p.get('risk_status', p.get('risk', 'N/A'))}\n"
-#                     )
-#     except Exception as e:
-#         print("CHAT CONTEXT ERROR:", e)
-#     global _gemini_cooldown
-#     if _time.time() > _gemini_cooldown:
-#         try:
-#             prompt = (
-#                 "You are EduBot, a friendly AI academic counselor for school students. "
-#                 "Keep responses concise (2-3 sentences max). Be supportive and encouraging. "
-#                 "If the student shares data, give specific advice based on their numbers.\n\n"
-#             )
-#             if context: prompt += f"Student data:\n{context}\n"
-#             prompt += f"Student's message: {message}"
-#             response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
-#                 prompt, request_options={"timeout": 8}
-#             )
-#             return jsonify({"response": response.text})
-#         except Exception as e:
-#             _gemini_cooldown = _time.time() + 300
-#             print(f"GEMINI FAILED ({type(e).__name__}) — cooldown 5 min")
-#     return jsonify({"response": _smart_fallback(message, student_data)})
+# ---------------- AI CHATBOT (Gemini + Smart Fallback) ----------------
+import time as _time
+_gemini_cooldown = 0
+
+# --- System prompts per role ---
+def _get_system_prompt(role):
+    prompts = {
+        'homepage': (
+            "You are EduBot, the AI assistant for EduDrop - a platform that helps schools "
+            "identify students at risk of dropping out. You are on the public homepage. "
+            "Answer questions about EduDrop's features, how it works, who can use it "
+            "(students, teachers, principals, NGOs), and how to get started. "
+            "Keep responses concise (2-3 sentences). Be welcoming and informative."
+        ),
+        'student': (
+            "You are EduBot, a friendly AI academic counselor for school students. "
+            "Keep responses concise (2-3 sentences max). Be supportive and encouraging. "
+            "If the student shares data, give specific advice based on their numbers."
+        ),
+        'teacher': (
+            "You are EduBot, an AI teaching assistant for school teachers using EduDrop. "
+            "Help teachers understand risk scores, manage students, interpret data trends, "
+            "suggest intervention strategies for at-risk students, and handle leave requests. "
+            "Keep responses concise (2-3 sentences). Be professional and actionable."
+        ),
+        'principal': (
+            "You are EduBot, an AI analytics assistant for school principals using EduDrop. "
+            "Help principals interpret school-wide analytics, compare risk trends, plan "
+            "interventions, manage teachers, and make data-driven decisions about student welfare. "
+            "Keep responses concise (2-3 sentences). Be strategic and data-focused."
+        ),
+    }
+    return prompts.get(role, prompts['homepage'])
+
+# --- Context builders ---
+def _get_student_context(sess):
+    student_data = None
+    context = ""
+    try:
+        student_id = sess.get('student_id')
+        student_account = supabase.table("students").select("*").eq("id", student_id).execute()
+        if student_account.data:
+            perf_id = student_account.data[0].get("student_performance_id")
+            if perf_id:
+                perf = supabase.table("student_performance").select("*").eq("id", perf_id).execute()
+                if perf.data:
+                    student_data = perf.data[0]
+                    p = student_data
+                    context = (
+                        f"Student Profile:\n"
+                        f"- Name: {p.get('name', 'N/A')}\n"
+                        f"- Attendance: {p.get('attendance', 'N/A')}%\n"
+                        f"- Monthly Test Score: {p.get('monthly_test_score', 'N/A')}\n"
+                        f"- Assignment Score: {p.get('assignment', 'N/A')}\n"
+                        f"- Quiz Score: {p.get('quiz', 'N/A')}\n"
+                        f"- Risk Status: {p.get('risk_status', p.get('risk', 'N/A'))}\n"
+                    )
+    except Exception as e:
+        print("CHAT CONTEXT ERROR (student):", e)
+    return {'context': context, 'student_data': student_data}
+
+def _get_teacher_context(sess):
+    context = ""
+    data = {}
+    try:
+        students = supabase.table("student_performance").select("*").execute().data or []
+        total = len(students)
+        high = len([s for s in students if (s.get("risk_score") or 0) >= 60])
+        medium = len([s for s in students if 40 <= (s.get("risk_score") or 0) < 60])
+        low = total - high - medium
+        pending = 0
+        try:
+            leaves = supabase.table("student_leaves").select("status").execute().data or []
+            pending = len([l for l in leaves if l.get("status") == "Pending"])
+        except:
+            pass
+        context = (
+            f"Teacher Dashboard Summary:\n"
+            f"- Total Students: {total}\n"
+            f"- High Risk: {high}\n"
+            f"- Medium Risk: {medium}\n"
+            f"- Low Risk: {low}\n"
+            f"- Pending Leave Requests: {pending}\n"
+        )
+        data = {'total': total, 'high': high, 'medium': medium, 'low': low, 'pending_leaves': pending}
+    except Exception as e:
+        print("CHAT CONTEXT ERROR (teacher):", e)
+    return {'context': context, 'data': data}
+
+def _get_principal_context(sess):
+    context = ""
+    data = {}
+    try:
+        rows = supabase.table("student_performance").select("*").execute().data or []
+        total = len(rows)
+        high = sum(1 for r in rows if _safe_int(r.get("attendance")) < 75 or _safe_int(r.get("monthly_test_score")) < 40)
+        avg_att = round(sum(_safe_int(r.get("attendance")) for r in rows) / total, 1) if total else 0
+        boys_risk = sum(1 for r in rows if str(r.get("gender", "")).lower() == "male" and (_safe_int(r.get("attendance")) < 75 or _safe_int(r.get("monthly_test_score")) < 40))
+        girls_risk = sum(1 for r in rows if str(r.get("gender", "")).lower() == "female" and (_safe_int(r.get("attendance")) < 75 or _safe_int(r.get("monthly_test_score")) < 40))
+        teachers = supabase.table("teachers").select("id").execute().data or []
+        context = (
+            f"School Analytics:\n"
+            f"- Total Students: {total}\n"
+            f"- High Risk: {high}\n"
+            f"- Average Attendance: {avg_att}%\n"
+            f"- Boys at High Risk: {boys_risk}, Girls at High Risk: {girls_risk}\n"
+            f"- Total Teachers: {len(teachers)}\n"
+        )
+        data = {'total': total, 'high': high, 'avg_att': avg_att, 'boys_risk': boys_risk, 'girls_risk': girls_risk, 'teachers': len(teachers)}
+    except Exception as e:
+        print("CHAT CONTEXT ERROR (principal):", e)
+    return {'context': context, 'data': data}
+
+# --- Simple fallback (only used if Gemini is down) ---
+def _safe_int(val, default=0):
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+def _fallback(role, message, extra_data):
+    return "Sorry, I'm temporarily unavailable. Please try again in a few minutes."
+
+# --- Main chat route (multi-role) ---
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    data = request.get_json()
+    message = data.get('message', '') if data else ''
+    role = data.get('role', '') if data else ''
+    if not message:
+        return jsonify({"error": "No message provided"}), 400
+
+    allowed_roles = ['homepage', 'student', 'teacher', 'principal']
+    if role not in allowed_roles:
+        return jsonify({"error": "Unauthorized"}), 401
+    if role != 'homepage' and session.get('role') != role:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    context = ""
+    extra_data = None
+    if role == 'student':
+        extra_data = _get_student_context(session)
+        context = extra_data.get('context', '')
+    elif role == 'teacher':
+        extra_data = _get_teacher_context(session)
+        context = extra_data.get('context', '')
+    elif role == 'principal':
+        extra_data = _get_principal_context(session)
+        context = extra_data.get('context', '')
+
+    system_prompt = _get_system_prompt(role)
+    global _gemini_cooldown
+    if _time.time() > _gemini_cooldown:
+        try:
+            prompt = system_prompt + "\n\n"
+            if context:
+                prompt += f"Available data:\n{context}\n\n"
+            prompt += f"User's message: {message}"
+            import requests as _req
+            api_key = os.getenv("GEMINI_API_KEY")
+            gemini_resp = _req.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=10
+            )
+            if gemini_resp.status_code == 200:
+                resp_data = gemini_resp.json()
+                text = resp_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                if text:
+                    return jsonify({"response": text})
+            else:
+                raise Exception(f"HTTP {gemini_resp.status_code}")
+        except Exception as e:
+            _gemini_cooldown = _time.time() + 300
+            print(f"GEMINI FAILED ({type(e).__name__}: {e}) — cooldown 5 min")
+
+    return jsonify({"response": _fallback(role, message, extra_data)})
 
 
 @app.route('/student/register', methods=['GET', 'POST'])
