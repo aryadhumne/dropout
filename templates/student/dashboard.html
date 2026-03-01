@@ -13,6 +13,7 @@
 <a href="#" onclick="showSection('alerts',this);return false;"><i class="bi bi-exclamation-triangle"></i><span>Alerts</span></a>
 <a href="#" onclick="showSection('feedback',this);return false;"><i class="bi bi-star"></i><span>Feedback</span></a>
 <a href="#" onclick="showSection('applyforleave',this);return false;"><i class="bi bi-calendar-check"></i><span>Apply for Leave</span></a>
+<a href="#" onclick="showSection('games',this);return false;"><i class="bi bi-controller"></i><span>Mini Games</span></a>
 {% endblock %}
 
 {% block topbar_right %}
@@ -411,14 +412,157 @@
   </div>
 
 </div>
+<div id="games" class="dashboard-section" style="display:none;">
+  <div class="card mb-4">
+    <h5 style="font-weight:700;">🎮 Educational Mini Games</h5>
+    <p style="font-size:0.85rem;color:var(--text-muted);">
+      Two new games unlock every refresh!
+    </p>
+  </div>
 
+  <div id="gamesContainer" class="row g-4"></div>
+</div>
 {% endif %}
 
 {% set chatbot_greeting = "Hi! I'm EduBot, your AI academic counselor. Ask me anything about your studies, performance, or study tips!" %}
 {% set chatbot_subtitle = "AI Academic Counselor" %}
 {% set chatbot_role = "student" %}
 {% include 'partials/chatbot.html' %}
+<script>
+const games = [
 
+/* 1 */ { name:"Addition Challenge", generate:(id)=>{
+    let a=Math.floor(Math.random()*50),b=Math.floor(Math.random()*50);
+    return gameTemplate(id,`${a} + ${b} = ?`,a+b);
+}},
+/* 2 */ { name:"Subtraction Challenge", generate:(id)=>{
+    let a=Math.floor(Math.random()*50)+20,b=Math.floor(Math.random()*20);
+    return gameTemplate(id,`${a} - ${b} = ?`,a-b);
+}},
+/* 3 */ { name:"Multiplication", generate:(id)=>{
+    let a=Math.floor(Math.random()*12),b=Math.floor(Math.random()*12);
+    return gameTemplate(id,`${a} × ${b} = ?`,a*b);
+}},
+/* 4 */ { name:"Division", generate:(id)=>{
+    let b=Math.floor(Math.random()*10)+1;
+    let ans=Math.floor(Math.random()*10)+1;
+    let a=b*ans;
+    return gameTemplate(id,`${a} ÷ ${b} = ?`,ans);
+}},
+/* 5 */ { name:"Square Finder", generate:(id)=>{
+    let a=Math.floor(Math.random()*15);
+    return gameTemplate(id,`Square of ${a}?`,a*a);
+}},
+/* 6 */ { name:"Cube Finder", generate:(id)=>{
+    let a=Math.floor(Math.random()*10);
+    return gameTemplate(id,`Cube of ${a}?`,a*a*a);
+}},
+/* 7 */ { name:"Even or Odd", generate:(id)=>{
+    let a=Math.floor(Math.random()*100);
+    return choiceTemplate(id,`${a} is Even or Odd?`,a%2===0?"Even":"Odd");
+}},
+/* 8 */ { name:"Prime Check", generate:(id)=>{
+    let a=Math.floor(Math.random()*20)+2;
+    let prime=isPrime(a)?"Prime":"Not Prime";
+    return choiceTemplate(id,`${a} is Prime?`,prime);
+}},
+/* 9 */ { name:"Capital of India", generate:(id)=>{
+    return gameTemplate(id,"Capital of India?","New Delhi",true);
+}},
+/*10 */ { name:"Reverse Word", generate:(id)=>{
+    let word="SCHOOL";
+    return gameTemplate(id,`Reverse of ${word}?`,word.split("").reverse().join(""),true);
+}},
+/*11 */ { name:"Largest Number", generate:(id)=>{
+    return gameTemplate(id,"Largest: 8, 15, 3 ?",15);
+}},
+/*12 */ { name:"Smallest Number", generate:(id)=>{
+    return gameTemplate(id,"Smallest: 8, 15, 3 ?",3);
+}},
+/*13 */ { name:"Days in Week", generate:(id)=>{
+    return gameTemplate(id,"How many days in a week?",7);
+}},
+/*14 */ { name:"Months in Year", generate:(id)=>{
+    return gameTemplate(id,"How many months in a year?",12);
+}},
+/*15 */ { name:"Human Body Bones", generate:(id)=>{
+    return gameTemplate(id,"How many bones in adult human body?",206);
+}},
+/*16 */ { name:"Water Formula", generate:(id)=>{
+    return gameTemplate(id,"Chemical formula of water?","H2O",true);
+}},
+/*17 */ { name:"Planet Count", generate:(id)=>{
+    return gameTemplate(id,"How many planets in solar system?",8);
+}},
+/*18 */ { name:"5 x Table", generate:(id)=>{
+    return gameTemplate(id,"5 x 7 = ?",35);
+}},
+/*19 */ { name:"Alphabet Position", generate:(id)=>{
+    return gameTemplate(id,"Position of letter C?",3);
+}},
+/*20 */ { name:"50% of 200", generate:(id)=>{
+    return gameTemplate(id,"What is 50% of 200?",100);
+}}
+
+];
+
+function gameTemplate(id,question,answer,isText=false){
+return `
+  <div class="card p-3 h-100">
+    <h6>${question}</h6>
+    <input type="${isText?'text':'number'}" id="input${id}" class="form-control mb-2">
+    <button class="btn btn-primary btn-sm" onclick="checkAnswer(${id},'${answer}',${isText})">Check</button>
+    <div id="result${id}" style="margin-top:8px;font-weight:600;"></div>
+  </div>
+`;
+}
+
+function choiceTemplate(id,question,answer){
+return `
+  <div class="card p-3 h-100">
+    <h6>${question}</h6>
+    <button class="btn btn-success btn-sm me-2" onclick="checkChoice(${id},'Even','${answer}')">Even</button>
+    <button class="btn btn-warning btn-sm me-2" onclick="checkChoice(${id},'Odd','${answer}')">Odd</button>
+    <button class="btn btn-info btn-sm" onclick="checkChoice(${id},'Prime','${answer}')">Prime</button>
+    <div id="result${id}" style="margin-top:8px;font-weight:600;"></div>
+  </div>
+`;
+}
+
+function checkAnswer(id,correct,isText){
+let val=document.getElementById("input"+id).value;
+let res=document.getElementById("result"+id);
+if(isText){
+  res.innerText=(val.toLowerCase()==correct.toLowerCase())?"✅ Correct!":"❌ Wrong!";
+}else{
+  res.innerText=(val==correct)?"✅ Correct!":"❌ Wrong!";
+}
+}
+
+function checkChoice(id,val,correct){
+document.getElementById("result"+id).innerText=
+(val==correct)?"✅ Correct!":"❌ Wrong!";
+}
+
+function isPrime(n){
+for(let i=2;i<n;i++){ if(n%i==0) return false; }
+return true;
+}
+
+function loadGames(){
+let container=document.getElementById("gamesContainer");
+container.innerHTML="";
+let shuffled=[...games].sort(()=>0.5-Math.random()).slice(0,2);
+shuffled.forEach((game,index)=>{
+  let col=document.createElement("div");
+  col.className="col-md-6";
+  col.innerHTML=game.generate(index+1);
+  container.appendChild(col);
+});
+}
+
+document.addEventListener("DOMContentLoaded",loadGames);
+</script>
 <script>
 function showSection(id, el) {
   document.querySelectorAll(".dashboard-section").forEach(s => s.style.display = "none");
