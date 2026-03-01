@@ -651,7 +651,7 @@ def dashboard_volunteer():
 
     # Intervention history: show only fully completed & approved interventions
     interventions_res = supabase.table("ngo_interventions") \
-        .select("*, student_performance(name, roll, division)") \
+        .select("*, student_performance(id, name, roll, division, standard, gender, email, attendance, monthly_test_score, assignment, quiz, behaviour, risk, risk_reason, risk_status, parent_name, parent_phone, parent_address)") \
         .eq("status", "Completed") \
         .eq("approval_status", "Approved") \
         .order("created_at", desc=True) \

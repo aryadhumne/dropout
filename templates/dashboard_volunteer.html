@@ -184,6 +184,7 @@
 <div id="panel-history" style="display:none;margin-top:20px;">
   <div class="card">
     <h6 style="font-weight:600;margin-bottom:16px;"><i class="bi bi-clock-history"></i> All Interventions</h6>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;">Click on a student to view full details</p>
     {% if interventions %}
     <div class="table-responsive">
       <table class="table-clean">
@@ -192,9 +193,10 @@
         </thead>
         <tbody>
           {% for a in interventions %}
-          <tr>
-            <td>{{ a.student_performance.name }}</td>
-            <td>{{ a.student_performance.roll }}</td>
+          {% set sp = a.student_performance %}
+          <tr style="cursor:pointer;" onclick="showStudentDetail({{ loop.index0 }})">
+            <td style="color:var(--accent);font-weight:600;">{{ sp.name if sp else 'N/A' }}</td>
+            <td>{{ sp.roll if sp else '-' }}</td>
             <td>{{ a.type }}</td>
             <td>
               {% if a.status == "Completed" %}<span class="badge-success">Completed</span>
@@ -213,6 +215,85 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+var _interventionData = {{ interventions|tojson }};
+
+function showStudentDetail(idx) {
+  var item = _interventionData[idx];
+  if (!item) return;
+  var sp = item.student_performance || {};
+
+  var riskBadge = '';
+  var risk = sp.risk || 'N/A';
+  if (risk === 'High Risk') riskBadge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;">High Risk</span>';
+  else if (risk === 'Medium Risk') riskBadge = '<span style="background:#fffbeb;color:#b45309;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;">Medium Risk</span>';
+  else riskBadge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:700;">Low Risk</span>';
+
+  var html = '<div style="text-align:left;font-size:0.9rem;line-height:1.8;">';
+
+  // Student Info Section
+  html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">';
+  html += '<div style="width:48px;height:48px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1e1b4b;font-size:1.1rem;flex-shrink:0;">' + ((sp.name || '?')[0]) + '</div>';
+  html += '<div><div style="font-weight:700;font-size:1.05rem;">' + (sp.name || 'N/A') + '</div>';
+  html += '<div style="color:#6b7280;font-size:0.82rem;">Roll: ' + (sp.roll || '-') + ' &middot; Class ' + (sp.standard || '-') + '-' + (sp.division || '-') + '</div></div>';
+  html += '<div style="margin-left:auto;">' + riskBadge + '</div>';
+  html += '</div>';
+
+  // Details Grid
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Gender</span><br><strong>' + (sp.gender || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Email</span><br><strong>' + (sp.email || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Attendance</span><br><strong>' + (sp.attendance != null ? sp.attendance + '%' : '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Monthly Test</span><br><strong>' + (sp.monthly_test_score != null ? sp.monthly_test_score : '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Assignment</span><br><strong>' + (sp.assignment || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Quiz</span><br><strong>' + (sp.quiz || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Behaviour</span><br><strong>' + (sp.behaviour || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Risk Status</span><br><strong>' + (sp.risk_status || '-') + '</strong></div>';
+  html += '</div>';
+
+  // Risk Reason
+  if (sp.risk_reason) {
+    html += '<div style="margin-top:12px;padding:10px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626;font-size:0.84rem;">';
+    html += '<strong style="color:#dc2626;">Risk Reason:</strong> ' + sp.risk_reason;
+    html += '</div>';
+  }
+
+  // Parent Info
+  html += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">';
+  html += '<div style="font-weight:600;font-size:0.8rem;color:#1e1b4b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;"><i class="bi bi-people-fill"></i> Parent Details</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Parent Name</span><br><strong>' + (sp.parent_name || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Phone</span><br><strong>' + (sp.parent_phone || '-') + '</strong></div>';
+  html += '<div style="grid-column:span 2;"><span style="color:#6b7280;font-size:0.78rem;">Address</span><br><strong>' + (sp.parent_address || '-') + '</strong></div>';
+  html += '</div></div>';
+
+  // Intervention Info
+  html += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">';
+  html += '<div style="font-weight:600;font-size:0.8rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;"><i class="bi bi-clipboard-check"></i> Intervention</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Type</span><br><strong>' + (item.type || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Status</span><br><strong>' + (item.status || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">By</span><br><strong>' + (item.by || '-') + '</strong></div>';
+  html += '<div><span style="color:#6b7280;font-size:0.78rem;">Date</span><br><strong>' + (item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : '-') + '</strong></div>';
+  html += '</div>';
+  if (item.notes) {
+    html += '<div style="margin-top:8px;"><span style="color:#6b7280;font-size:0.78rem;">Notes</span><br><strong>' + item.notes + '</strong></div>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+
+  Swal.fire({
+    title: '',
+    html: html,
+    width: 560,
+    showCloseButton: true,
+    showConfirmButton: false,
+    customClass: { popup: 'student-detail-popup' }
+  });
+}
+</script>
 
 {% set chatbot_greeting = "Hi! I'm EduBot, your volunteer assistant. Ask me about intervention strategies, how to approach at-risk students, or tips for effective mentoring!" %}
 {% set chatbot_subtitle = "Volunteer Assistant" %}
