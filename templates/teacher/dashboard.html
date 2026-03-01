@@ -2,27 +2,53 @@
 {% block title %}Teacher Dashboard - EduDrop{% endblock %}
 {% block content %}
 
+<style>
+  .chart-card-responsive {
+    height: 340px;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-card-responsive .chart-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+  @media (max-width: 768px) {
+    .chart-card-responsive { height: 260px; }
+    .risk-class-card canvas { height: 180px !important; }
+    .export-pdf-btn { font-size: 0.75rem !important; padding: 5px 10px !important; }
+    .export-pdf-btn .btn-text { display: none; }
+    .export-pdf-btn .btn-icon { display: inline; }
+  }
+  @media (min-width: 769px) {
+    .export-pdf-btn .btn-icon { display: none; }
+  }
+  @media (max-width: 480px) {
+    .chart-card-responsive { height: 220px; }
+  }
+</style>
+
 <!-- Summary Cards -->
-<div class="row g-4 mb-4">
-  <div class="col-sm-6 col-lg-3">
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
     <div class="stat-card">
       <div class="stat-label">Total Students</div>
       <div class="stat-value" id="card-total">{{ total_students }}</div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--danger);">
       <div class="stat-label" style="color:var(--danger);">High Risk</div>
       <div class="stat-value" style="color:var(--danger);" id="card-high">{{ high_risk }}</div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--warning);">
       <div class="stat-label" style="color:var(--warning);">Medium Risk</div>
       <div class="stat-value" style="color:var(--warning);" id="card-medium">{{ medium_risk }}</div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--success);">
       <div class="stat-label" style="color:var(--success);">Low Risk</div>
       <div class="stat-value" style="color:var(--success);" id="card-low">{{ low_risk }}</div>
@@ -31,27 +57,31 @@
 </div>
 
 <!-- Charts -->
-<div class="row g-4 mb-4">
-  <div class="col-md-6">
-    <div class="card">
-      <h6 style="margin-bottom:10px;font-weight:200;">Risk Distribution</h6>
-      <canvas id="riskPieChart" ></canvas>
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-6">
+    <div class="card chart-card-responsive">
+      <h6 style="margin-bottom:10px;font-weight:600;">Risk Distribution</h6>
+      <div class="chart-wrapper">
+        <canvas id="riskPieChart"></canvas>
+      </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="card">
-      <h6 style="margin-bottom:16px;font-weight:200;">Risk Trend</h6>
-      <canvas id="riskTrendChart"></canvas>
+  <div class="col-12 col-md-6">
+    <div class="card chart-card-responsive">
+      <h6 style="margin-bottom:10px;font-weight:600;">Risk Trend</h6>
+      <div class="chart-wrapper">
+        <canvas id="riskTrendChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- Risk by Class -->
-<div class="card mb-4">
+<div class="card risk-class-card mb-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h6 style="font-weight:600;margin:0;">Risk by Class</h6>
-    <button class="btn btn-primary" onclick="exportPDF()" style="font-size:0.85rem;">
-      <i class="bi bi-download"></i> Export PDF
+    <button class="btn btn-primary export-pdf-btn" onclick="exportPDF()" style="font-size:0.85rem;">
+      <i class="bi bi-download"></i> <span class="btn-text">Export PDF</span><span class="btn-icon">PDF</span>
     </button>
   </div>
   <canvas id="riskByClassChart" height="120"></canvas>
@@ -78,7 +108,7 @@ const pieChart = new Chart(document.getElementById('riskPieChart'), {
     labels: ['Low Risk', 'Medium Risk', 'High Risk'],
     datasets: [{ data: [{{ low_risk or 0 }}, {{ medium_risk or 0 }}, {{ high_risk or 0 }}], backgroundColor: [COLORS.success, COLORS.warning, COLORS.danger] }]
   },
-  options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
 });
 
 new Chart(document.getElementById('riskTrendChart'), {
@@ -87,7 +117,7 @@ new Chart(document.getElementById('riskTrendChart'), {
     labels: {{ standards|tojson }},
     datasets: [{ label: 'At-Risk Students per Class', data: {{ standard_risk_counts|tojson }}, backgroundColor: COLORS.accent }]
   },
-  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
 });
 
 new Chart(document.getElementById('riskByClassChart'), {

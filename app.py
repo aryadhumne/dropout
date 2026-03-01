@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_file
 from flask_mail import Mail
 from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
@@ -2117,16 +2117,20 @@ def principal_teachers():
 @app.route('/csv-template')
 def csv_template():
     return send_file(
-        os.path.join('static', 'student_template.csv'),
-        as_attachment=True
+        os.path.join('static', 'sample_bulk_upload.csv'),
+        as_attachment=True,
+        download_name='student_template.csv'
     )
 @app.route('/teacher/bulk_upload', methods=['POST'])
 def bulk_upload():
-    if 'file' not in request.files:
+    if session.get('role') != 'teacher':
+        return redirect(url_for('index'))
+
+    if 'csv_file' not in request.files:
         flash("No file uploaded", "danger")
         return redirect(url_for('add_student'))
 
-    file = request.files['file']
+    file = request.files['csv_file']
 
     if file.filename == '':
         flash("No selected file", "danger")
@@ -2135,19 +2139,139 @@ def bulk_upload():
     try:
         df = pd.read_csv(file)
 
+        required_cols = ['name', 'roll', 'standard']
+        missing = [c for c in required_cols if c not in df.columns]
+        if missing:
+            flash(f"Missing required columns: {', '.join(missing)}", "danger")
+            return redirect(url_for('add_student'))
+
+        success_count = 0
+        skip_count = 0
+
         for _, row in df.iterrows():
-            name = row['name']
-            roll = row['roll']
-            standard = row['standard']
-            division = row['division']
-            attendance = row['attendance']
-            monthly_test_score = row['monthly_test_score']
-            assignment = row['assignment']
-            quiz = row['quiz']
+            name = str(row.get('name', '')).strip()
+            roll = str(row.get('roll', '')).strip()
+            standard = row.get('standard', '')
 
-            # 👉 Insert into database here
+            if not name or not roll:
+                skip_count += 1
+                continue
 
-        flash("Bulk upload successful!", "success")
+            try:
+                standard = int(standard)
+            except (ValueError, TypeError):
+                skip_count += 1
+                continue
+
+            division = str(row.get('division', '')).strip() or 'A'
+            email = str(row.get('email', '')).strip().lower() if 'email' in df.columns and pd.notna(row.get('email')) else ''
+            gender = str(row.get('gender', '')).strip() if 'gender' in df.columns and pd.notna(row.get('gender')) else ''
+
+            # Attendance
+            att = 0
+            try:
+                att = int(float(row.get('attendance', 0)))
+            except (ValueError, TypeError):
+                att = 0
+
+            # Monthly test score
+            mts = 0
+            try:
+                mts = int(float(row.get('monthly_test_score', 0)))
+            except (ValueError, TypeError):
+                mts = 0
+
+            # Assignment - accept text or numeric
+            raw_assign = str(row.get('assignment', '')).strip() if pd.notna(row.get('assignment')) else ''
+            if raw_assign.lower() in ('completed', 'not completed'):
+                assignment_status = raw_assign
+            else:
+                try:
+                    assignment_status = "Completed" if int(float(raw_assign)) >= 50 else "Not Completed"
+                except (ValueError, TypeError):
+                    assignment_status = "Not Completed"
+
+            # Quiz - accept text or numeric
+            raw_quiz = str(row.get('quiz', '')).strip() if pd.notna(row.get('quiz')) else ''
+            if raw_quiz.lower() in ('good', 'average', 'poor'):
+                quiz_status = raw_quiz
+            else:
+                try:
+                    qval = int(float(raw_quiz))
+                    quiz_status = "Good" if qval >= 70 else ("Average" if qval >= 40 else "Poor")
+                except (ValueError, TypeError):
+                    quiz_status = "Poor"
+
+            behaviour = str(row.get('behaviour', '')).strip() if 'behaviour' in df.columns and pd.notna(row.get('behaviour')) else ''
+            parent_name = str(row.get('parent_name', '')).strip() if 'parent_name' in df.columns and pd.notna(row.get('parent_name')) else ''
+            parent_phone = str(row.get('parent_phone', '')).strip() if 'parent_phone' in df.columns and pd.notna(row.get('parent_phone')) else ''
+            parent_alt_phone = str(row.get('parent_alt_phone', '')).strip() if 'parent_alt_phone' in df.columns and pd.notna(row.get('parent_alt_phone')) else ''
+            parent_address = str(row.get('parent_address', '')).strip() if 'parent_address' in df.columns and pd.notna(row.get('parent_address')) else ''
+
+            # Risk calculation
+            assignment_score = 100 if assignment_status == "Completed" else 0
+            quiz_score = 100 if quiz_status == "Good" else (50 if quiz_status == "Average" else 0)
+
+            risk_score = 0
+            risk_reason = []
+            if mts < 35:
+                risk_score += 40
+                risk_reason.append("Low Monthly Score")
+            if att < 60:
+                risk_score += 30
+                risk_reason.append("Low Attendance")
+            if assignment_score < 50:
+                risk_score += 15
+                risk_reason.append("Low Assignment")
+            if quiz_score < 50:
+                risk_score += 15
+                risk_reason.append("Low Quiz")
+
+            if risk_score >= 60:
+                risk_text = "High Risk"
+            elif risk_score >= 40:
+                risk_text = "Medium Risk"
+            else:
+                risk_text = "Low Risk"
+
+            risk_status = "At Risk" if risk_score >= 60 else "Safe"
+
+            insert_data = {
+                "name": name,
+                "roll": roll,
+                "standard": standard,
+                "division": division,
+                "email": email,
+                "gender": gender or None,
+                "monthly_test_score": mts,
+                "attendance": att,
+                "assignment": assignment_status,
+                "quiz": quiz_status,
+                "behaviour": behaviour,
+                "risk": risk_text,
+                "risk_reason": ", ".join(risk_reason),
+                "risk_status": risk_status,
+                "parent_name": parent_name,
+                "parent_phone": parent_phone,
+                "parent_alt_phone": parent_alt_phone or None,
+                "parent_address": parent_address,
+                "role": "student",
+                "is_deleted": False
+            }
+
+            try:
+                supabase.table("student_performance").insert(insert_data).execute()
+                success_count += 1
+            except Exception as e:
+                print(f"[BULK UPLOAD] Row skip - {name}: {e}")
+                skip_count += 1
+
+        if success_count > 0:
+            flash(f"Bulk upload complete! {success_count} students added.", "success")
+        if skip_count > 0:
+            flash(f"{skip_count} rows were skipped (missing data or errors).", "warning")
+        if success_count == 0 and skip_count == 0:
+            flash("No rows found in the CSV file.", "warning")
 
     except Exception as e:
         flash(f"Error processing file: {str(e)}", "danger")

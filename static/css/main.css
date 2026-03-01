@@ -1421,6 +1421,13 @@ textarea.form-control {
 
   /* Lang switcher */
   .lang-switcher select { font-size: 0.8rem; padding: 4px 6px; }
+
+  /* Topbar overflow fix */
+  .topbar { flex-wrap: nowrap; gap: 8px; }
+  .topbar-left { min-width: 0; overflow: hidden; }
+  .topbar-left h5 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .topbar-right { flex-shrink: 0; gap: 6px !important; }
+  .topbar-right .badge-danger { font-size: 0.65rem !important; padding: 3px 6px !important; white-space: nowrap; }
 }
 
 @media (max-width: 480px) {
@@ -1437,6 +1444,7 @@ textarea.form-control {
   .stat-card { padding: 10px 12px; }
   .page-content { padding: 8px; }
   .topbar { padding: 0 10px; }
+  .topbar-left h5 { max-width: 120px; font-size: 0.85rem !important; }
   .chart-card-h { height: 220px; }
   .features-grid { padding: 32px 12px; }
 }
