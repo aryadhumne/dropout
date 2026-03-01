@@ -1924,27 +1924,72 @@ def edit_student(student_id):
 
         # Build subjects JSON
         subject_names = request.form.getlist("subjects[]")
-        attendances = request.form.getlist("attendance[]")
+        sub_attendances = request.form.getlist("sub_attendance[]")
         subjects = []
-        for sname, att in zip(subject_names, attendances):
-            if sname.strip():
+        for sname, att in zip(subject_names, sub_attendances):
+            if sname.strip() and att.strip():
                 subjects.append({"subject": sname.strip(), "attendance": int(att)})
 
-        avg_attendance = sum(s["attendance"] for s in subjects) / len(subjects) if subjects else 0
+        # Use direct attendance field; fall back to average of per-subject attendance
+        direct_att = request.form.get("attendance", "").strip()
+        if direct_att:
+            avg_attendance = int(direct_att)
+        elif subjects:
+            avg_attendance = round(sum(s["attendance"] for s in subjects) / len(subjects))
+        else:
+            avg_attendance = 0
+
+        monthly_test_score = int(request.form.get("monthly_test_score") or 0)
+        assignment_status = request.form.get("assignment", "Completed")
+        quiz_status = request.form.get("quiz", "Good")
+
+        # Recalculate risk
+        assignment_score = 100 if assignment_status == "Completed" else 0
+        quiz_score = 100 if quiz_status == "Good" else (50 if quiz_status == "Average" else 0)
+
+        risk_score = 0
+        risk_reason = []
+        if monthly_test_score < 35:
+            risk_score += 40
+            risk_reason.append("Low Monthly Score")
+        if avg_attendance < 60:
+            risk_score += 30
+            risk_reason.append("Low Attendance")
+        if assignment_score < 50:
+            risk_score += 15
+            risk_reason.append("Low Assignment")
+        if quiz_score < 50:
+            risk_score += 15
+            risk_reason.append("Low Quiz")
+
+        if risk_score >= 60:
+            risk_text = "High Risk"
+        elif risk_score >= 40:
+            risk_text = "Medium Risk"
+        else:
+            risk_text = "Low Risk"
+        risk_status = "At Risk" if risk_score >= 60 else "Safe"
 
         update_data = {
             "name": request.form.get("name"),
             "roll": int(request.form.get("roll", 0)),
             "standard": int(request.form.get("standard", 0)),
             "division": request.form.get("division"),
-            "assignment": request.form.get("assignment_status"),
-            "behaviour": request.form.get("behaviour"),
-            "parent_name": request.form.get("parent_name"),
-            "parent_phone": request.form.get("parent_phone"),
+            "email": request.form.get("email") or "",
+            "gender": request.form.get("gender") or None,
+            "monthly_test_score": monthly_test_score,
+            "attendance": avg_attendance,
+            "assignment": assignment_status,
+            "quiz": quiz_status,
+            "behaviour": request.form.get("behaviour") or "",
+            "risk": risk_text,
+            "risk_reason": ", ".join(risk_reason),
+            "risk_status": risk_status,
+            "parent_name": request.form.get("parent_name") or "",
+            "parent_phone": request.form.get("parent_phone") or "",
             "parent_alt_phone": request.form.get("parent_alt_phone") or None,
             "parent_address": request.form.get("parent_address") or None,
             "subjects": subjects if subjects else None,
-            "attendance": avg_attendance,
         }
 
         supabase.table("student_performance").update(update_data).eq("id", student_id).execute()
@@ -1982,7 +2027,7 @@ def dashboard_principal():
         cls = str(r.get("standard"))
         gender = str(r.get("gender")).lower()
         att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
+        marks = int(r.get("monthly_test_score") or 0)
         updated = r.get("updated_at")
 
         if selected_class and cls != selected_class:
@@ -2019,7 +2064,7 @@ def dashboard_principal():
         cls = r.get("standard")
         gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
+        marks = int(r.get("monthly_test_score") or 0)
 
         total_att += att
         classes.setdefault(cls, 0)
@@ -2064,14 +2109,18 @@ def dashboard_principal():
     teachers = supabase.table("teachers").select("*").execute().data or []
 
     # -------- INTERVENTIONS --------
-    interventions = supabase.table("interventions").select("*").execute().data or []
+    try:
+        interventions = supabase.table("ngo_interventions").select("*").execute().data or []
+    except Exception:
+        interventions = []
 
-    home_visits = sum(1 for i in interventions if i.get("type")=="home_visit")
-    parent_meetings = sum(1 for i in interventions if i.get("type")=="parent_meeting")
-    high_to_medium = sum(1 for i in interventions if i.get("transition")=="High_to_Medium")
-    medium_to_low = sum(1 for i in interventions if i.get("transition")=="Medium_to_Low")
+    home_visits = sum(1 for i in interventions if i.get("type") == "Counselling")
+    parent_meetings = sum(1 for i in interventions if i.get("type") == "Parent Meeting")
+    completed_interventions = [i for i in interventions if i.get("status") == "Completed" and i.get("approval_status") == "Approved"]
+    high_to_medium = len(completed_interventions)
+    medium_to_low = 0
 
-    success_rate = round(((high_to_medium+medium_to_low)/len(interventions))*100,2) if interventions else 0
+    success_rate = round((len(completed_interventions) / len(interventions)) * 100, 2) if interventions else 0
 
     improved_students = high_to_medium
     declined_students = total_students - improved_students
@@ -2389,7 +2438,7 @@ def principal_ai_analysis():
         cls = r.get("standard")
         gender = str(r.get("gender"))
         att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
+        marks = int(r.get("monthly_test_score") or 0)
 
         risk_score = max(0, 100 - ((att + marks) / 2))
 
@@ -2433,7 +2482,7 @@ def export_high_risk_csv():
 
     for r in rows:
         att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
+        marks = int(r.get("monthly_test_score") or 0)
         if att < 75 or marks < 40:
             writer.writerow([r.get("roll"),r.get("name"),r.get("standard"),r.get("gender"),att,marks])
 
@@ -2502,7 +2551,7 @@ def send_ngo():
 
     for r in rows:
         att = int(r.get("attendance") or 0)
-        marks = int(r.get("marks") or 0)
+        marks = int(r.get("monthly_test_score") or 0)
 
         if att < 75 or marks < 40:
             supabase.table("ngo_notifications").insert({
@@ -2657,7 +2706,7 @@ def export_pdf():
             r.get("name"),
            r.get("standard"),
             r.get("attendance"),
-            r.get("marks")
+            r.get("monthly_test_score")
         ])
 
     table = Table(data)
