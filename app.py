@@ -454,9 +454,9 @@ def dashboard_volunteer():
             # If proof required (Completed or Financial Aid Completed), ensure proof_file provided
             if (intervention_type == "Financial Aid" and status == "Completed") or (status == "Completed"):
                 if not proof_file:
-                    flash("Photo proof required for completed cases", "error")
+                    flash("Proof document required for completed cases", "error")
                     return redirect(url_for("dashboard_volunteer"))
-                upload_result = cloudinary.uploader.upload(proof_file)
+                upload_result = cloudinary.uploader.upload(proof_file, resource_type="auto")
                 proof_url = upload_result.get("secure_url")
 
             # Decide whether to UPDATE existing active intervention or INSERT new
