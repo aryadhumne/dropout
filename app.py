@@ -1039,9 +1039,11 @@ def dashboard_student():
     except:
         pass
 
+    perf_data = _recalc_risk(performance.data)
+
     return render_template(
         "student/dashboard.html",
-        performance=performance.data,
+        performance=perf_data,
         teachers=teachers,
         leave_history=leave_history,
         feedback_active=feedback_active,
@@ -2049,7 +2051,7 @@ def dashboard_principal():
         filtered.append(r)
 
     total_students = len(filtered)
-    high_risk = medium_risk = 0
+    high_risk = medium_risk = low_risk = 0
     total_att = 0
     classes = {}
     boys_risk = girls_risk = other_risk = 0
@@ -2084,6 +2086,7 @@ def dashboard_principal():
             action = "Extra Classes"
         else:
             risk = "Low"
+            low_risk += 1
             action = "Regular Monitoring"
 
         if gender.lower() == "male" and risk == "High":
@@ -2100,6 +2103,7 @@ def dashboard_principal():
 
         students.append((roll,name,cls,gender,att,marks,risk,reason,action,int(risk_score)))
 
+    low_risk = total_students - high_risk - medium_risk
     avg_attendance = round(total_att/total_students,2) if total_students else 0
 
     # -------- RED FLAG SORT --------
@@ -2110,9 +2114,13 @@ def dashboard_principal():
 
     # -------- INTERVENTIONS --------
     try:
-        interventions = supabase.table("ngo_interventions").select("*").execute().data or []
+        all_interventions = supabase.table("ngo_interventions").select("*").execute().data or []
     except Exception:
-        interventions = []
+        all_interventions = []
+
+    # Filter interventions to match the currently filtered students
+    filtered_ids = {str(r.get("id")) for r in filtered}
+    interventions = [i for i in all_interventions if str(i.get("student_id")) in filtered_ids]
 
     home_visits = sum(1 for i in interventions if i.get("type") == "Counselling")
     parent_meetings = sum(1 for i in interventions if i.get("type") == "Parent Meeting")
@@ -2123,7 +2131,7 @@ def dashboard_principal():
     success_rate = round((len(completed_interventions) / len(interventions)) * 100, 2) if interventions else 0
 
     improved_students = high_to_medium
-    declined_students = total_students - improved_students
+    declined_students = high_risk
 
     # -------- STUDENT FEEDBACK --------
     try:
@@ -2137,6 +2145,7 @@ def dashboard_principal():
         total_students=total_students,
         high_risk=high_risk,
         medium_risk=medium_risk,
+        low_risk=low_risk,
         avg_attendance=avg_attendance,
         class_labels=list(classes.keys()),
         class_values=list(classes.values()),
