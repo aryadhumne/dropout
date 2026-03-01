@@ -157,7 +157,7 @@
                 </select>
                 <div class="proof-upload" style="display:none;">
                   <label class="form-label" style="font-size:0.78rem;margin-bottom:2px;">Upload Proof Document:</label>
-                  <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;" accept="*/*">
+                  <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;">
                 </div>
                 <div style="position:relative;">
                   <textarea name="notes" class="form-control vol-notes-area" style="font-size:0.84rem;padding-right:36px;" rows="2" required placeholder="Add notes..."></textarea>
@@ -189,7 +189,7 @@
     <div class="table-responsive">
       <table class="table-clean">
         <thead>
-          <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th></tr>
+          <tr><th>Student</th><th>Roll</th><th>Type</th><th>Status</th><th>Notes</th><th>By</th><th>Proof</th></tr>
         </thead>
         <tbody>
           {% for a in interventions %}
@@ -205,6 +205,13 @@
             </td>
             <td>{{ a.notes }}</td>
             <td>{{ a.by }}</td>
+            <td>
+              {% if a.proof_image %}
+              <a href="{{ a.proof_image }}" target="_blank" onclick="event.stopPropagation();" style="color:var(--accent);font-size:0.82rem;font-weight:600;text-decoration:none;"><i class="bi bi-file-earmark-text"></i> View</a>
+              {% else %}
+              <span style="color:var(--muted);font-size:0.8rem;">-</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -279,6 +286,11 @@ function showStudentDetail(idx) {
   html += '</div>';
   if (item.notes) {
     html += '<div style="margin-top:8px;"><span style="color:#6b7280;font-size:0.78rem;">Notes</span><br><strong>' + item.notes + '</strong></div>';
+  }
+  if (item.proof_image) {
+    var docUrl = item.proof_image;
+    var viewUrl = docUrl;
+    html += '<div style="margin-top:10px;"><a href="' + viewUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:6px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;"><i class="bi bi-file-earmark-text"></i> View Document</a></div>';
   }
   html += '</div>';
 

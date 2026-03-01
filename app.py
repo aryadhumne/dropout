@@ -412,6 +412,8 @@ def dashboard_volunteer():
             status = request.form.get('status') or None
             notes = request.form.get('notes') or ""
             proof_file = request.files.get("proof_image")
+            if proof_file and not proof_file.filename:
+                proof_file = None
 
             # Defensive: require student_id
             if not student_id:
@@ -456,7 +458,7 @@ def dashboard_volunteer():
                 if not proof_file:
                     flash("Proof document required for completed cases", "error")
                     return redirect(url_for("dashboard_volunteer"))
-                upload_result = cloudinary.uploader.upload(proof_file, resource_type="auto")
+                upload_result = cloudinary.uploader.upload(proof_file, resource_type="raw")
                 proof_url = upload_result.get("secure_url")
 
             # Decide whether to UPDATE existing active intervention or INSERT new
