@@ -235,11 +235,14 @@ function changeLanguage(lang) {
   }
 }
 
-function triggerTranslate(lang) {
+function triggerTranslate(lang, retries) {
+  retries = retries || 0;
   var combo = document.querySelector('.goog-te-combo');
   if (combo) {
     combo.value = lang;
     combo.dispatchEvent(new Event('change'));
+  } else if (retries < 10) {
+    setTimeout(function() { triggerTranslate(lang, retries + 1); }, 500);
   }
 }
 

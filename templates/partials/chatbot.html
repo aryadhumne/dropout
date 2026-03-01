@@ -229,6 +229,29 @@ function speakText(btn) {
 var _recognition = null;
 var _isListening = false;
 
+// Listen for language changes and notify in chatbot
+(function() {
+  var langSel = document.getElementById('langSelect');
+  if (langSel) {
+    langSel.addEventListener('change', function() {
+      var panel = document.getElementById('chatbot-panel');
+      if (panel && panel.classList.contains('open')) {
+        var msgs = document.getElementById('chat-messages');
+        var code = this.value;
+        var langInfo = _langMap[code] || _langMap['en'];
+        var note = document.createElement('div');
+        note.className = 'chat-msg chat-msg-bot';
+        note.style.background = '#f0f9ff';
+        note.style.color = '#0369a1';
+        note.style.fontSize = '0.8rem';
+        note.textContent = 'Language switched to ' + langInfo.name + '. My next responses will be in ' + langInfo.name + '.';
+        msgs.appendChild(note);
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    });
+  }
+})();
+
 function toggleVoiceInput() {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {

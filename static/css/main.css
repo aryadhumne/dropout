@@ -1209,6 +1209,14 @@ textarea.form-control {
 }
 @media (max-width: 480px) {
   .footer-grid { grid-template-columns: 1fr; }
+  .landing-footer { padding: 32px 16px 16px; }
+  .footer-bottom { font-size: 0.75rem; }
+}
+
+/* Tablet breakpoint */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); padding: 60px 24px; gap: 20px; }
+  .landing-nav { padding: 16px 24px; }
 }
 
 /* Role Selection Grid */
@@ -1347,6 +1355,7 @@ textarea.form-control {
 
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
+  /* Sidebar */
   .sidebar {
     transform: translateX(-100%);
     position: fixed;
@@ -1360,31 +1369,76 @@ textarea.form-control {
   .btn-menu { display: flex; }
   .sidebar-collapse-btn { display: none; }
   .layout.sidebar-collapsed .sidebar { width: var(--sidebar-width); transform: translateX(-100%); }
-  .page-content { padding: 16px; }
+
+  /* Dashboard content */
+  .page-content { padding: 12px; }
+  .topbar { padding: 0 12px; height: 54px; }
+  .topbar h5 { font-size: 0.92rem; }
+  .card { padding: 16px; }
+  .stat-card { padding: 14px 16px; }
+  .stat-card .stat-value { font-size: 1.35rem; }
+  .stat-card .stat-label { font-size: 0.7rem; }
+
+  /* Reduce gutters on mobile */
+  .row.g-3 { --bs-gutter-x: 0.5rem; --bs-gutter-y: 0.5rem; }
+  .row.g-4 { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0.75rem; }
+
+  /* Tables */
+  .table-clean thead th { padding: 10px 12px; font-size: 0.72rem; }
+  .table-clean tbody td { padding: 10px 12px; font-size: 0.82rem; }
+
+  /* Landing page */
   .hero h1 { font-size: 2rem; }
   .hero { padding: 50px 16px 40px; }
-  .landing-nav { padding: 16px 20px; }
+  .landing-nav { padding: 14px 16px; }
   .features-grid {
     grid-template-columns: 1fr;
-    padding: 0 16px 40px;
+    padding: 40px 16px;
     gap: 16px;
   }
+  .feature-card { padding: 24px 20px; }
   .about-step { gap: 16px; }
   .about-step-content { padding-bottom: 24px; }
+  .about-steps { padding: 0 8px; }
   .role-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  .auth-card { padding: 28px 20px; }
+
+  /* Auth pages */
+  .auth-card { padding: 28px 20px; max-width: 100%; }
+  .auth-card .auth-title { font-size: 1.3rem; }
+  .auth-wrapper { padding: 16px; }
   .filter-bar .form-control,
   .filter-bar .form-select { max-width: 100%; }
   .cta-section { padding: 48px 16px; }
+  .cta-section h2 { font-size: 1.5rem; }
+  .cta-section p { font-size: 0.95rem; }
+
+  /* Form inputs - prevent iOS zoom */
+  .form-control, .form-select { font-size: 16px; }
+  .faq-question span { font-size: 0.95rem; }
+
+  /* Lang switcher */
+  .lang-switcher select { font-size: 0.8rem; padding: 4px 6px; }
 }
 
 @media (max-width: 480px) {
   .role-grid { grid-template-columns: 1fr; }
   .hero { padding: 40px 16px 30px; }
   .hero h1 { font-size: 1.6rem; }
+  .auth-card { padding: 24px 16px; }
+  .auth-card .auth-title { font-size: 1.2rem; }
+  .auth-card .auth-subtitle { font-size: 0.85rem; margin-bottom: 20px; }
+
+  /* Dashboard tweaks */
+  .stat-card .stat-value { font-size: 1.15rem; }
+  .stat-card .stat-label { font-size: 0.65rem; }
+  .stat-card { padding: 10px 12px; }
+  .page-content { padding: 8px; }
+  .topbar { padding: 0 10px; }
+  .chart-card-h { height: 220px; }
+  .features-grid { padding: 32px 12px; }
 }
 
 /* Sidebar overlay for mobile */

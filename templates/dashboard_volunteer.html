@@ -107,7 +107,12 @@
               </div>
               <div>
                 <span style="color:var(--muted);font-size:0.78rem;">Notes</span>
-                <div style="font-weight:500;">{{ s.current_notes }}</div>
+                <div style="font-weight:500;display:flex;align-items:flex-start;gap:6px;">
+                  <span class="tts-text">{{ s.current_notes }}</span>
+                  {% if s.current_notes and s.current_notes != '-' %}
+                  <button type="button" class="vol-tts-btn" onclick="volSpeak(this)" title="Listen"><i class="bi bi-volume-up-fill"></i></button>
+                  {% endif %}
+                </div>
               </div>
             </div>
           </div>
@@ -121,8 +126,9 @@
               <div style="margin-bottom:8px;">{{ s.ai_reason }}</div>
               <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;">Confidence: {{ s.ai_confidence }}</div>
               {% if s.ai_suggestions %}
-              <div style="padding:10px;background:rgba(231,33,145,0.05);border-radius:8px;border-left:3px solid var(--accent);">
-                <div style="font-size:0.82rem;line-height:1.5;"><i class="bi bi-lightbulb" style="color:var(--accent);"></i> {{ s.ai_suggestions }}</div>
+              <div style="padding:10px;background:rgba(231,33,145,0.05);border-radius:8px;border-left:3px solid var(--accent);display:flex;align-items:flex-start;gap:6px;">
+                <div style="font-size:0.82rem;line-height:1.5;flex:1;"><i class="bi bi-lightbulb" style="color:var(--accent);"></i> <span class="tts-text">{{ s.ai_suggestions }}</span></div>
+                <button type="button" class="vol-tts-btn" onclick="volSpeak(this)" title="Listen"><i class="bi bi-volume-up-fill"></i></button>
               </div>
               {% endif %}
             </div>
@@ -153,7 +159,10 @@
                   <label class="form-label" style="font-size:0.78rem;margin-bottom:2px;">Proof Photo:</label>
                   <input type="file" name="proof_image" class="form-control" style="font-size:0.8rem;">
                 </div>
-                <textarea name="notes" class="form-control" style="font-size:0.84rem;" rows="2" required placeholder="Add notes..."></textarea>
+                <div style="position:relative;">
+                  <textarea name="notes" class="form-control vol-notes-area" style="font-size:0.84rem;padding-right:36px;" rows="2" required placeholder="Add notes..."></textarea>
+                  <button type="button" class="vol-mic-btn" onclick="volSTT(this)" title="Voice input"><i class="bi bi-mic-fill"></i></button>
+                </div>
                 <button class="btn btn-primary" style="font-size:0.84rem;padding:6px 16px;align-self:flex-start;"><i class="bi bi-check-lg"></i> Save</button>
               </div>
             </form>
@@ -211,6 +220,44 @@
 {% include 'partials/chatbot.html' %}
 
 <style>
+.vol-tts-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.vol-tts-btn:hover {
+  background: rgba(231,33,145,0.1);
+}
+.vol-mic-btn {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.vol-mic-btn:hover {
+  background: rgba(231,33,145,0.1);
+}
+.vol-mic-btn.listening {
+  color: #ef4444;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 /* Responsive: stack columns on smaller screens */
 @media (max-width: 992px) {
   .vol-card-body {
@@ -251,6 +298,100 @@ function filterRisk(val) {
   document.querySelectorAll("#studentCards > .col-12").forEach(function(card) {
     card.style.display = (val === "all" || (card.dataset.risk || '').trim() === val) ? "" : "none";
   });
+}
+
+// STT (Speech-to-Text) for notes field
+var _volRecognition = null;
+function volSTT(btn) {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert('Speech recognition is not supported. Please use Chrome.'); return; }
+
+  // If already listening, stop
+  if (btn.classList.contains('listening') && _volRecognition) {
+    _volRecognition.stop();
+    return;
+  }
+
+  var textarea = btn.closest('div').querySelector('textarea');
+  if (!textarea) return;
+
+  _volRecognition = new SpeechRecognition();
+  var langCookie = (document.cookie.match(/(^| )edudrop_lang=([^;]+)/) || [])[2] || 'en';
+  var sttMap = {'en':'en-IN','hi':'hi-IN','bn':'bn-IN','te':'te-IN','mr':'mr-IN','ta':'ta-IN','gu':'gu-IN','kn':'kn-IN','ml':'ml-IN','pa':'pa-IN','or':'or-IN','as':'as-IN','ur':'ur-IN','sa':'sa-IN','ne':'ne-NP','sd':'sd-IN','ks':'ks-IN','doi':'doi-IN','mai':'mai-IN','mni-Mtei':'mni-IN','sat':'sat-IN','gom':'kok-IN'};
+  _volRecognition.lang = sttMap[langCookie] || 'en-IN';
+  _volRecognition.interimResults = false;
+  _volRecognition.maxAlternatives = 1;
+
+  _volRecognition.onstart = function() {
+    btn.classList.add('listening');
+    btn.innerHTML = '<i class="bi bi-mic-mute-fill"></i>';
+  };
+  _volRecognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    textarea.value = textarea.value ? textarea.value + ' ' + transcript : transcript;
+  };
+  _volRecognition.onend = function() {
+    btn.classList.remove('listening');
+    btn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    _volRecognition = null;
+  };
+  _volRecognition.onerror = function(e) {
+    btn.classList.remove('listening');
+    btn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    if (e.error !== 'aborted') alert('Voice error: ' + e.error);
+    _volRecognition = null;
+  };
+  _volRecognition.start();
+}
+
+// TTS for volunteer dashboard fields
+var _volTtsAudio = null;
+function volSpeak(btn) {
+  // Find the text from sibling .tts-text or parent's .tts-text
+  var textEl = btn.closest('div').querySelector('.tts-text') || btn.parentElement.querySelector('.tts-text');
+  if (!textEl) return;
+  var text = textEl.textContent.trim();
+  if (!text || text === '-') return;
+
+  // Stop if already playing
+  if (_volTtsAudio) { _volTtsAudio.pause(); _volTtsAudio = null; btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; return; }
+  if (window.speechSynthesis && window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; return; }
+
+  // Check language
+  var langCookie = (document.cookie.match(/(^| )edudrop_lang=([^;]+)/) || [])[2] || 'en';
+  if (langCookie === 'en') {
+    var utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-IN';
+    utter.rate = 0.9;
+    btn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+    utter.onend = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
+    utter.onerror = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; };
+    window.speechSynthesis.speak(utter);
+  } else {
+    // Use Google TTS proxy
+    var gttsMap = {'hi':'hi','bn':'bn','te':'te','mr':'mr','ta':'ta','gu':'gu','kn':'kn','ml':'ml','pa':'pa','or':'or','as':'as','ur':'ur','sa':'sa','ne':'ne','sd':'sd','ks':'hi','doi':'hi','mai':'hi','mni-Mtei':'bn','sat':'hi','gom':'hi'};
+    var tl = gttsMap[langCookie] || 'en';
+    var chunks = [];
+    var t = text;
+    while (t.length > 0) {
+      if (t.length <= 200) { chunks.push(t); break; }
+      var cut = t.lastIndexOf('.', 200);
+      if (cut < 50) cut = t.lastIndexOf(' ', 200);
+      if (cut < 50) cut = 200;
+      chunks.push(t.substring(0, cut + 1));
+      t = t.substring(cut + 1).trim();
+    }
+    var idx = 0;
+    btn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+    function playNext() {
+      if (idx >= chunks.length) { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; _volTtsAudio = null; return; }
+      _volTtsAudio = new Audio('/api/tts?tl=' + tl + '&q=' + encodeURIComponent(chunks[idx]));
+      _volTtsAudio.onended = function() { idx++; playNext(); };
+      _volTtsAudio.onerror = function() { btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>'; _volTtsAudio = null; };
+      _volTtsAudio.play();
+    }
+    playNext();
+  }
 }
 </script>
 

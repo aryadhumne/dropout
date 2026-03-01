@@ -11,11 +11,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 {% block head %}{% endblock %}
 </head>
-<body style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#fff;">
+<body style="min-height:100vh;display:flex;flex-direction:column;background:#fff;">
 
 {% include 'partials/bg_abstract.html' %}
 
-<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;flex-shrink:0;position:relative;z-index:1;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;flex-shrink:0;position:relative;z-index:1;">
   <a href="{{ url_for('select_role') }}" class="auth-back" aria-label="Back to role selection" style="position:static;">
     <i class="bi bi-arrow-left" aria-hidden="true"></i> Back
   </a>
@@ -46,7 +46,7 @@
     </select>
   </div>
 </div>
-<main class="auth-wrapper" role="main" style="flex:1;display:flex;justify-content:center;align-items:flex-start;padding:40px 0;overflow-y:auto;position:relative;z-index:1;background:transparent;">
+<main class="auth-wrapper" role="main" style="flex:1;display:flex;justify-content:center;align-items:center;padding:24px 16px;overflow-y:auto;position:relative;z-index:1;background:transparent;">
   <div class="auth-card" role="region" aria-label="Authentication form">
 
     <h1 class="auth-title">{% block form_title %}Welcome{% endblock %}</h1>

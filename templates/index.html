@@ -12,18 +12,65 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-14px); }
 }
+/* Mobile nav toggle */
+.nav-toggle { display:none; background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer; padding:4px; }
+.nav-links { display:flex; align-items:center; gap:28px; }
+
+/* Mobile icon row (replacement for floating illustration) */
+.hero-mobile-icons { display:none; }
+
 @media (max-width: 768px) {
-  .hero-split { flex-direction: column !important; padding: 40px 20px 20px !important; gap: 30px !important; min-height: auto !important; }
-  .hero-split h1 { font-size: 2rem !important; }
-  .hero-illustration { height: 320px !important; }
+  .hero-split { flex-direction: column !important; padding: 40px 20px 20px !important; gap: 24px !important; min-height: auto !important; text-align:center; }
+  .hero-split h1 { font-size: 1.8rem !important; line-height: 1.2 !important; }
+  .hero-split p { font-size: 0.95rem !important; margin-left:auto !important; margin-right:auto !important; }
+  .hero-illustration { display: none !important; }
+  .hero-mobile-icons {
+    display: flex !important;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+  }
+  .hero-mobile-icons .hmi {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .hero-mobile-icons .hmi-circle {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+  }
+  .hero-mobile-icons .hmi span {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .nav-toggle { display:block; }
+  .nav-links { display:none; position:absolute; top:100%; left:0; right:0; background:var(--primary); flex-direction:column; padding:16px 20px; gap:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:999; }
+  .nav-links.open { display:flex; }
+  .nav-links .btn { width:100%; text-align:center; }
+  .nav-links .lang-switcher { width:100%; }
+  .nav-links .lang-switcher select { width:100%; }
+}
+@media (max-width: 480px) {
+  .hero-split { padding: 24px 16px 16px !important; gap: 16px !important; }
+  .hero-split h1 { font-size: 1.5rem !important; }
+  .hero-mobile-icons .hmi-circle { width: 48px; height: 48px; font-size: 1.1rem; }
 }
 </style>
 </head>
 <body>
 
-<nav class="landing-nav" role="navigation" aria-label="Main navigation">
+<nav class="landing-nav" role="navigation" aria-label="Main navigation" style="position:relative;">
   <a href="{{ url_for('index') }}" class="logo" style="text-decoration:none;color:inherit;"><i class="bi bi-mortarboard-fill" aria-hidden="true"></i> EduDrop</a>
-  <div style="display:flex;align-items:center;gap:28px;">
+  <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle menu"><i class="bi bi-list"></i></button>
+  <div class="nav-links">
     <a href="#features" style="color:rgba(255,255,255,0.8);font-weight:600;font-size:0.92rem;">Features</a>
     <a href="#about" style="color:rgba(255,255,255,0.8);font-weight:600;font-size:0.92rem;">About</a>
     <a href="#faq" style="color:rgba(255,255,255,0.8);font-weight:600;font-size:0.92rem;">FAQ</a>
@@ -148,6 +195,14 @@
         <i class="bi bi-bar-chart-line" style="font-size:1rem;color:var(--info);"></i>
       </div>
     </div>
+  </div>
+
+  <!-- Simple icon row for mobile (replaces floating illustration) -->
+  <div class="hero-mobile-icons">
+    <div class="hmi"><div class="hmi-circle" style="color:var(--accent);"><i class="bi bi-backpack"></i></div><span>Student</span></div>
+    <div class="hmi"><div class="hmi-circle" style="color:var(--info);"><i class="bi bi-person-workspace"></i></div><span>Teacher</span></div>
+    <div class="hmi"><div class="hmi-circle" style="color:var(--warning);"><i class="bi bi-building"></i></div><span>Principal</span></div>
+    <div class="hmi"><div class="hmi-circle" style="color:var(--success);"><i class="bi bi-heart-pulse"></i></div><span>NGO</span></div>
   </div>
 </div>
 </section>

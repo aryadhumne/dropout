@@ -66,40 +66,40 @@
 
 <!-- Analytics Cards -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value">{{ total_students }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--danger);"><div class="stat-label" style="color:var(--danger);">High Risk</div><div class="stat-value" style="color:var(--danger);">{{ high_risk }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--warning);"><div class="stat-label" style="color:var(--warning);">Medium Risk</div><div class="stat-value" style="color:var(--warning);">{{ medium_risk }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--success);"><div class="stat-label" style="color:var(--success);">Low Risk</div><div class="stat-value" style="color:var(--success);">{{ total_students - high_risk - medium_risk }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">Avg Attendance</div><div class="stat-value">{{ avg_attendance }}%</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--success);"><div class="stat-label">Improved</div><div class="stat-value">{{ improved_students }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--danger);"><div class="stat-label">Declined</div><div class="stat-value">{{ declined_students }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">Total Teachers</div><div class="stat-value">{{ teachers|length }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">Home Visits</div><div class="stat-value">{{ home_visits }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">Parent Meetings</div><div class="stat-value">{{ parent_meetings }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card"><div class="stat-label">High to Medium</div><div class="stat-value">{{ high_to_medium }}</div></div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card" style="border-left-color:var(--accent);"><div class="stat-label">Success Rate</div><div class="stat-value">{{ success_rate }}%</div></div>
   </div>
 </div>
@@ -107,13 +107,13 @@
 <!-- Charts -->
 <div class="row g-4 mb-4">
   <div class="col-md-4">
-    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Risk Distribution</h6><canvas id="riskChart"></canvas></div>
+    <div class="card" style="height:320px;"><h6 style="font-weight:600;margin-bottom:12px;">Risk Distribution</h6><canvas id="riskChart"></canvas></div>
   </div>
   <div class="col-md-4">
-    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Class-wise High Risk</h6><canvas id="classChart"></canvas></div>
+    <div class="card" style="height:320px;"><h6 style="font-weight:600;margin-bottom:12px;">Class-wise High Risk</h6><canvas id="classChart"></canvas></div>
   </div>
   <div class="col-md-4">
-    <div class="card" style="height:350px;"><h6 style="font-weight:600;margin-bottom:12px;">Gender-wise Risk</h6><canvas id="genderChart"></canvas></div>
+    <div class="card" style="height:320px;"><h6 style="font-weight:600;margin-bottom:12px;">Gender-wise Risk</h6><canvas id="genderChart"></canvas></div>
   </div>
 </div>
 

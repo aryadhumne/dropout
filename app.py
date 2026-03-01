@@ -885,7 +885,7 @@ def role_login(role):
         email = request.form.get("email")
         password = request.form.get("password")
 
-        if email and password:
+        if email and (password or role == "teacher"):
             # Principal register/login validation
             if role == "principal":
                 action = request.form.get("action")
@@ -903,7 +903,7 @@ def role_login(role):
                         "role": "principal",
                         "name": request.form.get("principal_name", ""),
                         "school_name": request.form.get("school_name", ""),
-                       
+
                         "district": request.form.get("district", "")
                     }).execute()
 
@@ -919,6 +919,42 @@ def role_login(role):
                     if not check_password_hash(principal_check.data[0]["password"], password):
                         flash("Invalid password.", "danger")
                         return render_template(template_map[role])
+
+            # Teacher login — email-first flow
+            elif role == "teacher":
+                action = request.form.get("action", "login")
+                teacher_check = supabase.table("users").select("*").eq("email", email).eq("role", "teacher").execute()
+                if not teacher_check.data:
+                    flash("Account not found. Please contact your principal to get added.", "danger")
+                    return render_template(template_map[role])
+
+                teacher_user = teacher_check.data[0]
+                if not teacher_user.get("approved"):
+                    flash("Your account is not yet approved. Please contact your principal.", "danger")
+                    return render_template(template_map[role])
+
+                # Step 1: Email check only (no password submitted yet)
+                if action == "check_email":
+                    has_password = bool(teacher_user.get("password"))
+                    return render_template(template_map[role], teacher_email=email, has_password=has_password)
+
+                # Step 2a: Set password for first time
+                if action == "set_password":
+                    new_password = request.form.get("new_password", "")
+                    confirm_password = request.form.get("confirm_password", "")
+                    if len(new_password) < 6:
+                        flash("Password must be at least 6 characters.", "danger")
+                        return render_template(template_map[role], teacher_email=email, has_password=False)
+                    if new_password != confirm_password:
+                        flash("Passwords do not match.", "danger")
+                        return render_template(template_map[role], teacher_email=email, has_password=False)
+                    supabase.table("users").update({"password": generate_password_hash(new_password)}).eq("id", teacher_user["id"]).execute()
+                    # Password just set — skip check, proceed to login below
+                elif action == "login":
+                    # Step 2b: Login with existing password
+                    if not password or not check_password_hash(teacher_user.get("password", ""), password):
+                        flash("Invalid password.", "danger")
+                        return render_template(template_map[role], teacher_email=email, has_password=True)
 
             session["user"] = email
             session["role"] = role
@@ -1242,14 +1278,14 @@ def _get_teacher_context(sess):
             f"Individual Student Details:\n"
         )
         for s in students:
+            name = str(s.get('name', '')).strip()
+            if len(name) < 2 or name.lower() in ('n/a', 'na', 'none', 'null', 'test'):
+                continue
             context += (
-                f"  - {s.get('name', 'N/A')} | Class {s.get('standard', '?')}-{s.get('division', '?')} | "
+                f"  - {name} | Class {s.get('standard', '?')}-{s.get('division', '?')} | "
                 f"Attendance: {s.get('attendance', 'N/A')}% | "
                 f"Test: {s.get('monthly_test_score', 'N/A')} | "
-                f"Assignment: {s.get('assignment', 'N/A')} | "
-                f"Quiz: {s.get('quiz', 'N/A')} | "
-                f"Risk: {s['risk_score']}% ({s.get('risk_status', 'N/A')}) | "
-                f"Reason: {s.get('risk_reason', 'None')}\n"
+                f"Risk: {s['risk_score']}% ({s.get('risk_status', 'N/A')})\n"
             )
         data = {'total': total, 'high': high, 'medium': medium, 'low': low, 'pending_leaves': pending}
     except Exception as e:
@@ -1287,9 +1323,20 @@ def _get_volunteer_context(sess):
             .select("*") \
             .in_("risk", ["High Risk", "Medium Risk"]) \
             .execute()
-        students = students_res.data or []
+        # Filter out deleted students and deduplicate by name
+        seen_names = set()
+        students = []
+        for s in (students_res.data or []):
+            deleted = s.get('is_deleted')
+            if deleted is True or deleted == 'true' or deleted == 'True':
+                continue
+            name = str(s.get('name', '')).strip().lower()
+            if name and name not in seen_names:
+                seen_names.add(name)
+                students.append(s)
+        print(f"CHATBOT VOLUNTEER CONTEXT: Found {len(students)} students: {[s.get('name') for s in students]}")
         interventions_res = supabase.table("ngo_interventions") \
-            .select("*") \
+            .select("*, student_performance(name)") \
             .order("created_at", desc=True) \
             .limit(50) \
             .execute()
@@ -1297,22 +1344,45 @@ def _get_volunteer_context(sess):
         completed = sum(1 for i in interventions if i.get("status") == "Completed")
         ongoing = sum(1 for i in interventions if i.get("status") == "Ongoing")
         planned = sum(1 for i in interventions if i.get("status") == "Planned")
+        rejected = sum(1 for i in interventions if i.get("approval_status") == "Rejected")
+        awaiting = sum(1 for i in interventions if i.get("approval_status") == "Pending")
+        # Build student-to-intervention map
+        student_interventions = {}
+        for i in interventions:
+            sp = i.get("student_performance") or {}
+            sname = str(sp.get("name", "")).strip()
+            if sname and len(sname) >= 2:
+                if sname not in student_interventions:
+                    student_interventions[sname] = []
+                student_interventions[sname].append({
+                    'type': i.get('type', i.get('intervention_type', 'N/A')),
+                    'status': i.get('status', 'N/A'),
+                    'approval': i.get('approval_status', 'N/A')
+                })
         context = (
             f"Volunteer Dashboard:\n"
             f"- At-Risk Students: {len(students)}\n"
             f"- Total Interventions: {len(interventions)}\n"
-            f"- Completed: {completed}\n"
-            f"- Ongoing: {ongoing}\n"
-            f"- Planned: {planned}\n\n"
+            f"- Completed: {completed}, Ongoing: {ongoing}, Planned: {planned}\n"
+            f"- Rejected: {rejected}, Awaiting Approval: {awaiting}\n\n"
             f"At-Risk Student Profiles:\n"
         )
         for s in students[:15]:
-            context += (
-                f"  - {s.get('name', 'N/A')} | Gender: {s.get('gender', 'N/A')} | "
+            name = str(s.get('name', '')).strip()
+            if len(name) < 2 or name.lower() in ('n/a', 'na', 'none', 'null', 'test'):
+                continue
+            line = (
+                f"  - {name} | Gender: {s.get('gender', 'N/A')} | "
                 f"Class: {s.get('standard', '?')} | Risk: {s.get('risk', 'N/A')} | "
-                f"Attendance: {s.get('attendance', 'N/A')} | "
-                f"Test: {s.get('monthly_test_score', 'N/A')}\n"
+                f"Attendance: {s.get('attendance', 'N/A')}% | "
+                f"Test: {s.get('monthly_test_score', 'N/A')}"
             )
+            # Add intervention info if available
+            si = student_interventions.get(name, [])
+            if si:
+                statuses = [f"{x['type']}({x['status']}, {x['approval']})" for x in si]
+                line += f" | Interventions: {', '.join(statuses)}"
+            context += line + "\n"
     except Exception as e:
         print("CHAT CONTEXT ERROR (volunteer):", e)
     return {'context': context}
@@ -1388,6 +1458,22 @@ def _recalc_risk(students):
 def _fallback(role, message, extra_data):
     return "Sorry, I'm temporarily unavailable. Please try again in a few minutes."
 
+# --- Text-to-Speech proxy (Google Translate TTS) ---
+@app.route('/api/tts')
+def api_tts():
+    tl = request.args.get('tl', 'en')
+    q = request.args.get('q', '')
+    if not q:
+        return 'No text', 400
+    try:
+        url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={tl}&client=tw-ob&q={q}"
+        resp = httpx.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10, follow_redirects=True)
+        if resp.status_code == 200:
+            return Response(resp.content, mimetype='audio/mpeg')
+        return 'TTS unavailable', 502
+    except Exception:
+        return 'TTS error', 500
+
 # --- Main chat route (multi-role) ---
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
@@ -1442,6 +1528,8 @@ def api_chat():
     if _time.time() > _gemini_cooldown:
         try:
             prompt = system_prompt + "\n\n"
+            if lang != 'en':
+                prompt += f"IMPORTANT: The user has selected {lang_name} as their language. You MUST respond entirely in {lang_name}. Do not respond in English.\n\n"
             if context:
                 prompt += f"Available data:\n{context}\n\n"
             prompt += f"User's message: {message}"
@@ -2243,13 +2331,30 @@ def add_teacher():
     email = request.form.get("email")
     assigned_class = request.form.get("assigned_class")
 
+    # Check if teacher already exists in users table
+    existing = supabase.table("users").select("id").eq("email", email).eq("role", "teacher").execute()
+    if existing.data:
+        flash("A teacher with this email already exists.", "danger")
+        return redirect(url_for("principal_teachers"))
+
+    # Insert into teachers table
     supabase.table("teachers").insert({
         "name": name,
         "email": email,
         "assigned_class": assigned_class
     }).execute()
 
-    return redirect(url_for("dashboard_principal"))
+    # Insert into users table (empty password — teacher sets it on first login)
+    supabase.table("users").insert({
+        "email": email,
+        "password": "",
+        "role": "teacher",
+        "approved": True,
+        "name": name
+    }).execute()
+
+    flash("Teacher added successfully!", "success")
+    return redirect(url_for("principal_teachers"))
 # ================= REMOVE TEACHER =================
 @app.route('/remove_teacher/<teacher_id>')
 def remove_teacher(teacher_id):
